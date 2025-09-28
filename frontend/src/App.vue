@@ -1,44 +1,30 @@
-<template>
-  <div id="app">
-    <Navigation />
-
-    <main class="main-content">
-      <RouterView />
-    </main>
-  </div>
-</template>
-
 <script setup>
-import Navigation from '@/components/Navigation.vue'
+import { RouterView } from 'vue-router'
+import bgImage from '@/assets/images/bg.jpg'
 </script>
 
+<template>
+  <div class="bg-image" :style="{ backgroundImage: `url(${bgImage})` }"></div>
+      <RouterView />
+</template>
+
+
 <style>
-/* App.vue（或全局样式） */
-:root { --nav-h: 82px; }
-
-html,body,#app {
-  height: 100%;
+body {
   margin: 0;
+  font-family: Arial, sans-serif;
 }
-
-#app {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  padding-top: var(--nav-h);   /* 把导航高度留给内容区域 */
-  box-sizing: border-box;
+.bg-image {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.15;
+  z-index: -1;
+  pointer-events: none;
+  user-select: none;
 }
-
-.main-content {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
-  box-sizing: border-box;
-  /* 可选：保证 content 的可视高度不超出 */
-  height: calc(100vh - var(--nav-h));
-}
-
-
 </style>

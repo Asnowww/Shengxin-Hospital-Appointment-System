@@ -1,37 +1,42 @@
 <template>
+  <Navigation ref="navRef" />
+
   <div class="page-container">
-    <div class="content-wrapper">
+    <form @submit.prevent="handleLogin" class="form-box">
       <h2>{{ roleTitle }}登录</h2>
-      <form @submit.prevent="handleLogin">
-        <div class="form-group">
-          <input 
-            v-model="account" 
-            type="text" 
-            placeholder="手机号 / 学工号 / 教工号" 
-            required 
-          />
-        </div>
-        <div class="form-group">
-          <input 
-            v-model="password" 
-            type="password" 
-            placeholder="密码" 
-            required 
-          />
-        </div>
-        <button type="submit" class="submit-btn">登录</button>
-      </form>
+
+      <div class="form-group">
+        <input 
+          v-model="account" 
+          type="text" 
+          placeholder="手机号 / 学工号 / 教工号" 
+          required 
+        />
+      </div>
+
+      <div class="form-group">
+        <input 
+          v-model="password" 
+          type="password" 
+          placeholder="密码" 
+          required 
+        />
+      </div>
+
+      <button type="submit" class="submit-btn">登录</button>
+
       <p class="switch">
         没有账号？
         <router-link to="/register">去注册</router-link>
       </p>
-    </div>
+    </form>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import Navigation from '@/components/Navigation.vue'
 
 const route = useRoute()
 const account = ref('')
@@ -50,82 +55,60 @@ function handleLogin() {
 
 <style scoped>
 .page-container {
-  min-height: 100vh;
-  padding-top: 82px; /* 导航栏高度 */
   display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #f5f5f5;
+  justify-content: center;   /* 水平居中 */
+  align-items: center;       /* 垂直居中 */
+  min-height: calc(100vh - var(--nav-height, 80px));
+  padding: 20px;
+  box-sizing: border-box;
 }
 
-.content-wrapper {
-  background: white;
-  padding: 40px;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+.form-box {
   width: 100%;
   max-width: 400px;
+  background: #fff;
+  padding: 32px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
 }
 
 h2 {
   text-align: center;
-  color: #333;
-  margin-bottom: 30px;
-  font-size: 24px;
-  font-weight: 600;
-}
-
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .form-group {
-  display: flex;
-  flex-direction: column;
+  margin-bottom: 16px;
 }
 
 input {
-  padding: 12px 16px;
-  border-radius: 6px;
+  width: 100%;
+  padding: 12px;
   border: 1px solid #ddd;
-  font-size: 14px;
-  transition: border-color 0.3s ease;
-}
-
-input:focus {
-  outline: none;
-  border-color: #409eff;
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+  border-radius: 4px;
+  box-sizing: border-box;
 }
 
 .submit-btn {
-  margin-top: 10px;
+  width: 100%;
   padding: 12px;
-  border: none;
-  border-radius: 6px;
   background-color: #409eff;
   color: #fff;
-  font-size: 16px;
-  font-weight: 500;
+  border-radius: 4px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  border: none;
+  font-size: 16px;
+  margin-top: 8px;
+  transition: background-color 0.3s ease;
 }
 
 .submit-btn:hover {
   background-color: #337ecc;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
-}
-
-.submit-btn:active {
-  transform: translateY(0);
 }
 
 .switch {
   text-align: center;
-  margin-top: 20px;
+  margin-top: 16px;
   font-size: 14px;
   color: #666;
 }
@@ -133,7 +116,6 @@ input:focus {
 .switch a {
   color: #409eff;
   text-decoration: none;
-  font-weight: 500;
 }
 
 .switch a:hover {
