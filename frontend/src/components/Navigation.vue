@@ -1,6 +1,6 @@
 <template>
   <div class="navigation">
-    <div class="logo-title" @click="goToFirstPage">
+    <div class="logo-title" @click="goToHomePage">
       医院预约系统
     </div>
 
@@ -33,8 +33,8 @@ const router = useRouter()
 const route = useRoute()
 const showDropdown = ref(false)
 
-function goToFirstPage() {
-  router.push('/first_page')
+function goToHomePage() {
+  router.push('/home')
 }
 
 function isActive(path) {

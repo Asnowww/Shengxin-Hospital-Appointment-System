@@ -87,7 +87,7 @@
 
         <p class="switch">
           已有账号？
-          <router-link to="/login">去登录</router-link>
+          <router-link to="/login/patient">去登录</router-link>
         </p>
       </form>
     </div>
