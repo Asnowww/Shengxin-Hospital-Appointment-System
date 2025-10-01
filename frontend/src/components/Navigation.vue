@@ -5,7 +5,7 @@
     </div>
 
     <div class="items">
-      <router-link to="/appointment" class="nav-item" :class="{ active: isActive('/appointment') }">
+      <router-link to="/overview" class="nav-item" :class="{ active: isActive('/appointment') }">
         预约挂号
       </router-link>
       <router-link to="/profile" class="nav-item" :class="{ active: isActive('/profile') }">
