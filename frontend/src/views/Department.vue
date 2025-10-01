@@ -94,8 +94,11 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import Navigation from '@/components/Navigation.vue'
 // import axios from 'axios'
+
+const router = useRouter()
 
 const navRef = ref(null)
 const navHeight = ref(110)
@@ -109,65 +112,65 @@ const mockDepartments = [
     id: 1,
     name: '内科',
     subDepartments: [
-      { id: 101, name: '心内科', doctorCount: 12, available: true },
-      { id: 102, name: '消化内科', doctorCount: 10, available: true },
-      { id: 103, name: '呼吸内科', doctorCount: 8, available: false },
-      { id: 104, name: '内分泌科', doctorCount: 6, available: true },
-      { id: 105, name: '肾内科', doctorCount: 7, available: true }
+      { id: 101, code: 'CARDIO', name: '心内科', doctorCount: 12, available: true },
+      { id: 102, code: 'GASTRO', name: '消化内科', doctorCount: 10, available: true },
+      { id: 103, code: 'RESPIR', name: '呼吸内科', doctorCount: 8, available: false },
+      { id: 104, code: 'ENDOCR', name: '内分泌科', doctorCount: 6, available: true },
+      { id: 105, code: 'NEPHRO', name: '肾内科', doctorCount: 7, available: true }
     ]
   },
   {
     id: 2,
     name: '外科',
     subDepartments: [
-      { id: 201, name: '普通外科', doctorCount: 15, available: true },
-      { id: 202, name: '骨科', doctorCount: 18, available: true },
-      { id: 203, name: '神经外科', doctorCount: 9, available: true },
-      { id: 204, name: '泌尿外科', doctorCount: 8, available: false }
+      { id: 201, code: 'GENSU', name: '普通外科', doctorCount: 15, available: true },
+      { id: 202, code: 'ORTHO', name: '骨科', doctorCount: 18, available: true },
+      { id: 203, code: 'NEURO', name: '神经外科', doctorCount: 9, available: true },
+      { id: 204, code: 'UROLO', name: '泌尿外科', doctorCount: 8, available: false }
     ]
   },
   {
     id: 3,
     name: '妇产科',
     subDepartments: [
-      { id: 301, name: '妇科', doctorCount: 14, available: true },
-      { id: 302, name: '产科', doctorCount: 12, available: true },
-      { id: 303, name: '计划生育科', doctorCount: 5, available: true }
+      { id: 301, code: 'GYNEC', name: '妇科', doctorCount: 14, available: true },
+      { id: 302, code: 'OBSTE', name: '产科', doctorCount: 12, available: true },
+      { id: 303, code: 'FAMPL', name: '计划生育科', doctorCount: 5, available: true }
     ]
   },
   {
     id: 4,
     name: '儿科',
     subDepartments: [
-      { id: 401, name: '小儿内科', doctorCount: 16, available: true },
-      { id: 402, name: '小儿外科', doctorCount: 8, available: true },
-      { id: 403, name: '新生儿科', doctorCount: 10, available: false }
+      { id: 401, code: 'PEDIM', name: '小儿内科', doctorCount: 16, available: true },
+      { id: 402, code: 'PEDSU', name: '小儿外科', doctorCount: 8, available: true },
+      { id: 403, code: 'NEONA', name: '新生儿科', doctorCount: 10, available: false }
     ]
   },
   {
     id: 5,
     name: '五官科',
     subDepartments: [
-      { id: 501, name: '眼科', doctorCount: 11, available: true },
-      { id: 502, name: '耳鼻喉科', doctorCount: 9, available: true },
-      { id: 503, name: '口腔科', doctorCount: 13, available: true }
+      { id: 501, code: 'OPHTH', name: '眼科', doctorCount: 11, available: true },
+      { id: 502, code: 'OTOLA', name: '耳鼻喉科', doctorCount: 9, available: true },
+      { id: 503, code: 'DENTA', name: '口腔科', doctorCount: 13, available: true }
     ]
   },
   {
     id: 6,
     name: '皮肤科',
     subDepartments: [
-      { id: 601, name: '皮肤科', doctorCount: 7, available: true },
-      { id: 602, name: '医学美容科', doctorCount: 5, available: true }
+      { id: 601, code: 'DERMA', name: '皮肤科', doctorCount: 7, available: true },
+      { id: 602, code: 'COSME', name: '医学美容科', doctorCount: 5, available: true }
     ]
   },
   {
     id: 7,
     name: '中医科',
     subDepartments: [
-      { id: 701, name: '中医内科', doctorCount: 8, available: true },
-      { id: 702, name: '针灸推拿科', doctorCount: 6, available: true },
-      { id: 703, name: '中医妇科', doctorCount: 4, available: false }
+      { id: 701, code: 'TCMIN', name: '中医内科', doctorCount: 8, available: true },
+      { id: 702, code: 'ACUPU', name: '针灸推拿科', doctorCount: 6, available: true },
+      { id: 703, code: 'TCMGY', name: '中医妇科', doctorCount: 4, available: false }
     ]
   }
 ]
@@ -227,9 +230,14 @@ function clearSearch() {
 // 点击科室
 function handleDepartmentClick(subDept) {
   console.log('选择科室:', subDept)
-  // 跳转到科室详情页或医生列表页
-  // this.$router.push(`/department/${subDept.id}`)
-  alert(`即将进入 ${subDept.name} 预约页面...`)
+  // 跳转到医生列表页，使用 depCode 作为参数
+  router.push({
+    path: '/departmentDetail',
+    query: { 
+      depCode: subDept.code,
+      depName: subDept.name 
+    }
+  })
 }
 
 // 导航栏高度管理
