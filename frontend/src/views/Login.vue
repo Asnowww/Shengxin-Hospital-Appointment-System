@@ -29,6 +29,9 @@
         没有账号？
         <router-link to="/register">去注册</router-link>
       </p>
+        <p class="switch">
+        <router-link to="/password">忘记密码</router-link>
+      </p>
     </form>
   </div>
 </template>
