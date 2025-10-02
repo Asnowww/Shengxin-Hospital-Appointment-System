@@ -25,11 +25,15 @@
 
       <button type="submit" class="submit-btn">登录</button>
 
-      <p class="switch">
+      <!-- 注册链接：医生和管理员不显示 -->
+      <p v-if="currentRole !== 'doctor' && currentRole !== 'admin'" class="switch">
         没有账号？
         <router-link to="/register">去注册</router-link>
       </p>
-        <p class="switch">
+
+
+      <!-- 忘记密码：管理员不显示 -->
+      <p v-if="currentRole !== 'admin'" class="switch">
         <router-link to="/password">忘记密码</router-link>
       </p>
     </form>
@@ -45,13 +49,16 @@ const route = useRoute()
 const account = ref('')
 const password = ref('')
 
+// 当前角色
+const currentRole = computed(() => route.params.role)
+
 const roleTitle = computed(() => {
   const roleMap = { patient: '患者', doctor: '医生', admin: '管理员' }
-  return roleMap[route.params.role] || '用户'
+  return roleMap[currentRole.value] || '用户'
 })
 
 function handleLogin() {
-  console.log('登录身份:', route.params.role, '账号:', account.value, '密码:', password.value)
+  console.log('登录身份:', currentRole.value, '账号:', account.value, '密码:', password.value)
   alert(`${roleTitle.value}登录成功！`)
 }
 </script>

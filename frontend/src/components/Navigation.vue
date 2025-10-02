@@ -13,14 +13,16 @@
       </router-link>
 
       <!-- 登录/注册下拉菜单 -->
-      <div class="dropdown" @mouseenter="showDropdown = true" @mouseleave="showDropdown = false">
-        <button class="button login-button">登录 / 注册</button>
-        <div v-if="showDropdown" class="dropdown-menu">
-          <div class="dropdown-item" @click="goToRole('patient')">我是患者</div>
-          <div class="dropdown-item" @click="goToRole('doctor')">我是医生</div>
-          <div class="dropdown-item" @click="goToRole('admin')">我是管理员</div>
-        </div>
-      </div>
+    <!-- 登录/注册下拉菜单 -->
+<div class="dropdown">
+  <button class="button login-button">登录 / 注册</button>
+  <div class="dropdown-menu">
+    <div class="dropdown-item" @click="goToRole('patient')">我是患者</div>
+    <div class="dropdown-item" @click="goToRole('doctor')">我是医生</div>
+    <div class="dropdown-item" @click="goToRole('admin')">我是管理员</div>
+  </div>
+</div>
+
     </div>
   </div>
 </template>
@@ -112,7 +114,12 @@ function goToRole(role) {
   position: relative;
 }
 
+/* 下拉菜单：默认隐藏 */
 .dropdown-menu {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px); /* 初始下移一点 */
+  transition: all 0.25s ease; /* 动画过渡 */
   position: absolute;
   top: 100%;
   right: 0;
@@ -122,6 +129,14 @@ function goToRole(role) {
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   margin-top: 4px;
   min-width: 140px;
+  z-index: 1000;
+}
+
+/* 悬停 dropdown 时，菜单显示并淡入 */
+.dropdown:hover .dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0); /* 回到正常位置 */
 }
 
 .dropdown-item {
@@ -134,4 +149,5 @@ function goToRole(role) {
 .dropdown-item:hover {
   background-color: #f5f5f5;
 }
+
 </style>
