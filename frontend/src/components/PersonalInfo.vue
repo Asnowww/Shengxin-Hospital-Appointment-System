@@ -21,6 +21,7 @@
           <label class="form-label">
             身份 <span class="required">*</span>
           </label>
+          
           <select 
             v-model="profile.role" 
             :disabled="!isEditing"
@@ -31,6 +32,16 @@
           </select>
           <span v-if="errors.role" class="error-text">{{ errors.role }}</span>
         </div>
+
+        <div class="form-group">
+  <label class="form-label">身份认证状态</label>
+  <input 
+    v-model="profile.verifyStatus" 
+    type="text" 
+    disabled
+    class="form-control"
+    placeholder="未认证" />
+</div>
 
         <div class="form-group">
           <label class="form-label">
@@ -153,6 +164,7 @@ const originalProfile = ref({})
 
 const profile = reactive({
   role: '',
+  verifyStatus: '',
   birth: '',
   gender: '',
   address: '',

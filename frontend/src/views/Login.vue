@@ -59,6 +59,7 @@ const roleTitle = computed(() => {
 
 function handleLogin() {
   console.log('登录身份:', currentRole.value, '账号:', account.value, '密码:', password.value)
+  // 此处将登录信息通过接口发送给后端（是否要分角色、分登录方式？）
   alert(`${roleTitle.value}登录成功！`)
 }
 </script>

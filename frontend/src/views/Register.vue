@@ -138,6 +138,7 @@ onUnmounted(() => {
 
 function handleRegister() {
   if (form.password !== form.confirmPassword) return alert('两次密码不一致')
+  // 此处将注册信息通过接口发送给后端
   console.log('注册信息', form)
   alert('注册成功！')
 }
