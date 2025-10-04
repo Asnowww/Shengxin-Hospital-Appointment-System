@@ -49,7 +49,7 @@ const route = useRoute()
 const account = ref('')
 const password = ref('')
 
-// 当前角色
+// 当前角色（从路由中获取）
 const currentRole = computed(() => route.params.role)
 
 const roleTitle = computed(() => {

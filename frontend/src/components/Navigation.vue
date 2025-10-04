@@ -5,46 +5,98 @@
     </div>
 
     <div class="items">
-      <router-link to="/department" class="nav-item" :class="{ active: isActive('/appointment') }">
+      <router-link to="/department" class="nav-item" :class="{ active: isActive('/department') }">
         预约挂号
       </router-link>
-      <router-link to="/profile" class="nav-item" :class="{ active: isActive('/profile') }">
-        个人中心
+
+      <!-- 医生端：仅医生登录后显示 -->
+      <router-link 
+        v-if="isLoggedIn && currentRole === 'doctor'"
+        to="/assignment" 
+        class="nav-item" 
+        :class="{ active: isActive('/assignment') }">
+        排班管理
       </router-link>
 
-      <!-- 登录/注册下拉菜单 -->
-    <!-- 登录/注册下拉菜单 -->
-<div class="dropdown">
-  <button class="button login-button">登录 / 注册</button>
-  <div class="dropdown-menu">
-    <div class="dropdown-item" @click="goToRole('patient')">我是患者</div>
-    <div class="dropdown-item" @click="goToRole('doctor')">我是医生</div>
-    <div class="dropdown-item" @click="goToRole('admin')">我是管理员</div>
-  </div>
-</div>
+      <!-- 登录状态判断：已登录显示"个人中心"，未登录显示"登录/注册" -->
+      <template v-if="isLoggedIn">
+        <router-link 
+          :to="roleRoutes[currentRole]" 
+          class="nav-item" 
+          :class="{ active: isActive(roleRoutes[currentRole]) }"
+        >
+          个人中心
+        </router-link>
+        <button class="button logout-button" @click="handleLogout">
+          退出登录
+        </button>
+      </template>
 
+      <template v-else>
+        <!-- 登录/注册下拉菜单 -->
+        <div class="dropdown">
+          <button class="button login-button">登录 / 注册</button>
+          <div class="dropdown-menu">
+            <div class="dropdown-item" @click="goToRole('patient')">我是患者</div>
+            <div class="dropdown-item" @click="goToRole('doctor')">我是医生</div>
+            <div class="dropdown-item" @click="goToRole('admin')">我是管理员</div>
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
 const route = useRoute()
-const showDropdown = ref(false)
 
 function goToHomePage() {
   router.push('/home')
 }
 
-function isActive(path) {
-  return route.path === path
-}
-
 function goToRole(role) {
   router.push(`/login/${role}`)
+}
+
+// 从 localStorage 获取用户角色和 token
+const currentRole = ref(localStorage.getItem('role'))
+const token = ref(localStorage.getItem('token'))
+
+// 判断是否已登录
+const isLoggedIn = computed(() => !!token.value && !!currentRole.value)
+
+// 定义角色对应的个人中心路由表
+const roleRoutes = {
+  patient: '/profile',
+  doctor: '/docProfile',
+  admin: '/adminProfile'
+}
+
+// 退出登录
+function handleLogout() {
+  if (confirm('确定要退出登录吗？')) {
+    // 清除本地存储
+    localStorage.removeItem('token')
+    localStorage.removeItem('role')
+    
+    // 更新响应式数据
+    token.value = null
+    currentRole.value = null
+    
+    // 跳转到首页
+    router.push('/home')
+    
+    alert('已退出登录')
+  }
+}
+
+// 判断是否激活
+function isActive(path) {
+  return route.path === path
 }
 </script>
 
@@ -84,6 +136,7 @@ function goToRole(role) {
   border-radius: 4px;
   color: #000;
   white-space: nowrap;
+  transition: background-color 0.3s ease;
 }
 
 .nav-item.active {
@@ -109,6 +162,14 @@ function goToRole(role) {
   background-color: #0056b3;
 }
 
+.logout-button {
+  background-color: #dc3545;
+}
+
+.logout-button:hover {
+  background-color: #c82333;
+}
+
 /* 下拉菜单 */
 .dropdown {
   position: relative;
@@ -118,8 +179,8 @@ function goToRole(role) {
 .dropdown-menu {
   opacity: 0;
   visibility: hidden;
-  transform: translateY(8px); /* 初始下移一点 */
-  transition: all 0.25s ease; /* 动画过渡 */
+  transform: translateY(8px);
+  transition: all 0.25s ease;
   position: absolute;
   top: 100%;
   right: 0;
@@ -136,7 +197,7 @@ function goToRole(role) {
 .dropdown:hover .dropdown-menu {
   opacity: 1;
   visibility: visible;
-  transform: translateY(0); /* 回到正常位置 */
+  transform: translateY(0);
 }
 
 .dropdown-item {
@@ -150,4 +211,30 @@ function goToRole(role) {
   background-color: #f5f5f5;
 }
 
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .navigation {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px;
+    min-height: auto;
+  }
+
+  .items {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .nav-item,
+  .button {
+    font-size: 14px;
+    padding: 6px 12px;
+  }
+
+  .logo-title {
+    font-size: 20px;
+  }
+}
 </style>
