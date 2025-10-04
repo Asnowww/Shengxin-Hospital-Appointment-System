@@ -7,6 +7,7 @@ import Department from '@/views/Department.vue'
 import DepartmentDetail from '@/views/DepartmentDetail.vue'
 import Password from '@/views/Password.vue'
 import DoctorProfile from '@/views/DoctorProfile.vue'
+import MySchedule from '@/views/MySchedule.vue'
 
 
 const routes = [
@@ -21,6 +22,7 @@ const routes = [
 
   //医生端界面
   { path: '/docProfile', name: 'docProfile', component: DoctorProfile }, //医生个人信息页
+  { path: '/mySchedule', name: 'mySchedule', component: MySchedule }, //医生排班页
 
   { path: '/:pathMatch(.*)*', redirect: '/home' } // 其他未定义路由定向到首页
 ]
