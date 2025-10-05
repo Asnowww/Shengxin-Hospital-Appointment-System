@@ -14,8 +14,8 @@ const routes = [
   { path: '/', redirect: '/home' },   // 默认定向到首页
   { path: '/home', name: 'home', component: HomePage }, // 首页
   { path: '/login/:role', name: 'login', component: Login },        // 具体登录页
-  { path: '/register', name: 'register', component: Register },
-  { path: '/profile', name: 'profile', component: Profile },   // 注册页
+  { path: '/register', name: 'register', component: Register }, // 注册页
+  { path: '/profile', name: 'profile', component: Profile },
   { path: '/department', name: 'department', component: Department }, //科室导览页
   { path: '/departmentDetail', name: 'departmentDetail', component: DepartmentDetail }, //科室详情页（接受参数）
   { path: '/password', name: 'password', component: Password }, // 修改密码页

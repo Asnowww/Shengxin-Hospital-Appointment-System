@@ -52,62 +52,16 @@
       </div>
 
       <!-- 医生卡片列表 -->
-      <div v-else class="doctors-list">
-        <div 
-          v-for="doctor in filteredDoctors" 
-          :key="doctor.id"
-          class="doctor-card">
-          
-          <div class="doctor-avatar">
-            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-          </div>
+        <div v-else class="doctors-list">
+        <DoctorCard
+      v-for="doctor in filteredDoctors"
+      :key="doctor.id"
+      :doctor="doctor"
+      :getCategoryLabel="getCategoryLabel"
+      :onAppointment="handleAppointment"
+    />
+         </div>
 
-          <div class="doctor-info">
-            <div class="doctor-header">
-              <div class="name-title">
-                <h3>{{ doctor.name }}</h3>
-                <span :class="['title-badge', doctor.category]">
-                  {{ doctor.title }}
-                </span>
-              </div>
-              <span :class="['category-badge', doctor.category]">
-                {{ getCategoryLabel(doctor.category) }}
-              </span>
-            </div>
-
-            <p class="description">{{ doctor.description }}</p>
-
-            <div class="doctor-footer">
-              <div class="stats">
-                <!-- <div class="stat-item">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <line x1="19" y1="8" x2="19" y2="14"></line>
-                    <line x1="22" y1="11" x2="16" y2="11"></line>
-                  </svg>
-                  <span>已服务 {{ doctor.patientCount }}+ 人</span>
-                </div> -->
-                <!-- <div v-if="doctor.goodRate" class="stat-item">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                  </svg>
-                  <span>好评率 {{ doctor.goodRate }}%</span>
-                </div> -->
-              </div>
-
-              <button 
-                @click="handleAppointment(doctor)"
-                class="appointment-btn">
-                预约挂号
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -116,6 +70,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Navigation from '@/components/Navigation.vue'
+import DoctorCard from '@/components/DoctorCard.vue'
 // import axios from 'axios'
 
 const route = useRoute()
@@ -142,81 +97,99 @@ const mockDoctors = [
     name: '张明',
     title: '主任医师',
     category: 'expert',
-    description: '从事心血管内科临床工作30余年，擅长冠心病、高血压、心力衰竭的诊治，对心律失常有深入研究',
-    patientCount: 5000,
-    goodRate: 98
+    description: '从事心血管内科临床工作30余年',
+    specialization: '冠心病、高血压、心力衰竭、心律失常',
+    fee: 50,
+    todayAvailable: 3,
+    tomorrowAvailable: 8
   },
   {
     id: 2,
     name: '李华',
     title: '副主任医师',
     category: 'expert',
-    description: '专注于心血管疾病的介入治疗，擅长冠脉支架植入、起搏器植入等手术',
-    patientCount: 3200,
-    goodRate: 96
+    description: '专注于心血管疾病的介入治疗',
+    specialization: '冠脉支架植入、起搏器植入',
+    fee: 40,
+    todayAvailable: 0,
+    tomorrowAvailable: 5
   },
   {
     id: 3,
     name: '王芳',
     title: '主任医师',
     category: 'special',
-    description: '心血管病学博士，博士生导师，擅长复杂冠心病、心肌病、心衰的诊治，在国际期刊发表论文50余篇',
-    patientCount: 8000,
-    goodRate: 99
+    description: '心血管病学博士，博士生导师',
+    specialization: '复杂冠心病、心肌病、心衰',
+    fee: 100,
+    todayAvailable: 2,
+    tomorrowAvailable: 3
   },
   {
     id: 4,
     name: '刘强',
     title: '主治医师',
     category: 'normal',
-    description: '擅长高血压、冠心病、心律失常等常见心血管疾病的诊断和治疗',
-    patientCount: 2000,
-    goodRate: 95
+    description: '擅长常见心血管疾病的诊断和治疗',
+    specialization: '高血压、冠心病、心律失常',
+    fee: 30,
+    todayAvailable: 12,
+    tomorrowAvailable: 15
   },
   {
     id: 5,
     name: '陈静',
     title: '主治医师',
     category: 'normal',
-    description: '熟练掌握心血管常见病、多发病的诊疗，对高血压、冠心病有丰富的临床经验',
-    patientCount: 1800,
-    goodRate: 94
+    description: '熟练掌握心血管常见病、多发病的诊疗',
+    specialization: '高血压、冠心病',
+    fee: 30,
+    todayAvailable: 8,
+    tomorrowAvailable: 10
   },
   {
     id: 6,
     name: '赵敏',
     title: '副主任医师',
     category: 'expert',
-    description: '擅长心血管疾病的超声诊断，对心脏结构和功能评估有深入研究',
-    patientCount: 4000,
-    goodRate: 97
+    description: '擅长心血管疾病的超声诊断',
+    specialization: '心脏结构和功能评估',
+    fee: 40,
+    todayAvailable: 5,
+    tomorrowAvailable: 7
   },
   {
     id: 7,
     name: '孙伟',
     title: '主任医师',
     category: 'special',
-    description: '国内知名心血管专家，擅长疑难复杂心血管疾病的诊治，多次参与国家级科研项目',
-    patientCount: 10000,
-    goodRate: 99
+    description: '国内知名心血管专家',
+    specialization: '疑难复杂心血管疾病',
+    fee: 150,
+    todayAvailable: 0,
+    tomorrowAvailable: 2
   },
   {
     id: 8,
     name: '周杰',
     title: '主治医师',
     category: 'normal',
-    description: '对心血管常见疾病有扎实的理论基础和丰富的临床经验',
-    patientCount: 1500,
-    goodRate: 93
+    description: '对心血管常见疾病有扎实的理论基础',
+    specialization: '心血管常见疾病',
+    fee: 30,
+    todayAvailable: 10,
+    tomorrowAvailable: 12
   },
   {
     id: 9,
     name: '吴琳',
     title: '副主任医师',
     category: 'expert',
-    description: '擅长心血管急危重症的救治，对急性心肌梗死、急性心力衰竭等有丰富经验',
-    patientCount: 3500,
-    goodRate: 96
+    description: '擅长心血管急危重症的救治',
+    specialization: '急性心肌梗死、急性心力衰竭',
+    fee: 45,
+    todayAvailable: 4,
+    tomorrowAvailable: 6
   }
 ]
 
@@ -320,6 +293,7 @@ onUnmounted(() => {
 <style scoped>
 .page-container {
   min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .appointment-wrapper {
@@ -469,6 +443,13 @@ onUnmounted(() => {
   margin-bottom: 1rem;
 }
 
+.doctors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -477,157 +458,6 @@ onUnmounted(() => {
   color: #cbd5e0;
   margin-bottom: 1rem;
 }
-
-/* 医生列表 */
-.doctors-list {
-  display: grid;
-  gap: 1.25rem;
-}
-
-.doctor-card {
-  background: white;
-  border-radius: 16px;
-  padding: 1.5rem;
-  display: flex;
-  gap: 1.25rem;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
-}
-
-.doctor-card:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  border-color: #e2e8f0;
-  transform: translateY(-2px);
-}
-
-.doctor-avatar {
-  width: 80px;
-  height: 80px;
-  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.doctor-avatar svg {
-  color: #667eea;
-}
-
-.doctor-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.doctor-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.75rem;
-  gap: 1rem;
-}
-
-.name-title {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.name-title h3 {
-  margin: 0;
-  color: #2d3748;
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.title-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  background: #edf2f7;
-  color: #4a5568;
-}
-
-.category-badge {
-  padding: 0.375rem 0.875rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.category-badge.normal {
-  background: #e6f7ff;
-  color: #1890ff;
-}
-
-.category-badge.expert {
-  background: #fff7e6;
-  color: #fa8c16;
-}
-
-.category-badge.special {
-  background: #fff1f0;
-  color: #f5222d;
-}
-
-.description {
-  color: #718096;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  margin: 0 0 1rem 0;
-  flex: 1;
-}
-
-.doctor-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e2e8f0;
-}
-
-.stats {
-  display: flex;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  color: #718096;
-  font-size: 0.85rem;
-}
-
-.stat-item svg {
-  color: #667eea;
-}
-
-.appointment-btn {
-  padding: 0.625rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.appointment-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-}
-
 /* 响应式 */
 @media (max-width: 768px) {
   .appointment-wrapper {
