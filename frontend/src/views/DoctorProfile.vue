@@ -264,7 +264,8 @@ const profile = reactive({
   description: '',
   workingDays: [],
   workStartTime: '',
-  workEndTime: ''
+  workEndTime: '',
+  status: '' // 记录信息审核状态
 })
 
 const errors = reactive({
@@ -342,7 +343,8 @@ async function fetchProfile() {
       description: '医学博士，博士生导师，曾在美国哈佛医学院进修学习，发表SCI论文20余篇',
       workingDays: [1, 2, 3, 4, 5],
       workStartTime: '08:00',
-      workEndTime: '17:00'
+      workEndTime: '17:00',
+      status: 'ACTIVE'
     }
     
     Object.assign(profile, mockData)
