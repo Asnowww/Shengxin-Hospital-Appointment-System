@@ -42,7 +42,7 @@ const message = ref('')
 
 // 模拟“创建医生账号”接口
 const createAccount = async () => {
-  if (!doctor.value.name || !doctor.value.jobNumber || !doctor.value.department) {
+  if (!doctor.value.name || !doctor.value.jobNumber) {
     message.value = '请完整填写医生信息'
     return
   }
