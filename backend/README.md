@@ -1,6 +1,6 @@
 1.安装并运行Redis
 2.执行MySQL数据库建表脚本src/main/resources/db/hospital.sql
-3.在终端输入dev run或直接运行BackendApplication.java
+3.在终端输入run dev或直接运行BackendApplication.java
 
 接口：
 (1) /auth/register(POST)：
