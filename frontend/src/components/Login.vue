@@ -67,7 +67,7 @@ async function handleLogin() {
 
   try {
     // 统一调用后端接口
-    const response = await axios.post('/auth/login', {
+    const response = await axios.post('/api/auth/login', {
       account: account.value,
       password: password.value,
       // role: currentRole.value   // 🔹附带角色信息
@@ -95,11 +95,11 @@ async function handleLogin() {
           router.push('/home')
       }
     } else {
-      alert(res.message || '登录失败')
+      alert(res.msg || res.message || '登录失败')
     }
   } catch (err) {
     console.error(err)
-    alert('服务器错误，请稍后再试')
+    alert(err?.response?.data?.msg || '服务器错误，请稍后再试')
   }
 }
 </script>

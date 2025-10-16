@@ -1,12 +1,22 @@
+-- 先删最下游的表（无其他表依赖它）
+DROP TABLE IF EXISTS appointments;
+DROP TABLE IF EXISTS schedules;
+DROP TABLE IF EXISTS appointment_types;
+DROP TABLE IF EXISTS doctors;
+DROP TABLE IF EXISTS consultation_rooms;
+DROP TABLE IF EXISTS patients;  -- 先删依赖 users 的 patients 表
+DROP TABLE IF EXISTS departments;
+-- 最后删被依赖的父表（users 表）
+DROP TABLE IF EXISTS users;
+
 -- 用户信息表
 DROP TABLE IF EXISTS users;
 CREATE TABLE users (
                        user_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID',
-                       username VARCHAR(50)  UNIQUE COMMENT '用户真实姓名',
+                       username VARCHAR(50) UNIQUE COMMENT '用户真实姓名',
                        password VARCHAR(100) NOT NULL COMMENT '加密后的密码',
                        gender CHAR(1) DEFAULT NULL COMMENT '性别：M=男，F=女',
                        phone CHAR(11) NOT NULL UNIQUE COMMENT '手机号',
-                       id_card CHAR(18) NOT NULL UNIQUE COMMENT '身份证号',
                        email VARCHAR(100) UNIQUE COMMENT '电子邮箱',
                        role_type ENUM('admin','doctor','patient') NOT NULL,
                        status TINYINT NOT NULL DEFAULT 1 COMMENT '0=active,1=pending,2=disabled',
@@ -57,7 +67,7 @@ DROP TABLE IF EXISTS patients;
 CREATE TABLE patients (
                           patient_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '患者ID，主键',
                           user_id BIGINT NOT NULL COMMENT '关联用户ID，外键关联users(user_id)',
-    patient_account varchar(20) not null comment '患者的学号/教工号',
+                          patient_account varchar(20) not null comment '患者的学号/教工号',
                           identity_type ENUM('student','teacher','staff') NOT NULL COMMENT '身份类型',
                           birth_date DATE COMMENT '出生日期',
                           address VARCHAR(255) COMMENT '家庭地址',
