@@ -1,6 +1,7 @@
 package org.example.backend.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import org.example.backend.dto.PatientRegisterParam;
 import org.example.backend.pojo.User;
 
 /**
@@ -14,6 +15,7 @@ public interface UserService extends IService<User> {
      * @return 是否注册成功
      */
     boolean register(User user);
+    boolean registerPatient(PatientRegisterParam param);
 
     /**
      * 根据用户名查询用户

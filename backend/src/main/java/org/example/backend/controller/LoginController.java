@@ -2,8 +2,10 @@ package org.example.backend.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
+import org.example.backend.dto.PatientRegisterParam;
 import org.example.backend.dto.Result;
 import org.example.backend.dto.UserParam;
+import org.example.backend.pojo.Patient;
 import org.example.backend.pojo.User;
 import org.example.backend.service.CaptchaService;
 import org.example.backend.service.UserService;
@@ -109,62 +111,34 @@ public class LoginController {
     /**
      * 用户注册接口
      */
-    @PostMapping("/register")
+    @PostMapping("/register/patient")
     @ResponseBody
-    public Result<Void> registerUser(@RequestBody UserParam userParam) {
-        String email = userParam.getEmail();
-        String emailCode = userParam.getEmailCode();
+    public Result<Void> registerPatient(@RequestBody PatientRegisterParam param) {
+        String email = param.getEmail();
+        String emailCode = param.getEmailCode();
 
-        // 1. 验证码校验
+        // 验证码校验
         BoundHashOperations<String, String, String> hashOps =
                 stringRedisTemplate.boundHashOps("login:email:captcha:" + email);
         String code = hashOps.get("captcha");
 
-        if (code == null) {
-            return new Result<>(400, "验证码已过期或不存在", null);
-        }
-        if (!Objects.equals(code, emailCode)) {
-            return new Result<>(400, "验证码错误", null);
-        }
+        if (code == null) return new Result<>(400, "验证码已过期或不存在", null);
+        if (!Objects.equals(code, emailCode)) return new Result<>(400, "验证码错误", null);
 
-        // 用户名、邮箱、手机号唯一性检查
-        if (userService.findByEmail(email) != null) {
-            return new Result<>(409, "该邮箱已被注册，请直接登录", null);
-        }
-        if (userService.findByUsername(userParam.getUsername()) != null) {
-            return new Result<>(409, "用户名已存在，请更换", null);
-        }
-        if (userService.findByPhone(userParam.getPhone()) != null) {
-            return new Result<>(409, "该手机号已注册", null);
-        }
+        try {
+            // 调用 Service 处理注册（包括 User + Patient 保存）
+            userService.registerPatient(param);
 
-        // 校验身份证号格式是否合法
-        if (userParam.getIdCard() == null || !IdCardValidator.isValidIdCard(userParam.getIdCard())) {
-            return new Result<>(400, "身份证号格式不正确", null);
-        }
+            // 清除验证码
+            stringRedisTemplate.delete("login:email:captcha:" + email);
 
-        // 构建用户对象
-        User user = new User();
-        BeanUtils.copyProperties(userParam, user);
-
-        if (userParam.getName() == null || userParam.getName().trim().isEmpty()) {
-            return new Result<>(400, "姓名不能为空", null);
-        }
-
-        // 密码加密
-        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-        user.setPassword(encoder.encode(userParam.getPassword()));
-
-        // 保存用户
-        boolean success = userService.register(user);
-        if (!success) {
+            return new Result<>(200, "注册成功", null);
+        } catch (RuntimeException e) {
+            return new Result<>(400, e.getMessage(), null);
+        } catch (Exception e) {
             return new Result<>(500, "注册失败，请稍后重试", null);
         }
-
-        // 清除验证码
-        stringRedisTemplate.delete("login:email:captcha:" + email);
-
-        return new Result<>(200, "注册成功", null);
     }
+
 
 }

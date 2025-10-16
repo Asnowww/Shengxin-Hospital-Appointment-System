@@ -16,12 +16,13 @@ export default defineConfig({
     },
   },
   server: {
+    secure: false,
     port: 5173, // 默认是 5173，可以改
     proxy: {
       '/api': {
         target: 'http://localhost:8080', // Spring Boot 后端地址
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''), 
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },

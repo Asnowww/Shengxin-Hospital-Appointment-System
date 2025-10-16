@@ -42,25 +42,65 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import axios from 'axios'
 import Navigation from '@/components/Navigation.vue'
 
 const route = useRoute()
+const router = useRouter()
+
 const account = ref('')
 const password = ref('')
 
-// 当前角色（从路由中获取）
 const currentRole = computed(() => route.params.role)
-
 const roleTitle = computed(() => {
   const roleMap = { patient: '患者', doctor: '医生', admin: '管理员' }
   return roleMap[currentRole.value] || '用户'
 })
 
-function handleLogin() {
-  console.log('登录身份:', currentRole.value, '账号:', account.value, '密码:', password.value)
-  // 此处将登录信息通过接口发送给后端（是否要分角色、分登录方式？）
-  alert(`${roleTitle.value}登录成功！`)
+// 登录方法
+async function handleLogin() {
+  if (!account.value || !password.value) {
+    alert('请输入账号和密码')
+    return
+  }
+
+  try {
+    // 统一调用后端接口
+    const response = await axios.post('/auth/login', {
+      account: account.value,
+      password: password.value,
+      // role: currentRole.value   // 🔹附带角色信息
+    })
+
+    const res = response.data
+
+    if (res.code === 200) {
+      // 登录成功：保存 token 和用户信息
+      const token = res.data.token
+      localStorage.setItem('token', token)
+      localStorage.setItem('role', currentRole.value)
+      localStorage.setItem('account', res.data.account)
+
+      alert(`${roleTitle.value}登录成功！`)
+      // 根据角色跳转不同页面
+      switch (currentRole.value) {
+        case 'admin':
+          router.push('/admin/dashboard')
+          break
+        case 'doctor':
+          router.push('/doctorProfile')
+          break
+        default:
+          router.push('/home')
+      }
+    } else {
+      alert(res.message || '登录失败')
+    }
+  } catch (err) {
+    console.error(err)
+    alert('服务器错误，请稍后再试')
+  }
 }
 </script>
 

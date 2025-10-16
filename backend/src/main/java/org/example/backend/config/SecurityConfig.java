@@ -9,21 +9,26 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 @Configuration
 public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)  // 禁用 CSRF
+                .cors(withDefaults()) // 启用 CORS
+                .csrf(AbstractHttpConfigurer::disable) // ⚠️ 禁用 CSRF
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll()        // 目前所有请求都放行
+                        .anyRequest().permitAll()
                 )
-                .formLogin(AbstractHttpConfigurer::disable)     // 禁用默认登录页面
-                .httpBasic(AbstractHttpConfigurer::disable);    // 禁用 HTTP Basic 认证
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable);
 
         return http.build();
     }
+
+
 
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {

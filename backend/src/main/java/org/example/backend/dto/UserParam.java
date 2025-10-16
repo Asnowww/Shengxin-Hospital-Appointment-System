@@ -15,7 +15,6 @@ public class UserParam implements Serializable {
     private String gender;
     private String phone;
 
-    private String idCard;
 
     private String email;
     private String emailCode;
