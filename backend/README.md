@@ -8,7 +8,6 @@
 {
 "username": "testuser",     // 用户名
 "password": "123456",       // 密码
-"name": "张三",             // 必填
 "phone": "13800138000",     // 必填
 "email": "test@example.com",// 必填
 "emailCode": "1628"         //验证码
