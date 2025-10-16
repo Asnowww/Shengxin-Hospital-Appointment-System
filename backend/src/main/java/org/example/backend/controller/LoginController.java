@@ -123,7 +123,7 @@ public class LoginController {
         String email = userParam.getEmail();
         String emailCode = userParam.getEmailCode();
 
-        // 从 Redis 中取出验证码
+        // 1. 验证码校验
         BoundHashOperations<String, String, String> hashOps =
                 stringRedisTemplate.boundHashOps("login:email:captcha:" + email);
         String code = hashOps.get("captcha");
@@ -135,37 +135,36 @@ public class LoginController {
             return new Result<>(400, "验证码错误", null);
         }
 
-        // 检查用户名是否已存在
-        User existUser = userService.getOne(
-                new LambdaQueryWrapper<User>().eq(User::getUsername, userParam.getUsername())
-        );
-        if (existUser != null) {
-            return new Result<>(409, "账号已存在，请直接登录", null);
+        // 2. 用户名、邮箱、手机号唯一性检查
+        if (userService.findByEmail(email) != null) {
+            return new Result<>(409, "该邮箱已被注册，请直接登录", null);
+        }
+        if (userService.findByUsername(userParam.getUsername()) != null) {
+            return new Result<>(409, "用户名已存在，请更换", null);
         }
 
-        // 复制注册信息到 User 实体类
-        User saveUser = new User();
-        BeanUtils.copyProperties(userParam, saveUser);
+        // 3. 构建用户对象
+        User user = new User();
+        BeanUtils.copyProperties(userParam, user);
 
-        // 处理 name 字段（如果没填就用 username）
-        if (saveUser.getName() == null || saveUser.getName().isEmpty()) {
-            saveUser.setName(saveUser.getUsername());
+        if (user.getName() == null || user.getName().isEmpty()) {
+            user.setName(null);
         }
 
-        // 哈希密码
+        // 4. 密码加密
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-        String hashedPassword = encoder.encode(userParam.getPassword());
-        saveUser.setPassword(hashedPassword);
+        user.setPassword(encoder.encode(userParam.getPassword()));
 
-        // 保存用户
-        boolean save = userService.save(saveUser);
-        if (!save) {
+        // 5. 保存用户（调用 register()）
+        boolean success = userService.register(user);
+        if (!success) {
             return new Result<>(500, "注册失败，请稍后重试", null);
         }
 
-        // 注册成功后清除验证码
+        // 6. 清除验证码
         stringRedisTemplate.delete("login:email:captcha:" + email);
 
         return new Result<>(200, "注册成功", null);
     }
+
 }
