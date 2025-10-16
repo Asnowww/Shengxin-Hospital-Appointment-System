@@ -3,13 +3,15 @@
 3.在终端输入run dev或直接运行BackendApplication.java
 
 接口：
-(1) /auth/register(POST)：
+(1) 用户注册
+/auth/register(POST)：
 前端请求体(JSON)：
 {
 "username": "testuser",     // 用户名
 "password": "123456",       // 密码
 "phone": "13800138000",     // 必填
 "email": "test@example.com",// 必填
+"idCard":"******************"
 "emailCode": "1628"         //验证码
 }
 返回结果：
@@ -41,7 +43,8 @@
 
 
 
-(2) /auth/sendEmailCode(POST)发送验证码:
+(2) 发送验证码
+/auth/sendEmailCode(POST):
 前端请求体(JSON)：
 {
 "email": "test@example.com"
@@ -63,7 +66,8 @@
 "data": null
 }
 
-(3) /auth/login(POST)
+(3) 用户登录
+/auth/login(POST)
 前端请求体：
 {
 "account": "testuser",     // 可以是用户名、邮箱或手机号
