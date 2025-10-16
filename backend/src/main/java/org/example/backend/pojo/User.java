@@ -16,21 +16,20 @@ public class User {
     private Long userId;
 
     private String username;
-
     private String password;
-
     private String name;
-
     private String gender;
-
     private String phone;
+
+    @TableField("id_card")
+    private String idCard;
 
     private String email;
 
     @TableField("role_type")
     private String roleType; // admin / doctor / patient
 
-    private Integer status; // 1=正常，0=禁用
+    private Integer status;
 
     @TableField("create_time")
     private LocalDateTime createTime;

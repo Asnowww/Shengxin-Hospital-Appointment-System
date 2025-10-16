@@ -24,4 +24,6 @@ public interface UserService extends IService<User> {
      * 根据邮箱查询用户
      */
     User findByEmail(String email);
+
+    User findByPhone(String phone);
 }

@@ -5,8 +5,9 @@ import jakarta.annotation.Resource;
 import org.example.backend.dto.Result;
 import org.example.backend.dto.UserParam;
 import org.example.backend.pojo.User;
+import org.example.backend.service.CaptchaService;
 import org.example.backend.service.UserService;
-import org.example.backend.util.EmailAPI;
+import org.example.backend.util.IdCardValidator;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -16,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 @Controller
 @RequestMapping("/auth")
@@ -29,7 +29,7 @@ public class LoginController {
     private StringRedisTemplate stringRedisTemplate;
 
     @Resource
-    private EmailAPI emailAPI;
+    private CaptchaService captchaService;
 
 
     @PostMapping("/login")
@@ -76,6 +76,9 @@ public class LoginController {
         return new Result<>(200, "登录成功", data);
     }
 
+    /**
+     * 发送邮箱验证码
+     */
     @PostMapping("/sendEmailCode")
     @ResponseBody
     public Result<Void> sendEmailCode(@RequestBody Map<String, String> body) {
@@ -92,25 +95,14 @@ public class LoginController {
             return new Result<>(409, "该邮箱已被注册，请直接登录", null);
         }
 
-        // 生成 4 位数字验证码
-        String code = String.format("%04d", new Random().nextInt(10000));
-
-        // 存入 Redis，5分钟过期
-        BoundHashOperations<String, String, String> hashOps =
-                stringRedisTemplate.boundHashOps("login:email:captcha:" + email);
-        hashOps.put("captcha", code);
-        stringRedisTemplate.expire("login:email:captcha:" + email, 5, TimeUnit.MINUTES);
-
-        // 发送邮件
-        String subject = "注册验证码";
-        String content = "您的注册验证码是：" + code + "，有效期 5 分钟，请勿泄露。";
-        boolean send = emailAPI.sendGeneralEmail(subject, content, email);
-
-        if (!send) {
-            return new Result<>(500, "验证码发送失败，请稍后重试", null);
+        // 发送验证码（自动包含限流、Redis存储等逻辑）
+        try {
+            captchaService.sendCaptcha(email);
+            return new Result<>(200, "验证码已发送，请查收邮箱", null);
+        } catch (RuntimeException e) {
+            // 捕获限流异常
+            return new Result<>(429, e.getMessage(), null);
         }
-
-        return new Result<>(200, "验证码已发送，请查收邮箱", null);
     }
 
 
@@ -135,33 +127,41 @@ public class LoginController {
             return new Result<>(400, "验证码错误", null);
         }
 
-        // 2. 用户名、邮箱、手机号唯一性检查
+        // 用户名、邮箱、手机号唯一性检查
         if (userService.findByEmail(email) != null) {
             return new Result<>(409, "该邮箱已被注册，请直接登录", null);
         }
         if (userService.findByUsername(userParam.getUsername()) != null) {
             return new Result<>(409, "用户名已存在，请更换", null);
         }
+        if (userService.findByPhone(userParam.getPhone()) != null) {
+            return new Result<>(409, "该手机号已注册", null);
+        }
 
-        // 3. 构建用户对象
+        // 校验身份证号格式是否合法
+        if (userParam.getIdCard() == null || !IdCardValidator.isValidIdCard(userParam.getIdCard())) {
+            return new Result<>(400, "身份证号格式不正确", null);
+        }
+
+        // 构建用户对象
         User user = new User();
         BeanUtils.copyProperties(userParam, user);
 
-        if (user.getName() == null || user.getName().isEmpty()) {
-            user.setName(null);
+        if (userParam.getName() == null || userParam.getName().trim().isEmpty()) {
+            return new Result<>(400, "姓名不能为空", null);
         }
 
-        // 4. 密码加密
+        // 密码加密
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
         user.setPassword(encoder.encode(userParam.getPassword()));
 
-        // 5. 保存用户（调用 register()）
+        // 保存用户
         boolean success = userService.register(user);
         if (!success) {
             return new Result<>(500, "注册失败，请稍后重试", null);
         }
 
-        // 6. 清除验证码
+        // 清除验证码
         stringRedisTemplate.delete("login:email:captcha:" + email);
 
         return new Result<>(200, "注册成功", null);
