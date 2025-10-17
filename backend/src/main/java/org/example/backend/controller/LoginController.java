@@ -10,8 +10,6 @@ import org.example.backend.pojo.Patient;
 import org.example.backend.pojo.User;
 import org.example.backend.service.CaptchaService;
 import org.example.backend.service.UserService;
-import org.example.backend.util.IdCardValidator;
-import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -34,7 +32,6 @@ public class LoginController {
     @Resource
     private CaptchaService captchaService;
 
-
     @PostMapping("/login")
     @ResponseBody
     public Result<Map<String, Object>> login(@RequestBody Map<String, String> loginMap) {
@@ -55,8 +52,7 @@ public class LoginController {
                         .or()
                         .eq(User::getEmail, account)
                         .or()
-                        .eq(User::getPhone, account)
-        );
+                        .eq(User::getPhone, account));
 
         if (user == null) {
             return new Result<>(404, "用户不存在", null);
@@ -103,8 +99,7 @@ public class LoginController {
 
         // 先检查邮箱是否已被注册
         User existUser = userService.getOne(
-                new LambdaQueryWrapper<User>().eq(User::getEmail, email)
-        );
+                new LambdaQueryWrapper<User>().eq(User::getEmail, email));
         if (existUser != null) {
             return new Result<>(409, "该邮箱已被注册，请直接登录", null);
         }
@@ -119,7 +114,6 @@ public class LoginController {
         }
     }
 
-
     /**
      * 用户注册接口
      */
@@ -130,12 +124,14 @@ public class LoginController {
         String emailCode = param.getEmailCode();
 
         // 验证码校验
-        BoundHashOperations<String, String, String> hashOps =
-                stringRedisTemplate.boundHashOps("login:email:captcha:" + email);
+        BoundHashOperations<String, String, String> hashOps = stringRedisTemplate
+                .boundHashOps("login:email:captcha:" + email);
         String code = hashOps.get("captcha");
 
-        if (code == null) return new Result<>(400, "验证码已过期或不存在", null);
-        if (!Objects.equals(code, emailCode)) return new Result<>(400, "验证码错误", null);
+        if (code == null)
+            return new Result<>(400, "验证码已过期或不存在", null);
+        if (!Objects.equals(code, emailCode))
+            return new Result<>(400, "验证码错误", null);
 
         try {
             // 调用 Service 处理注册（包括 User + Patient 保存）
@@ -151,6 +147,4 @@ public class LoginController {
             return new Result<>(500, "注册失败，请稍后重试", null);
         }
     }
-
-
 }

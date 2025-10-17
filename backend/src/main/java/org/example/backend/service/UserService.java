@@ -11,10 +11,12 @@ public interface UserService extends IService<User> {
 
     /**
      * 注册用户
+     * 
      * @param user 用户对象
      * @return 是否注册成功
      */
     boolean register(User user);
+
     boolean registerPatient(PatientRegisterParam param);
 
     /**

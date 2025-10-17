@@ -9,13 +9,10 @@ import org.example.backend.pojo.Patient;
 import org.example.backend.pojo.User;
 import org.example.backend.service.UserService;
 import org.springframework.beans.BeanUtils;
-import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Objects;
 
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
