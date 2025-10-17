@@ -2,6 +2,7 @@ package org.example.backend.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.example.backend.dto.PatientUpdateParam;
+import org.example.backend.dto.Result;
 import org.example.backend.pojo.Patient;
 
 /**
@@ -22,7 +23,7 @@ public interface PatientService extends IService<Patient> {
      * 
      * @param userId 用户ID
      * @param param  更新参数
-     * @return 是否更新成功
+     * @return 统一返回结构
      */
-    boolean updatePatientInfo(Long userId, PatientUpdateParam param);
+    Result<Void> updatePatientInfo(Long userId, PatientUpdateParam param);
 }
