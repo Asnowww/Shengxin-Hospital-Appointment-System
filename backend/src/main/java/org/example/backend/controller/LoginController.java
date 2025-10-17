@@ -1,6 +1,7 @@
 package org.example.backend.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.PatientRegisterParam;
 import org.example.backend.dto.Result;
@@ -39,6 +40,8 @@ public class LoginController {
     public Result<Map<String, Object>> login(@RequestBody Map<String, String> loginMap) {
         String account = loginMap.get("account");
         String password = loginMap.get("password");
+        String roleType = loginMap.get("roleType");
+
 
         if (account == null || password == null) {
             return new Result<>(400, "账号或密码不能为空", null);
@@ -65,6 +68,14 @@ public class LoginController {
             return new Result<>(401, "密码错误", null);
         }
 
+        if (StringUtils.isBlank(roleType)) {
+            return new Result<>(400, "角色类型不能为空", null);
+        }
+
+        if (!roleType.equalsIgnoreCase(user.getRoleType())) {
+            return new Result<>(403, "账户或密码错误", null);
+        }
+
         // 生成 token（UUID）
         String token = UUID.randomUUID().toString();
 
@@ -74,6 +85,7 @@ public class LoginController {
         data.put("password", ""); // 返回空密码
         data.put("token", token);
         data.put("email", user.getEmail());
+        data.put("status", user.getStatus());
 
         return new Result<>(200, "登录成功", data);
     }

@@ -29,7 +29,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             user.setRoleType("patient");
         }
 
-        user.setStatus(1);
+        user.setStatus("pending");
 
         return this.save(user);
     }
@@ -53,7 +53,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             User user = new User();
             BeanUtils.copyProperties(param, user);
             user.setRoleType("patient");
-            user.setStatus(1); // 默认未激活
+            user.setStatus("pending"); // 默认未激活
             BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
             user.setPassword(encoder.encode(param.getPassword()));
 
