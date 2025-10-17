@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Controller
 @RequestMapping("/auth")
@@ -74,6 +75,13 @@ public class LoginController {
 
         // 生成 token（UUID）
         String token = UUID.randomUUID().toString();
+
+        // 保存 token 到 Redis，设置过期时间（7 天）
+        // 1) token -> userId（校验用）
+        stringRedisTemplate.opsForValue().set("auth:token:" + token, String.valueOf(user.getUserId()), 7,
+                TimeUnit.DAYS);
+        // 2) userId -> token（可用于单点登录或踢下线场景，按需使用）
+        stringRedisTemplate.opsForValue().set("auth:user-token:" + user.getUserId(), token, 7, TimeUnit.DAYS);
 
         // 构建返回数据
         Map<String, Object> data = new HashMap<>();
