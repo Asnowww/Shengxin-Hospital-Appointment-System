@@ -17,30 +17,34 @@
 
     <form @submit.prevent="handleSave">
       <div class="form-grid">
+        
         <div class="form-group">
-          <label class="form-label">
-            身份 <span class="required">*</span>
-          </label>
-          
-          <select 
-            v-model="profile.identityType" 
-            :disabled="!isEditing"
-            :class="['form-control', { 'error': errors.identityType}]">
-            <option value="">请选择</option>
-            <option value="teacher">教师</option>
-            <option value="student">学生</option>
-          </select>
-          <span v-if="errors.identityType" class="error-text">{{ errors.identityType }}</span>
-        </div>
+  <label class="form-label">身份</label>
+  <input
+    :value ="identityText"
+    type="text"
+    disabled
+    class="form-control"
+  />
+</div>
+
 
         <div class="form-group">
   <label class="form-label">身份认证状态</label>
   <input 
-    v-model="profile.status" 
+    :value ="statusText" 
     type="text" 
     disabled
-    class="form-control"
-    placeholder="未认证" />
+    class="form-control" />
+</div>
+
+     <div class="form-group">
+  <label class="form-label">姓名</label>
+  <input 
+    v-model="profile.username" 
+    type="text" 
+    disabled
+    class="form-control" />
 </div>
 
         <div class="form-group">
@@ -154,7 +158,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted,computed } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 
@@ -175,6 +179,22 @@ const profile = reactive({
   weight: '',
   medicalHistory: ''
 })
+
+//身份映射
+const identityMap = {
+  teacher: '教师',
+  student: '学生',
+}
+const identityText = computed(() => identityMap[profile.identityType] || '')
+
+//状态映射
+const statusMap = {
+  inactive: '未认证',
+  pending: '认证中',
+  active: '已认证',
+  disabled: '已禁用'
+}
+const statusText = computed(() => statusMap[profile.status] || '未知')
 
 const errors = reactive({
   identityType: '',
@@ -201,11 +221,6 @@ function clearErrors() {
 function validateForm() {
   clearErrors()
   let isValid = true
-
-  if (!profile.identityType) {
-    errors.identityType = '请选择身份'
-    isValid = false
-  }
 
   if (!profile.phone) {
     errors.phone = '请输入手机号'
