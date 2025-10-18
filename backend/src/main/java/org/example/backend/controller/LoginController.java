@@ -88,6 +88,7 @@ public class LoginController {
         data.put("account", user.getUserId());
         data.put("password", ""); // 返回空密码
         data.put("token", token);
+        data.put("roleType",roleType);
         data.put("email", user.getEmail());
         data.put("status", user.getStatus());
 
