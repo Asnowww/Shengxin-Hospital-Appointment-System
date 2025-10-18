@@ -5,8 +5,6 @@ import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.PatientRegisterParam;
 import org.example.backend.dto.Result;
-import org.example.backend.dto.UserParam;
-import org.example.backend.pojo.Patient;
 import org.example.backend.pojo.User;
 import org.example.backend.service.CaptchaService;
 import org.example.backend.service.UserService;

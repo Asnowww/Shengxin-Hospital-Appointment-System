@@ -3,53 +3,55 @@ package org.example.backend.controller;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.PatientUpdateParam;
 import org.example.backend.dto.Result;
-import org.example.backend.pojo.Patient;
 import org.example.backend.pojo.User;
 import org.example.backend.service.PatientService;
 import org.example.backend.service.UserService;
+import org.example.backend.util.TokenUtil;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
 
-@Controller
-@RequestMapping("/auth")
-public class patientController {
+@RestController
+@RequestMapping("/auth/patient")
+
+public class PatientController {
     @Resource
     private UserService userService;
 
     @Resource
     private PatientService patientService;
 
+    @Resource
+    private TokenUtil tokenUtil; // 注入工具类
+
     /**
-     * 获取患者个人信息
+     * 使用 token 获取患者个人信息
      */
-    @GetMapping("/patient/profile/{userId}")
-    @ResponseBody
-    public Result<Map<String, Object>> getPatientProfile(@PathVariable Long userId) {
+    @GetMapping("/profile")
+    public Result<Map<String, Object>> getPatientProfileByToken(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(value = "token", required = false) String tokenParam) {
+
+        String token = tokenUtil.extractToken(authorization, tokenParam);
+        Long userId = tokenUtil.resolveUserIdFromToken(token);
+        if (userId == null) {
+            return new Result<>(401, "未登录或token无效", null);
+        }
+
         try {
-            // 获取用户基础信息
             User user = userService.getById(userId);
-            if (user == null) {
+            if (user == null)
                 return new Result<>(404, "用户不存在", null);
-            }
-
-            if (!"patient".equals(user.getRoleType())) {
+            if (!"patient".equals(user.getRoleType()))
                 return new Result<>(403, "该用户不是患者角色", null);
-            }
 
-            // 获取患者详细信息
-            Patient patient = patientService.getPatientByUserId(userId);
-            if (patient == null) {
+            var patient = patientService.getPatientByUserId(userId);
+            if (patient == null)
                 return new Result<>(404, "患者信息不存在", null);
-            }
 
-            // 构建返回数据
             Map<String, Object> data = new HashMap<>();
-
-            // 用户基础信息
-            data.put("userId", user.getUserId());
             data.put("username", user.getUsername());
             data.put("gender", user.getGender());
             data.put("phone", user.getPhone());
@@ -59,7 +61,6 @@ public class patientController {
             data.put("createTime", user.getCreateTime());
             data.put("updateTime", user.getUpdateTime());
 
-            // 患者详细信息
             data.put("patientId", patient.getPatientId());
             data.put("patientAccount", patient.getPatientAccount());
             data.put("identityType", patient.getIdentityType());
@@ -78,23 +79,29 @@ public class patientController {
     }
 
     /**
-     * 更新患者个人信息
+     * 使用 token 更新患者个人信息
      */
-    @PutMapping("/patient/profile/{userId}")
-    @ResponseBody
-    public Result<Void> updatePatientProfile(@PathVariable Long userId, @RequestBody PatientUpdateParam param) {
+    @PutMapping("/profile")
+    public Result<Void> updatePatientProfile(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestParam(value = "token", required = false) String tokenParam,
+            @RequestBody PatientUpdateParam param) {
+
+        // 提取 token 并解析 userId
+        String token = tokenUtil.extractToken(authorizationHeader, tokenParam);
+        Long userId = tokenUtil.resolveUserIdFromToken(token);
+        if (userId == null) {
+            return new Result<>(401, "无效的登录凭证", null);
+        }
+
+        //更新患者信息
         try {
-            boolean success = patientService.updatePatientInfo(userId, param);
-            if (success) {
-                return new Result<>(200, "更新患者信息成功", null);
-            } else {
-                return new Result<>(400, "更新患者信息失败", null);
-            }
-        } catch (RuntimeException e) {
+            // 调用 service 更新信息
+            return patientService.updatePatientInfo(userId, param);
+        } catch (IllegalArgumentException e) {
             return new Result<>(400, e.getMessage(), null);
         } catch (Exception e) {
             return new Result<>(500, "更新患者信息失败：" + e.getMessage(), null);
         }
     }
-
 }
