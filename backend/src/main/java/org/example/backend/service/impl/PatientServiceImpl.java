@@ -27,6 +27,7 @@ public class PatientServiceImpl extends ServiceImpl<PatientMapper, Patient> impl
         return this.getOne(new LambdaQueryWrapper<Patient>().eq(Patient::getUserId, userId));
     }
 
+    //更新患者个人信息
     @Override
     @Transactional
     public Result<Void> updatePatientInfo(Long userId, PatientUpdateParam param) {

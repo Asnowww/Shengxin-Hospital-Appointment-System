@@ -1,8 +1,9 @@
 package org.example.backend.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.core.toolkit.StringUtils;
+//import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import jakarta.annotation.Resource;
+import org.apache.commons.lang3.StringUtils;
 import org.example.backend.dto.PatientRegisterParam;
 import org.example.backend.dto.Result;
 import org.example.backend.pojo.User;
@@ -37,6 +38,21 @@ public class LoginController {
         String account = loginMap.get("account");
         String password = loginMap.get("password");
         String roleType = loginMap.get("roleType");
+
+        //验证码
+        String captchaId = loginMap.get("captchaId");
+        String captchaCode = loginMap.get("captchaCode");
+
+
+        // ===== 1. 校验图形验证码 =====
+        if (StringUtils.isAnyBlank(captchaId, captchaCode)) {
+            return new Result<>(400, "请填写验证码", null);
+        }
+
+        boolean captchaValid = captchaService.verifyGraphCaptcha(captchaId, captchaCode);
+        if (!captchaValid) {
+            return new Result<>(401, "验证码错误或已过期", null);
+        }
 
 
         if (account == null || password == null) {
