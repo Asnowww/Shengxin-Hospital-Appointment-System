@@ -62,6 +62,7 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import Navigation from '@/components/Navigation.vue'
 import ProfileInfo from '@/components/PersonalInfo.vue'
 import ProfileAppointments from '@/components/MyAppointments.vue'
+import axios from 'axios'
 
 // tab 管理
 const activeTab = ref('info')

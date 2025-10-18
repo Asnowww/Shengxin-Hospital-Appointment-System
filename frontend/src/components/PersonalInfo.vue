@@ -23,20 +23,20 @@
           </label>
           
           <select 
-            v-model="profile.role" 
+            v-model="profile.identityType" 
             :disabled="!isEditing"
-            :class="['form-control', { 'error': errors.role }]">
+            :class="['form-control', { 'error': errors.identityType}]">
             <option value="">请选择</option>
             <option value="teacher">教师</option>
             <option value="student">学生</option>
           </select>
-          <span v-if="errors.role" class="error-text">{{ errors.role }}</span>
+          <span v-if="errors.identityType" class="error-text">{{ errors.identityType }}</span>
         </div>
 
         <div class="form-group">
   <label class="form-label">身份认证状态</label>
   <input 
-    v-model="profile.verifyStatus" 
+    v-model="profile.status" 
     type="text" 
     disabled
     class="form-control"
@@ -59,7 +59,7 @@
         <div class="form-group">
           <label class="form-label">出生年月</label>
           <input 
-            v-model="profile.birth" 
+            v-model="profile.birthDate" 
             type="date" 
             :disabled="!isEditing"
             class="form-control" />
@@ -155,17 +155,17 @@
 
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 
-const emit = defineEmits(['updated'])
-
+const router = useRouter()
 const isEditing = ref(false)
 const originalProfile = ref({})
 
 const profile = reactive({
-  role: '',
-  verifyStatus: '',
-  birth: '',
+  identityType: '',
+  status: '',
+  birthDate: '',
   gender: '',
   address: '',
   phone: '',
@@ -177,7 +177,7 @@ const profile = reactive({
 })
 
 const errors = reactive({
-  role: '',
+  identityType: '',
   phone: ''
 })
 
@@ -194,7 +194,7 @@ function cancelEdit() {
 }
 
 function clearErrors() {
-  errors.role = ''
+  errors.identityType = ''
   errors.phone = ''
 }
 
@@ -202,8 +202,8 @@ function validateForm() {
   clearErrors()
   let isValid = true
 
-  if (!profile.role) {
-    errors.role = '请选择身份'
+  if (!profile.identityType) {
+    errors.identityType = '请选择身份'
     isValid = false
   }
 
@@ -218,35 +218,67 @@ function validateForm() {
   return isValid
 }
 
+// 自动带 token 获取个人信息
 async function fetchProfile() {
   try {
-    const { data } = await axios.get('/api/profile')
-    Object.assign(profile, data)
-    originalProfile.value = { ...data }
+    const token = localStorage.getItem('token')
+    if (!token) {
+      alert('未登录或登录已过期')
+      router.push('/login/patient')
+      return
+    }
+
+    const res = await axios.get('/api/patient/profile', {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (res.data.code === 200) {
+      const data = res.data.data
+      Object.assign(profile, data)
+      originalProfile.value = { ...data }
+    } else {
+      alert(res.data.msg || '获取个人信息失败')
+    }
+
   } catch (err) {
     console.error('获取个人信息失败', err)
+    if (err.response?.status === 401) {
+      alert('登录已过期，请重新登录')
+      router.push('/login/patient')
+    } else {
+      alert('获取个人信息失败，请稍后再试')
+    }
   }
 }
 
+
+// 保存修改
 async function handleSave() {
-  if (!validateForm()) {
-    return
-  }
+  if (!validateForm()) return
 
   try {
-    await axios.post('/api/profile/update', profile)
+    const token = localStorage.getItem('token')
+    await axios.put('/api/patient/profile/update', profile, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
     alert('保存成功！')
     isEditing.value = false
-    emit('updated')
   } catch (err) {
-    alert('保存失败！')
+    console.error(err)
+    alert('保存失败，请稍后再试')
   }
 }
 
+// 页面加载时自动获取个人信息
 onMounted(() => {
   fetchProfile()
 })
 </script>
+
 
 <style scoped>
 .profile-info {
