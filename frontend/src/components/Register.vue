@@ -16,6 +16,12 @@
           </select>
         </div>
 
+        <!-- 必填：姓名 -->
+        <div class="form-row">
+          <label>姓名 <span class="required">*</span></label>
+          <input v-model="form.username" type="text" required />
+        </div>
+
         <!-- 必填：学号/教工号 -->
         <div class="form-row">
           <label>{{ form.identityType === 'teacher' ? '教工号' : '学号' }} <span class="required">*</span></label>
@@ -120,6 +126,7 @@ import axios from 'axios'
 
 const form = reactive({
   identityType: '', 
+  username: '',
   patientAccount: '', 
   phone: '', 
   password: '',

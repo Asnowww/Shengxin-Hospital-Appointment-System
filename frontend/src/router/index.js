@@ -21,7 +21,7 @@ const routes = [
   { path: '/password', name: 'password', component: Password }, // 修改密码页
 
   //医生端界面
-  { path: '/doc/profile', name: 'docProfile', component: DoctorProfile }, //医生个人信息页
+  { path: '/doctor/profile', name: 'docProfile', component: DoctorProfile }, //医生个人信息页
   { path: '/mySchedule', name: 'mySchedule', component: MySchedule }, //医生排班页
 
   //管理端界面

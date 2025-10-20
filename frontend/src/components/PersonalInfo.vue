@@ -28,15 +28,28 @@
   />
 </div>
 
-
-        <div class="form-group">
+<!-- 身份认证状态 -->
+ <div class="form-group">
   <label class="form-label">身份认证状态</label>
-  <input 
-    :value ="statusText" 
-    type="text" 
-    disabled
-    class="form-control" />
+  <div class="status-wrapper">
+    <input
+      :value="statusText"
+      type="text"
+      disabled
+      class="form-control"
+      :class="statusClass"
+    />
+
+    <button 
+      v-if="profile.status === 'inactive'" 
+      @click="goVerify" 
+      class="verify-btn"
+      type="button">
+      去认证
+    </button>
+  </div>
 </div>
+
 
      <div class="form-group">
   <label class="form-label">姓名</label>
@@ -195,6 +208,18 @@ const statusMap = {
   disabled: '已禁用'
 }
 const statusText = computed(() => statusMap[profile.status] || '未知')
+
+function goVerify() {
+  router.push('/verify') 
+}
+
+const statusClass = computed(() => {
+  switch (profile.status) {
+    case 'inactive': return 'status-inactive'
+    case 'active': return 'status-active'
+    default: return ''
+  }
+})
 
 const errors = reactive({
   identityType: '',
@@ -447,6 +472,38 @@ h2 {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
+
+.status-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.form-control.status-inactive {
+  border-color: #e53e3e;
+  color: #e53e3e;
+}
+
+.form-control.status-active {
+  border-color: #38a169;
+  color: #38a169;
+}
+
+.verify-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  background-color: #e53e3e;
+  color: white;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.verify-btn:hover {
+  background-color: #c53030;
+}
+
 
 @media (max-width: 768px) {
   .profile-info {
