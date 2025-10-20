@@ -1,7 +1,31 @@
--- 添加appointment_quota字段（如果不存在）
-ALTER TABLE doctors ADD COLUMN IF NOT EXISTS appointment_quota INT DEFAULT 30 COMMENT '预约数量配额' AFTER bio;
--- 将departments.room字段设为可空
+-- 先检查列是否存在
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'doctors'
+      AND COLUMN_NAME = 'appointment_quota'
+);
+
+SET @sql := IF(@col_exists = 0,
+    'ALTER TABLE doctors ADD COLUMN appointment_quota INT DEFAULT 30 COMMENT ''预约数量配额'' AFTER bio;',
+    'SELECT ''Column already exists'';');
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+
+-- 修改departments.room为可空
 ALTER TABLE departments MODIFY COLUMN room VARCHAR(20) NULL COMMENT '房间号/诊室号，如201';
+
+ALTER DATABASE hospital CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE departments CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE doctors CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+ALTER TABLE departments MODIFY building VARCHAR(50) COMMENT '楼宇名称';
+ALTER TABLE doctors MODIFY title VARCHAR(50) COMMENT '职称';
+
 
 -- 一级科室：内科
 INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, description) VALUES (NULL, '内科', '圣心楼', 1, '内科是我院重点科室之一，拥有先进的医疗设备和经验丰富的医疗团队，致力于为患者提供优质的医疗服务。');

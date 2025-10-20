@@ -6,10 +6,15 @@
 
 ## 数据导入
 "backend\src\main\resources\db\hospital_data.sql"
-# 导入方法：
-在数据库中执行："SOURCE (hospital_data.sql的路径)"命令
+  # 导入方法：
+  在数据库中：
+  -- 先设置客户端编码
+  SET NAMES utf8mb4;
+  --再导入
+  SOURCE Shengxin-Hospital-Appointment-System/backend/src/main/resources/db/hospital_data.sql;  # 修改为你主机上的路径
 
 # 医生账号密码统一为‘123456’ #
+
 
 ## 接口：
 ### (1) 用户注册
