@@ -4,8 +4,8 @@
 2. 执行MySQL数据库建表脚本`src/main/resources/db/hospital.sql`
 3. 在终端输入`run dev`或直接运行`BackendApplication.java`
 
-### 接口：
-#### (1) 用户注册
+## 接口：
+### (1) 用户注册
 - **接口地址**：`/auth/register`（POST）
 - **前端请求体（JSON）**：
   - username：用户名（字符串）
@@ -62,7 +62,7 @@
   ```
 
 
-#### (2) 发送验证码
+### (2) 发送验证码
 - **接口地址**：`/auth/sendEmailCode`（POST）
 - **前端请求体（JSON）**：
   ```json
@@ -94,7 +94,7 @@
   ```
 
 
-#### (3) 用户登录
+### (3) 用户登录
 - **接口地址**：`/auth/login`（POST）
 - **前端请求体**：
   - account:可以是用户名、邮箱或手机号
