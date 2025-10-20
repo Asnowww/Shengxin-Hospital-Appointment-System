@@ -4,6 +4,13 @@
 2. 执行MySQL数据库建表脚本`src/main/resources/db/hospital.sql`
 3. 在终端输入`run dev`或直接运行`BackendApplication.java`
 
+## 数据导入
+"backend\src\main\resources\db\hospital_data.sql"
+# 导入方法：
+在数据库中执行："SOURCE (hospital_data.sql的路径)"命令
+
+# 医生账号密码统一为‘123456’ #
+
 ## 接口：
 ### (1) 用户注册
 - **接口地址**：`/auth/register`（POST）
