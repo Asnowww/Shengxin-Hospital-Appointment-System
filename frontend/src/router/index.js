@@ -25,7 +25,7 @@ const routes = [
   { path: '/mySchedule', name: 'mySchedule', component: MySchedule }, //医生排班页
 
   //管理端界面
-  { path: '/audit', name: 'audit', component: () => import('@/views/Audit.vue') }, //用户审核页
+  // { path: '/audit', name: 'audit', component: () => import('@/views/Audit.vue') }, //用户审核页
 
   { path: '/:pathMatch(.*)*', redirect: '/home' } // 其他未定义路由定向到首页
 ]
