@@ -15,14 +15,17 @@ const routes = [
   { path: '/home', name: 'home', component: HomePage }, // 首页
   { path: '/login/:role', name: 'login', component: Login },        // 具体登录页
   { path: '/register', name: 'register', component: Register }, // 注册页
-  { path: '/profile', name: 'profile', component: Profile },
+  { path: '/patient/profile', name: 'profile', component: Profile },
   { path: '/department', name: 'department', component: Department }, //科室导览页
   { path: '/departmentDetail', name: 'departmentDetail', component: DepartmentDetail }, //科室详情页（接受参数）
   { path: '/password', name: 'password', component: Password }, // 修改密码页
 
   //医生端界面
-  { path: '/docProfile', name: 'docProfile', component: DoctorProfile }, //医生个人信息页
+  { path: '/doc/profile', name: 'docProfile', component: DoctorProfile }, //医生个人信息页
   { path: '/mySchedule', name: 'mySchedule', component: MySchedule }, //医生排班页
+
+  //管理端界面
+  { path: '/audit', name: 'audit', component: () => import('@/views/Audit.vue') }, //用户审核页
 
   { path: '/:pathMatch(.*)*', redirect: '/home' } // 其他未定义路由定向到首页
 ]

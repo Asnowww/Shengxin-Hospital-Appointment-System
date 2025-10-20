@@ -26,7 +26,8 @@ public class User {
     @TableField("role_type")
     private String roleType; // admin / doctor / patient
 
-    private Integer status;
+    @TableField("status")
+    private String status;
 
     @TableField("create_time")
     private LocalDateTime createTime;

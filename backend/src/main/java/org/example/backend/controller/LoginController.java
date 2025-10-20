@@ -1,7 +1,9 @@
 package org.example.backend.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+//import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import jakarta.annotation.Resource;
+import org.apache.commons.lang3.StringUtils;
 import org.example.backend.dto.PatientRegisterParam;
 import org.example.backend.dto.Result;
 import org.example.backend.pojo.User;
@@ -35,6 +37,23 @@ public class LoginController {
     public Result<Map<String, Object>> login(@RequestBody Map<String, String> loginMap) {
         String account = loginMap.get("account");
         String password = loginMap.get("password");
+        String roleType = loginMap.get("roleType");
+
+        //验证码
+        String captchaId = loginMap.get("captchaId");
+        String captchaCode = loginMap.get("captchaCode");
+
+
+        // ===== 1. 校验图形验证码 =====
+        if (StringUtils.isAnyBlank(captchaId, captchaCode)) {
+            return new Result<>(400, "请填写验证码", null);
+        }
+
+        boolean captchaValid = captchaService.verifyGraphCaptcha(captchaId, captchaCode);
+        if (!captchaValid) {
+            return new Result<>(401, "验证码错误或已过期", null);
+        }
+
 
         if (account == null || password == null) {
             return new Result<>(400, "账号或密码不能为空", null);
@@ -60,6 +79,14 @@ public class LoginController {
             return new Result<>(401, "密码错误", null);
         }
 
+        if (StringUtils.isBlank(roleType)) {
+            return new Result<>(400, "角色类型不能为空", null);
+        }
+
+        if (!roleType.equalsIgnoreCase(user.getRoleType())) {
+            return new Result<>(403, "账户或密码错误", null);
+        }
+
         // 生成 token（UUID）
         String token = UUID.randomUUID().toString();
 
@@ -75,7 +102,9 @@ public class LoginController {
         data.put("account", user.getUserId());
         data.put("password", ""); // 返回空密码
         data.put("token", token);
+        data.put("roleType",roleType);
         data.put("email", user.getEmail());
+        data.put("status", user.getStatus());
 
         return new Result<>(200, "登录成功", data);
     }

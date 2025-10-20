@@ -17,30 +17,34 @@
 
     <form @submit.prevent="handleSave">
       <div class="form-grid">
+        
         <div class="form-group">
-          <label class="form-label">
-            身份 <span class="required">*</span>
-          </label>
-          
-          <select 
-            v-model="profile.role" 
-            :disabled="!isEditing"
-            :class="['form-control', { 'error': errors.role }]">
-            <option value="">请选择</option>
-            <option value="teacher">教师</option>
-            <option value="student">学生</option>
-          </select>
-          <span v-if="errors.role" class="error-text">{{ errors.role }}</span>
-        </div>
+  <label class="form-label">身份</label>
+  <input
+    :value ="identityText"
+    type="text"
+    disabled
+    class="form-control"
+  />
+</div>
+
 
         <div class="form-group">
   <label class="form-label">身份认证状态</label>
   <input 
-    v-model="profile.verifyStatus" 
+    :value ="statusText" 
     type="text" 
     disabled
-    class="form-control"
-    placeholder="未认证" />
+    class="form-control" />
+</div>
+
+     <div class="form-group">
+  <label class="form-label">姓名</label>
+  <input 
+    v-model="profile.username" 
+    type="text" 
+    disabled
+    class="form-control" />
 </div>
 
         <div class="form-group">
@@ -59,7 +63,7 @@
         <div class="form-group">
           <label class="form-label">出生年月</label>
           <input 
-            v-model="profile.birth" 
+            v-model="profile.birthDate" 
             type="date" 
             :disabled="!isEditing"
             class="form-control" />
@@ -154,18 +158,18 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted,computed } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 
-const emit = defineEmits(['updated'])
-
+const router = useRouter()
 const isEditing = ref(false)
 const originalProfile = ref({})
 
 const profile = reactive({
-  role: '',
-  verifyStatus: '',
-  birth: '',
+  identityType: '',
+  status: '',
+  birthDate: '',
   gender: '',
   address: '',
   phone: '',
@@ -176,8 +180,24 @@ const profile = reactive({
   medicalHistory: ''
 })
 
+//身份映射
+const identityMap = {
+  teacher: '教师',
+  student: '学生',
+}
+const identityText = computed(() => identityMap[profile.identityType] || '')
+
+//状态映射
+const statusMap = {
+  inactive: '未认证',
+  pending: '认证中',
+  active: '已认证',
+  disabled: '已禁用'
+}
+const statusText = computed(() => statusMap[profile.status] || '未知')
+
 const errors = reactive({
-  role: '',
+  identityType: '',
   phone: ''
 })
 
@@ -194,18 +214,13 @@ function cancelEdit() {
 }
 
 function clearErrors() {
-  errors.role = ''
+  errors.identityType = ''
   errors.phone = ''
 }
 
 function validateForm() {
   clearErrors()
   let isValid = true
-
-  if (!profile.role) {
-    errors.role = '请选择身份'
-    isValid = false
-  }
 
   if (!profile.phone) {
     errors.phone = '请输入手机号'
@@ -218,35 +233,67 @@ function validateForm() {
   return isValid
 }
 
+// 自动带 token 获取个人信息
 async function fetchProfile() {
   try {
-    const { data } = await axios.get('/api/profile')
-    Object.assign(profile, data)
-    originalProfile.value = { ...data }
+    const token = localStorage.getItem('token')
+    if (!token) {
+      alert('未登录或登录已过期')
+      router.push('/login/patient')
+      return
+    }
+
+    const res = await axios.get('/api/patient/profile', {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (res.data.code === 200) {
+      const data = res.data.data
+      Object.assign(profile, data)
+      originalProfile.value = { ...data }
+    } else {
+      alert(res.data.msg || '获取个人信息失败')
+    }
+
   } catch (err) {
     console.error('获取个人信息失败', err)
+    if (err.response?.status === 401) {
+      alert('登录已过期，请重新登录')
+      router.push('/login/patient')
+    } else {
+      alert('获取个人信息失败，请稍后再试')
+    }
   }
 }
 
+
+// 保存修改
 async function handleSave() {
-  if (!validateForm()) {
-    return
-  }
+  if (!validateForm()) return
 
   try {
-    await axios.post('/api/profile/update', profile)
+    const token = localStorage.getItem('token')
+    await axios.put('/api/patient/profile/update', profile, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
     alert('保存成功！')
     isEditing.value = false
-    emit('updated')
   } catch (err) {
-    alert('保存失败！')
+    console.error(err)
+    alert('保存失败，请稍后再试')
   }
 }
 
+// 页面加载时自动获取个人信息
 onMounted(() => {
   fetchProfile()
 })
 </script>
+
 
 <style scoped>
 .profile-info {

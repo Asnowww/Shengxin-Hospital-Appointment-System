@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/auth/patient")
+@RequestMapping("/patient")
 
 public class PatientController {
     @Resource
@@ -81,7 +81,7 @@ public class PatientController {
     /**
      * 使用 token 更新患者个人信息
      */
-    @PutMapping("/profile")
+    @PutMapping("/profile/update")
     public Result<Void> updatePatientProfile(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestParam(value = "token", required = false) String tokenParam,

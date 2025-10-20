@@ -1,5 +1,7 @@
 package org.example.backend.service.impl;
 
+import com.wf.captcha.SpecCaptcha;
+import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.example.backend.service.CaptchaService;
@@ -10,6 +12,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
+
+import java.io.IOException;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -20,6 +25,7 @@ public class CaptchaServiceImpl implements CaptchaService {
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+    private static final String CAPTCHA_KEY_PREFIX = "captcha:";
 
     @Resource
     private EmailAPI emailAPI;
@@ -84,4 +90,58 @@ public class CaptchaServiceImpl implements CaptchaService {
             }
         }
     }
+
+    // 图形验证码
+    @Override
+    public void createGraphCaptcha(HttpServletResponse response) throws IOException {
+        // 1. 创建验证码对象
+        SpecCaptcha captcha = new SpecCaptcha(130, 48, 4);
+        captcha.setCharType(SpecCaptcha.TYPE_DEFAULT);
+
+        // 2. 获取验证码文本
+        String code = captcha.text().toLowerCase();
+
+        // 3. 生成唯一标识（给前端）
+        String captchaId = UUID.randomUUID().toString();
+
+        // 4. Redis 中的 key（内部使用）
+        String redisKey = "captcha:graph:" + captchaId;
+
+        // 5. 存入 Redis，5 分钟有效
+        stringRedisTemplate.opsForValue().set(redisKey, code, 5, TimeUnit.MINUTES);
+
+        // 6. 将 captchaId 通过响应头传给前端
+        response.setHeader("Captcha-Id", captchaId);
+        response.setContentType("image/png");
+
+        // 7. 输出图片流
+        captcha.out(response.getOutputStream());
+    }
+
+    /**
+     * 校验图形验证码
+     */
+    @Override
+    public boolean verifyGraphCaptcha(String captchaId, String inputCode) {
+        if (StringUtils.isAnyBlank(captchaId, inputCode)) {
+            return false;
+        }
+
+        // 拼出 redis 中的 key
+        String key = "captcha:graph:" + captchaId;
+
+        // 获取 redis 中的验证码
+        String correctCode = stringRedisTemplate.opsForValue().get(key);
+
+        if (correctCode == null) {
+            return false; // 过期或不存在
+        }
+
+        // 删除验证码，防止重复验证
+        stringRedisTemplate.delete(key);
+
+        // 比较验证码（忽略大小写）
+        return correctCode.equalsIgnoreCase(inputCode);
+    }
+
 }

@@ -71,9 +71,9 @@ const isLoggedIn = computed(() => !!token.value && !!currentRole.value)
 
 // 定义角色对应的个人中心路由表
 const roleRoutes = {
-  patient: '/profile',
-  doctor: '/docProfile',
-  admin: '/adminProfile'
+  patient: '/patient/profile',
+  doctor: '/doctor/Profile',
+  admin: '/admin/Profile'
 }
 
 // 退出登录
