@@ -1,8 +1,6 @@
 -- 先删最下游的表（无其他表依赖它）
 DROP TABLE IF EXISTS appointment_audit;
 DROP TABLE IF EXISTS notifications;
-DROP TABLE IF EXISTS notification_channels;
-DROP TABLE IF EXISTS sms_queue;
 DROP TABLE IF EXISTS refunds;
 DROP TABLE IF EXISTS payments;
 DROP TABLE IF EXISTS waitlist;
