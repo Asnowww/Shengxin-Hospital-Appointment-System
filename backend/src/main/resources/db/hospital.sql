@@ -33,21 +33,6 @@ CREATE TABLE users (
                        update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户信息表';
 
-CREATE TABLE user_verifications (
-                                    verification_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                                    user_id BIGINT NOT NULL,
-                                    identity_type ENUM('student','teacher','staff') NOT NULL COMMENT '身份类型',
-                                    id_number VARCHAR(100),
-                                    doc_url VARCHAR(500) COMMENT '上传的凭证（校园卡/证明）',
-                                    status ENUM('pending','approved','rejected') DEFAULT 'pending',
-                                    reviewed_by BIGINT NULL COMMENT '审核人',
-                                    reviewed_at DATETIME NULL COMMENT '审核时间',
-                                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-                                    FOREIGN KEY (reviewed_by) REFERENCES users(user_id),
-                                    foreign key (identity_type) references patients(identity_type)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='患者身份认证（学生、教工）';
-
 -- 医院科室表
 CREATE TABLE departments (
                              dept_id INT AUTO_INCREMENT PRIMARY KEY COMMENT '科室ID，主键',
@@ -59,20 +44,6 @@ CREATE TABLE departments (
                              description VARCHAR(255) COMMENT '科室简介或说明',
                              FOREIGN KEY (parent_dept_id) REFERENCES departments(dept_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='医院科室表';
-
--- 诊室表
-CREATE TABLE consultation_rooms (
-                                    room_id INT AUTO_INCREMENT PRIMARY KEY COMMENT '诊室ID，主键',
-                                    dept_id INT NOT NULL COMMENT '所属科室ID，外键关联departments(dept_id)',
-                                    room_name VARCHAR(20) NOT NULL COMMENT '诊室名称/编号，如"201"',
-                                    building VARCHAR(50) NOT NULL COMMENT '所在楼宇名称，可冗余科室的楼宇信息',
-                                    floor TINYINT NOT NULL COMMENT '所在楼层，可冗余科室的楼层信息',
-                                    description VARCHAR(255) COMMENT '诊室备注或说明',
-                                    CONSTRAINT fk_room_dept FOREIGN KEY (dept_id) REFERENCES departments(dept_id)
-                                        ON UPDATE CASCADE
-                                        ON DELETE RESTRICT,
-                                    UNIQUE (dept_id, room_name) COMMENT '同一科室的诊室唯一'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='诊室表';
 
 -- 医生信息表
 CREATE TABLE doctors (
@@ -107,6 +78,20 @@ CREATE TABLE patients (
                           FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
                           UNIQUE(user_id, patient_account) COMMENT '同一个用户对应的患者账号不能重复'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='患者信息表';
+
+-- 诊室表
+CREATE TABLE consultation_rooms (
+                                    room_id INT AUTO_INCREMENT PRIMARY KEY COMMENT '诊室ID，主键',
+                                    dept_id INT NOT NULL COMMENT '所属科室ID，外键关联departments(dept_id)',
+                                    room_name VARCHAR(20) NOT NULL COMMENT '诊室名称/编号，如"201"',
+                                    building VARCHAR(50) NOT NULL COMMENT '所在楼宇名称，可冗余科室的楼宇信息',
+                                    floor TINYINT NOT NULL COMMENT '所在楼层，可冗余科室的楼层信息',
+                                    description VARCHAR(255) COMMENT '诊室备注或说明',
+                                    CONSTRAINT fk_room_dept FOREIGN KEY (dept_id) REFERENCES departments(dept_id)
+                                        ON UPDATE CASCADE
+                                        ON DELETE RESTRICT,
+                                    UNIQUE (dept_id, room_name) COMMENT '同一科室的诊室唯一'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='诊室表';
 
 -- 挂号类型表
 CREATE TABLE appointment_types (
@@ -151,14 +136,13 @@ CREATE TABLE schedule_exceptions (
                                      adjusted_room_id INT NULL COMMENT '调整后的诊室ID，仅 exception_type=partial_adjust 时可用',
                                      adjusted_time_slot TINYINT NULL COMMENT '调整后的时间段，仅 exception_type=partial_adjust 时可用',
                                      reason VARCHAR(255) COMMENT '例外原因说明，如请假、开会、加号说明等',
-                                     created_by BIGINT NOT NULL COMMENT '操作人ID（医生或管理员）',
+                                     created_by BIGINT NULL COMMENT '操作人ID（医生或管理员），允许为空',
                                      created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                                      FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE SET NULL,
                                      FOREIGN KEY (doctor_id) REFERENCES doctors(doctor_id) ON DELETE CASCADE,
                                      FOREIGN KEY (adjusted_room_id) REFERENCES consultation_rooms(room_id) ON DELETE SET NULL,
                                      FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='排班例外表（请假/停诊/部分调整/临时加号）';
-
 
 -- 医生请假记录
 CREATE TABLE doctor_leaves (
@@ -179,7 +163,7 @@ CREATE TABLE doctor_leaves (
 
 -- 挂号记录表
 CREATE TABLE appointments (
-                              appointment_id INT AUTO_INCREMENT PRIMARY KEY COMMENT '挂号ID，主键',
+                              appointment_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '挂号ID，主键',
                               patient_id BIGINT NOT NULL COMMENT '患者ID，外键关联patients表',
                               schedule_id INT NOT NULL COMMENT '关联排班ID，外键关联schedules表',
                               dept_id INT NOT NULL COMMENT '挂号科室ID，外键关联departments(dept_id)',
@@ -301,3 +285,17 @@ CREATE TABLE appointment_rules (
                                    config JSON COMMENT '规则配置内容（JSON结构）',
                                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='预约规则表';
+
+CREATE TABLE user_verifications (
+                                    verification_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                    user_id BIGINT NOT NULL,
+                                    identity_type ENUM('student','teacher','staff') NOT NULL COMMENT '身份类型',
+                                    id_number VARCHAR(100),
+                                    doc_url VARCHAR(500) COMMENT '上传的凭证（校园卡/证明）',
+                                    status ENUM('pending','approved','rejected') DEFAULT 'pending',
+                                    reviewed_by BIGINT NULL COMMENT '审核人',
+                                    reviewed_at DATETIME NULL COMMENT '审核时间',
+                                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                                    FOREIGN KEY (reviewed_by) REFERENCES users(user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='患者身份认证（学生、教工）';
