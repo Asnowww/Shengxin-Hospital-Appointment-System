@@ -41,7 +41,7 @@
     />
 
     <button 
-      v-if="profile.status === 'inactive'" 
+      v-if="profile.status === 'unverified' || profile.status === 'rejected'" 
       @click="goVerify" 
       class="verify-btn"
       type="button">
@@ -202,10 +202,10 @@ const identityText = computed(() => identityMap[profile.identityType] || '')
 
 //状态映射
 const statusMap = {
-  inactive: '未认证',
+  unverified: '未认证',
   pending: '认证中',
-  active: '已认证',
-  disabled: '已禁用'
+  verified: '已认证',
+  rejected: '审核失败'
 }
 const statusText = computed(() => statusMap[profile.status] || '未知')
 
