@@ -1,3 +1,4 @@
+<!-- 格式校验：姓名为中文字符/英文字符，位数限制；手机号位数限制；密码复杂度要求；电子邮箱格式校验；出生年月不超过当前日期；身高体重不为负数；紧急联系人要求手机号码； -->
 <template>
   <Navigation ref="navRef" />
   <div class="page-container">
@@ -93,6 +94,12 @@
           <input v-model="form.emergencyContact" type="text" />
         </div>
 
+        
+        <div class="form-row">
+          <label>紧急联系人电话</label>
+          <input v-model="form.emergencyPhone" type="number" />
+        </div>
+
         <div class="form-row">
           <label>身高 (cm)</label>
           <input v-model="form.height" type="number" />
@@ -137,6 +144,7 @@ const form = reactive({
   gender: '', 
   address: '', 
   emergencyContact: '',
+  emergencyPhone: '',
   height: '', 
   weight: '', 
   medicalHistory: ''
