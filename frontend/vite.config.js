@@ -24,6 +24,10 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+      '/captcha': {
+        target: 'http://localhost:8080', // 验证码接口也代理到后端
+        changeOrigin: true,
+      },
     },
   },
 })

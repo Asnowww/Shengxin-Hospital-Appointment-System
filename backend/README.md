@@ -4,6 +4,17 @@
 2. 执行MySQL数据库建表脚本`src/main/resources/db/hospital.sql`
 3. 在终端输入`run dev`或直接运行`BackendApplication.java`
 
+## 数据导入
+  # 导入方法：
+  在数据库中：backend/src/main/resources/db/hospital_data.sql
+  -- 先设置客户端编码
+  SET NAMES utf8mb4;
+  --再导入
+  SOURCE C:/Users/wang/IdeaProjects/Shengxin-Hospital-Appointment-System/backend/src/main/resources/db/hospital_data.sql; # 修改为你主机上的路径
+
+# 医生账号密码统一为‘123456’ #
+
+
 ## 接口：
 ### (1) 用户注册
 - **接口地址**：`/auth/register`（POST）
