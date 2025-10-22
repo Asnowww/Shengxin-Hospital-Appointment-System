@@ -10,11 +10,11 @@
       </router-link>
 
       <!-- 医生端：仅医生登录后显示 -->
-      <router-link 
+      <router-link
         v-if="isLoggedIn && currentRole === 'doctor'"
-        to="/assignment" 
-        class="nav-item" 
-        :class="{ active: isActive('/assignment') }">
+        to="/doctor/schedules"
+        class="nav-item"
+        :class="{ active: isActive('/doctor/schedules') }">
         排班管理
       </router-link>
 

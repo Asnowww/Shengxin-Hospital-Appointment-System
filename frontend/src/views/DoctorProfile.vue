@@ -25,9 +25,10 @@
             <span>个人信息</span>
           </button>
           
-          <!-- <button 
-            :class="['nav-item', { active: activeTab === 'schedule' }]" 
-            @click="activeTab = 'schedule'">
+          <router-link
+            to="/doctor/schedules"
+            class="nav-item"
+            :class="{ active: $route.path === '/doctor/schedules' }">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
               <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -35,7 +36,7 @@
               <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
             <span>我的排班</span>
-          </button> -->
+          </router-link>
         </nav>
       </aside>
 
@@ -221,11 +222,6 @@
               </div>
             </form>
           </div>
-
-          <!-- <div v-else-if="activeTab === 'schedule'" key="schedule" class="schedule-view">
-            <h2>我的排班</h2>
-            <p class="placeholder">排班功能开发中...</p>
-          </div> -->
         </transition>
       </main>
     </div>
