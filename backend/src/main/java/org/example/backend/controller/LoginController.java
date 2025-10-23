@@ -151,6 +151,10 @@ public class LoginController {
                 .boundHashOps("login:email:captcha:" + email);
         String code = hashOps.get("captcha");
 
+        System.out.println("Redis key: login:email:captcha:" + email);
+        System.out.println("Redis value: " + stringRedisTemplate.opsForHash().get("login:email:captcha:" + email, "captcha"));
+
+
         if (code == null)
             return new Result<>(400, "验证码已过期或不存在", null);
         if (!Objects.equals(code, emailCode))

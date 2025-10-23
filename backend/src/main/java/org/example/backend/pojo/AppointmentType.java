@@ -29,4 +29,8 @@ public class AppointmentType {
 
     @TableField("created_at")
     private LocalDateTime createdAt;
+
+    public BigDecimal getFee() {
+        return feeAmount;
+    }
 }
