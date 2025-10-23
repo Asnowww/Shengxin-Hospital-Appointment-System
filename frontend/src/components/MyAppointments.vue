@@ -137,6 +137,7 @@ const activeStatus = ref('current')
 const loading = ref(false)
 const currentAppointments = ref([])
 const historyAppointments = ref([])
+const token = localStorage.getItem('token')
 
 // 计算显示的预约列表
 const displayedAppointments = computed(() => {
@@ -145,18 +146,34 @@ const displayedAppointments = computed(() => {
     : historyAppointments.value
 })
 
-// 获取当前预约
+// 获取当前及未来预约
 async function fetchCurrentAppointments() {
   loading.value = true
   try {
-    const { data } = await axios.get('/api/appointments/current')
-    currentAppointments.value = data
+ 
+ console.log('Token:', token)  // 调试输出  
+
+    const { data } = await axios.get('/api/patient/appointment/current', {
+      headers: {
+        Authorization: `Bearer ${token}`  // 传给后端
+      }
+    })
+
+    // 后端返回结构：{ code, message, data }
+    if (data.code === 200) {
+      currentAppointments.value = data.data || []  // 赋值给响应式变量
+    } else {
+      console.warn('获取预约失败：', data.message)
+      currentAppointments.value = []
+    }
   } catch (err) {
     console.error('获取当前预约失败', err)
+    currentAppointments.value = []
   } finally {
     loading.value = false
   }
 }
+
 
 // 获取历史预约
 async function fetchHistoryAppointments() {

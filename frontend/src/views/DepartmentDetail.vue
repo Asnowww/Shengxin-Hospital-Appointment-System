@@ -71,7 +71,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Navigation from '@/components/Navigation.vue'
 import DoctorCard from '@/components/DoctorCard.vue'
-// import axios from 'axios'
+import axios from 'axios'
 
 const route = useRoute()
 const router = useRouter()

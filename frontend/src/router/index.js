@@ -11,6 +11,7 @@ import MySchedule from '@/views/MySchedule.vue'
 import AdminProfile from '@/views/AdminProfile.vue'
 import AdminSchedule from '@/views/AdminSchedule.vue'
 import LeaveManagement from '@/views/LeaveManagement.vue'
+import DepartmentSchedule from '@/views/DepartmentSchedule.vue'
 
 
 const routes = [
@@ -21,6 +22,7 @@ const routes = [
   { path: '/patient/profile', name: 'profile', component: Profile },
   { path: '/department', name: 'department', component: Department }, //科室导览页
   { path: '/departmentDetail', name: 'departmentDetail', component: DepartmentDetail }, //科室详情页（接受参数）
+  { path: '/departmentSchedule', name: 'departmentSchedule', component: DepartmentSchedule }, //科室排班页（接受参数）
   { path: '/password', name: 'password', component: Password }, // 修改密码页
 
   //医生端界面

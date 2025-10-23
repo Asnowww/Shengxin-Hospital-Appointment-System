@@ -1,13 +1,18 @@
 package org.example.backend.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.AppointmentCreateParam;
 import org.example.backend.dto.AppointmentUpdateParam;
 import org.example.backend.dto.Result;
 import org.example.backend.dto.ScheduleDetailVO;
 import org.example.backend.pojo.Appointment;
+import org.example.backend.pojo.Patient;
 import org.example.backend.service.AppointmentService;
+import org.example.backend.service.PatientService;
 import org.example.backend.service.ScheduleService;
+import org.example.backend.service.UserService;
+import org.example.backend.util.TokenUtil;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +32,9 @@ public class PatientAppointmentController {
     private AppointmentService appointmentService;
 
     @Resource
+    private UserService userService;
+
+    @Resource
     private ScheduleService scheduleService;
 
     /**
@@ -35,13 +43,44 @@ public class PatientAppointmentController {
      * @param param 预约参数（患者ID、排班ID、备注）
      * @return 创建的预约信息
      */
+    @Resource
+    private TokenUtil tokenUtil;
+
+    @Resource
+    private PatientService patientService;
+
     @PostMapping("/create")
-    public Result createAppointment(@RequestBody AppointmentCreateParam param) {
+    public Result createAppointment(
+            @RequestBody AppointmentCreateParam param,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(value = "token", required = false) String tokenParam
+    ) {
         try {
-            // 验证必填参数
-            if (param.getPatientId() == null) {
-                return Result.error("患者ID不能为空");
+            // 提取 token
+            String token = tokenUtil.extractToken(authHeader, tokenParam);
+            if (token == null) {
+                return Result.error("未提供 token");
             }
+
+            // 解析 userId
+            Long userId = tokenUtil.resolveUserIdFromToken(token);
+            if (userId == null) {
+                return Result.error("token 无效或已过期");
+            }
+
+            // 如果 param 中没有 patientId，则根据 userId 查询 patientId
+            if (param.getPatientId() == null) {
+                Patient patient = patientService.getOne(
+                        new QueryWrapper<Patient>().lambda()
+                                .eq(Patient::getUserId, userId)
+                );
+                if (patient == null) {
+                    return Result.error("患者信息不存在");
+                }
+                param.setPatientId(patient.getPatientId());
+            }
+
+            // 验证必填参数
             if (param.getScheduleId() == null) {
                 return Result.error("排班ID不能为空");
             }
@@ -113,6 +152,41 @@ public class PatientAppointmentController {
     public Result getAppointmentsByPatient(@PathVariable Long patientId) {
         List<Appointment> list = appointmentService.getAppointmentsByPatientId(patientId);
         return Result.success(list);
+    }
+    /**
+     * 获取当前患者当前预约
+     */
+    @GetMapping("/current")
+    public Result getUpcomingAppointments(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(value = "token", required = false) String tokenParam
+    ) {
+        try {
+            // 1. 提取 token
+            String token = tokenUtil.extractToken(authorization, tokenParam);
+            if (token == null) {
+                return Result.error("未传入 token，请登录后重试");
+            }
+
+            // 2. 从 token 解析 userId
+            Long userId = tokenUtil.resolveUserIdFromToken(token);
+            if (userId == null) {
+                return Result.error("token 无效或已过期，请重新登录");
+            }
+
+            // 3. 根据 userId 查询 patientId
+            Long patientId = patientService.getPatientIdByUserId(userId);
+            if (patientId == null) {
+                return Result.error("未找到患者信息");
+            }
+
+            // 4. 查询当前及未来日期的预约
+            List<Appointment> appointments = appointmentService.getAppointmentsByPatientIdAndDate(patientId, LocalDate.now());
+
+            return Result.success(appointments);
+        } catch (Exception e) {
+            return Result.error("获取预约失败：" + e.getMessage());
+        }
     }
 
     /**

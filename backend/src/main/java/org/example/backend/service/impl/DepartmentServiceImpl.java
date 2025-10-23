@@ -80,18 +80,18 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     public List<DepartmentTreeVO> getAllDepartmentTree() {
-        // 1️⃣ 查询所有二级科室（parent_dept_id != null 或 0 表示一级科室）
+        // 1️. 查询所有二级科室（parent_dept_id != null 或 0 表示一级科室）
         QueryWrapper<Department> subQuery = new QueryWrapper<>();
         subQuery.isNotNull("parent_dept_id").ne("parent_dept_id", 0);
         List<Department> subDepts = departmentMapper.selectList(subQuery);
 
-        // 2️⃣ 获取所有一级科室 ID
+        // 2️.获取所有一级科室 ID
         Set<Integer> parentIds = subDepts.stream()
                 .map(Department::getParentDeptId)
                 .collect(Collectors.toSet());
         List<Department> parentDepts = parentIds.isEmpty() ? List.of() : departmentMapper.selectBatchIds(parentIds);
 
-        // 3️⃣ 按 parentDeptId 分组二级科室
+        // 3️.按 parentDeptId 分组二级科室
         Map<Integer, List<DepartmentTreeVO>> groupedByParent = subDepts.stream()
                 .collect(Collectors.groupingBy(
                         Department::getParentDeptId, // 按 parentDeptId 分组
@@ -100,13 +100,13 @@ public class DepartmentServiceImpl implements DepartmentService {
                             vo.setId(d.getDeptId());
                             vo.setName(d.getDeptName());
                             vo.setAvailable(true);
-                            vo.setParentId(d.getParentDeptId()); // ✅ 这里赋值 parentId
+                            vo.setParentId(d.getParentDeptId());
                             return vo;
                         }, Collectors.toList())
                 ));
 
 
-        // 4️⃣ 构建一级科室 → 二级科室结构
+        // 4️.构建一级科室 → 二级科室结构
         return parentDepts.stream()
                 .map(parent -> {
                     DepartmentTreeVO vo = new DepartmentTreeVO();

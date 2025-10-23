@@ -26,4 +26,5 @@ public interface PatientService extends IService<Patient> {
      * @return 统一返回结构
      */
     Result<Void> updatePatientInfo(Long userId, PatientUpdateParam param);
+    Long getPatientIdByUserId(Long userId);
 }

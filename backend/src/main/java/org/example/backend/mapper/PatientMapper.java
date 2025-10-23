@@ -6,4 +6,5 @@ import org.example.backend.pojo.Patient;
 
 @Mapper
 public interface PatientMapper extends BaseMapper<Patient> {
+
 }

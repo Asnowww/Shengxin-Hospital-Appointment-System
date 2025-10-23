@@ -6,8 +6,10 @@ import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
 import org.example.backend.dto.PatientRegisterParam;
 import org.example.backend.dto.Result;
+import org.example.backend.pojo.Patient;
 import org.example.backend.pojo.User;
 import org.example.backend.service.CaptchaService;
+import org.example.backend.service.PatientService;
 import org.example.backend.service.UserService;
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -31,6 +33,9 @@ public class LoginController {
 
     @Resource
     private CaptchaService captchaService;
+
+    @Resource
+    private PatientService patientService;
 
     @PostMapping("/login")
     @ResponseBody
@@ -105,6 +110,17 @@ public class LoginController {
         data.put("roleType",roleType);
         data.put("email", user.getEmail());
         data.put("status", user.getStatus());
+
+        // 如果是患者，查询 patientId 并返回
+        if ("patient".equalsIgnoreCase(roleType)) {
+            Patient patient = patientService.getOne(
+                    new QueryWrapper<Patient>().lambda()
+                            .eq(Patient::getUserId, user.getUserId())
+            );
+            if (patient != null) {
+                data.put("patientId", patient.getPatientId());
+            }
+        }
 
         return new Result<>(200, "登录成功", data);
     }

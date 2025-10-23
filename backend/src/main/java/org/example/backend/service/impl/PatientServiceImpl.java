@@ -1,5 +1,6 @@
 package org.example.backend.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.PatientUpdateParam;
@@ -88,5 +89,26 @@ public class PatientServiceImpl extends ServiceImpl<PatientMapper, Patient> impl
 
         // 5. 返回成功结果
         return new Result<>(200, "更新成功", null);
+    }
+
+    @Resource
+    private PatientMapper patientMapper;
+
+    @Override
+    public Long getPatientIdByUserId(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+
+        // 查询 patient 表
+        QueryWrapper<Patient> wrapper = new QueryWrapper<>();
+        wrapper.lambda().eq(Patient::getUserId, userId);
+
+        Patient patient = patientMapper.selectOne(wrapper);
+        if (patient != null) {
+            return patient.getPatientId();
+        } else {
+            return null;
+        }
     }
 }

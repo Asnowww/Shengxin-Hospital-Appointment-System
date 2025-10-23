@@ -1,4 +1,4 @@
-<!-- 待修改：搜索方面，一开始预加载科室信息及所有医生的姓名；具体搜索时，再通过接口向后端发送查询请求，减少资源浪费 -->
+
 <template>
   <Navigation ref="navRef" />
   <div class="page-container" :style="{ paddingTop: navHeight + 'px' }">
@@ -205,6 +205,7 @@ function handleSearch() {
   }, 400)
 }
 
+//用于初始加载所有一级及二级科室信息
 async function fetchDepartments() {
   loading.value = true
   try {
@@ -222,25 +223,27 @@ async function fetchDepartments() {
   }
 }
 
-async function fetchDoctorIndex() {
-  try {
-    const { data } = await axios.get('/api/doctors/brief')
-    doctorIndex.value = data
-  } catch (err) {
-    console.error('加载医生索引失败', err)
-  }
-}
+// async function fetchDoctorIndex() {
+//   try {
+//     const { data } = await axios.get('/api/doctors/brief')
+//     doctorIndex.value = data
+//   } catch (err) {
+//     console.error('加载医生索引失败', err)
+//   }
+// }
 
 async function applyFilters() {
   await fetchDepartments()
 }
 
+//点击看详细信息
 function handleDepartmentClick(subDept) {
   router.push({
-    path: '/departmentDetail',
-    query: { depCode: subDept.code, depName: subDept.name }
+    path: '/departmentSchedule',
+    query: { deptId: subDept.id, deptName: subDept.name }
   })
 }
+
 
 function updateNavHeight() {
   if (navRef.value?.$el) {
