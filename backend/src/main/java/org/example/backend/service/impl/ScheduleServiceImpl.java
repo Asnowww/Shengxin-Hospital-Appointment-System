@@ -40,6 +40,9 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Autowired
     private ScheduleExceptionMapper scheduleExceptionMapper;
 
+    @Autowired
+    private UserMapper userMapper;
+
     @Override
     @Transactional
     public void batchCreateSchedules(ScheduleCreateParam param) {
@@ -365,9 +368,13 @@ public class ScheduleServiceImpl implements ScheduleService {
         // 关联查询医生信息
         Doctor doctor = doctorMapper.selectById(schedule.getDoctorId());
         if (doctor != null) {
-            User user = new User();
-            // 这里需要通过 UserMapper 查询，暂时简化
+            // 查询医生对应的用户信息获取姓名
+            User user = userMapper.selectById(doctor.getUserId());
+            if (user != null) {
+                vo.setDoctorName(user.getName());
+            }
             vo.setDoctorTitle(doctor.getTitle());
+
         }
 
         // 关联查询科室信息
@@ -405,6 +412,11 @@ public class ScheduleServiceImpl implements ScheduleService {
         Doctor doctor = doctorMapper.selectById(schedule.getDoctorId());
         if (doctor != null) {
             vo.setDoctorTitle(doctor.getTitle());
+            // 查询医生对应的用户信息获取姓名
+            User user = userMapper.selectById(doctor.getUserId());
+            if (user != null) {
+                vo.setDoctorName(user.getName());
+            }
         }
 
         Department dept = departmentMapper.selectById(schedule.getDeptId());

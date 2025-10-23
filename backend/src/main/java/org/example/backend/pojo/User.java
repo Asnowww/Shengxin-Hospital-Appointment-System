@@ -34,4 +34,8 @@ public class User {
 
     @TableField("update_time")
     private LocalDateTime updateTime;
+
+    public String getName() {
+        return username;
+    }
 }
