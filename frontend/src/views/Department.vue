@@ -84,20 +84,18 @@
       </div>
 
       <!-- 医生搜索结果 -->
-<!-- 医生搜索结果 -->
-<div v-if="searchMode === 'doctor'" class="doctor-list">
-  <DoctorCard
-    v-for="doc in matchedDoctors"
-    :key="doc.id"
-    :doctor="doc"
-    :getCategoryLabel="getCategoryLabel"
-    :onAppointment="handleAppointment"
-  />
-</div>
+      <div v-if="searchMode === 'doctor'" class="doctor-list">
+        <DoctorCard
+          v-for="doc in matchedDoctors"
+          :key="doc.id"
+          :doctor="doc"
+          :getCategoryLabel="getCategoryLabel"
+          :onAppointment="handleAppointment"
+        />
+      </div>
 
       <!-- 科室列表 -->
       <div v-else-if="searchMode === 'department'" class="departments-list">
-
         <div 
           v-for="dept in filteredDepartments" 
           :key="dept.id"
@@ -109,13 +107,13 @@
               <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
             </svg>
             <h2>{{ dept.name }}</h2>
-            <span class="sub-count">{{ dept.subDepartments.length }}</span>
+            <span class="sub-count">{{ (dept.subDepartments || []).length }}</span>
           </div>
 
           <!-- 二级科室卡片 -->
           <div class="sub-departments">
             <div 
-              v-for="subDept in dept.subDepartments" 
+              v-for="subDept in (dept.subDepartments || [])" 
               :key="subDept.id"
               class="sub-dept-card"
               @click="handleDepartmentClick(subDept)">
@@ -128,7 +126,6 @@
                       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                       <circle cx="12" cy="7" r="4"></circle>
                     </svg>
-                    {{ subDept.doctorCount }}
                   </span>
                   <span :class="['status', subDept.available ? 'available' : 'unavailable']">
                     {{ subDept.available ? '可预约' : '暂满' }}
@@ -155,7 +152,7 @@ import Navigation from '@/components/Navigation.vue'
 import DoctorCard from '@/components/DoctorCard.vue'
 
 const router = useRouter()
-const searchMode = ref('department') // department | doctor
+const searchMode = ref('department')
 const matchedDoctors = ref([])
 
 const navRef = ref(null)
@@ -163,7 +160,7 @@ const navHeight = ref(110)
 const loading = ref(false)
 const searchQuery = ref('')
 const departments = ref([])
-const doctorIndex = ref([])  // 存储所有医生的姓名和科室（简要信息）
+const doctorIndex = ref([])
 const showAdvancedSearch = ref(false)
 
 const searchFilters = ref({
@@ -174,14 +171,12 @@ const searchFilters = ref({
 
 const minDate = computed(() => new Date().toISOString().split('T')[0])
 
-/** 清空搜索 */
 function clearSearch() {
   searchQuery.value = ''
   searchMode.value = 'department'
   matchedDoctors.value = []
 }
 
-/** 关键修改部分：搜索逻辑（防抖 + 后端接口） */
 let searchTimeout = null
 function handleSearch() {
   const query = searchQuery.value.trim()
@@ -194,7 +189,6 @@ function handleSearch() {
   searchTimeout = setTimeout(async () => {
     loading.value = true
     try {
-      // 调用后端接口按条件搜索
       const { data } = await axios.get('/api/doctors/search', {
         params: {
           keyword: query,
@@ -211,12 +205,16 @@ function handleSearch() {
   }, 400)
 }
 
-/** 获取科室信息（结构化展示） */
 async function fetchDepartments() {
   loading.value = true
   try {
-    const { data } = await axios.get('/api/departments')
-    departments.value = data
+    const res = await axios.get('/api/departments/all')
+    const depts = res.data?.data || []
+    // 统一处理 subDepartments 为 null
+    departments.value = depts.map(d => ({
+      ...d,
+      subDepartments: d.subDepartments || []
+    }))
   } catch (err) {
     console.error('获取科室列表失败', err)
   } finally {
@@ -224,23 +222,19 @@ async function fetchDepartments() {
   }
 }
 
-/** 初次加载：只获取医生简要信息（姓名 + 科室） */
 async function fetchDoctorIndex() {
   try {
     const { data } = await axios.get('/api/doctors/brief')
-    doctorIndex.value = data // [{id, name, departmentName, departmentCode}]
+    doctorIndex.value = data
   } catch (err) {
     console.error('加载医生索引失败', err)
   }
 }
 
-/** 应用筛选 */
 async function applyFilters() {
-  console.log('应用筛选:', searchFilters.value)
   await fetchDepartments()
 }
 
-/** 点击科室卡片跳转 */
 function handleDepartmentClick(subDept) {
   router.push({
     path: '/departmentDetail',
@@ -248,7 +242,6 @@ function handleDepartmentClick(subDept) {
   })
 }
 
-/** 计算导航栏高度 */
 function updateNavHeight() {
   if (navRef.value?.$el) {
     const height = navRef.value.$el.offsetHeight
@@ -260,7 +253,6 @@ function handleResize() {
   updateNavHeight()
 }
 
-/** 生命周期 */
 onMounted(async () => {
   await nextTick()
   updateNavHeight()
@@ -271,6 +263,12 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+})
+
+// 计算过滤后的科室列表
+const filteredDepartments = computed(() => {
+  if (!searchQuery.value) return departments.value
+  return departments.value.filter(dept => dept.name.includes(searchQuery.value))
 })
 </script>
 

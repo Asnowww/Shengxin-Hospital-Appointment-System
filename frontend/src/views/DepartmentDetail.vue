@@ -80,7 +80,7 @@ const navRef = ref(null)
 const navHeight = ref(110)
 const loading = ref(false)
 const activeCategory = ref('all')
-const departmentName = ref('心内科')
+const departmentName = ref('')
 const doctors = ref([])
 
 const categories = [
@@ -90,108 +90,7 @@ const categories = [
   { label: '特需门诊', value: 'special' }
 ]
 
-// 模拟数据（后端接口完成后替换）
-const mockDoctors = [
-  {
-    id: 1,
-    name: '张明',
-    title: '主任医师',
-    category: 'expert',
-    description: '从事心血管内科临床工作30余年',
-    specialization: '冠心病、高血压、心力衰竭、心律失常',
-    fee: 50,
-    todayAvailable: 3,
-    tomorrowAvailable: 8
-  },
-  {
-    id: 2,
-    name: '李华',
-    title: '副主任医师',
-    category: 'expert',
-    description: '专注于心血管疾病的介入治疗',
-    specialization: '冠脉支架植入、起搏器植入',
-    fee: 40,
-    todayAvailable: 0,
-    tomorrowAvailable: 5
-  },
-  {
-    id: 3,
-    name: '王芳',
-    title: '主任医师',
-    category: 'special',
-    description: '心血管病学博士，博士生导师',
-    specialization: '复杂冠心病、心肌病、心衰',
-    fee: 100,
-    todayAvailable: 2,
-    tomorrowAvailable: 3
-  },
-  {
-    id: 4,
-    name: '刘强',
-    title: '主治医师',
-    category: 'normal',
-    description: '擅长常见心血管疾病的诊断和治疗',
-    specialization: '高血压、冠心病、心律失常',
-    fee: 30,
-    todayAvailable: 12,
-    tomorrowAvailable: 15
-  },
-  {
-    id: 5,
-    name: '陈静',
-    title: '主治医师',
-    category: 'normal',
-    description: '熟练掌握心血管常见病、多发病的诊疗',
-    specialization: '高血压、冠心病',
-    fee: 30,
-    todayAvailable: 8,
-    tomorrowAvailable: 10
-  },
-  {
-    id: 6,
-    name: '赵敏',
-    title: '副主任医师',
-    category: 'expert',
-    description: '擅长心血管疾病的超声诊断',
-    specialization: '心脏结构和功能评估',
-    fee: 40,
-    todayAvailable: 5,
-    tomorrowAvailable: 7
-  },
-  {
-    id: 7,
-    name: '孙伟',
-    title: '主任医师',
-    category: 'special',
-    description: '国内知名心血管专家',
-    specialization: '疑难复杂心血管疾病',
-    fee: 150,
-    todayAvailable: 0,
-    tomorrowAvailable: 2
-  },
-  {
-    id: 8,
-    name: '周杰',
-    title: '主治医师',
-    category: 'normal',
-    description: '对心血管常见疾病有扎实的理论基础',
-    specialization: '心血管常见疾病',
-    fee: 30,
-    todayAvailable: 10,
-    tomorrowAvailable: 12
-  },
-  {
-    id: 9,
-    name: '吴琳',
-    title: '副主任医师',
-    category: 'expert',
-    description: '擅长心血管急危重症的救治',
-    specialization: '急性心肌梗死、急性心力衰竭',
-    fee: 45,
-    todayAvailable: 4,
-    tomorrowAvailable: 6
-  }
-]
+
 
 // 计算总医生数
 const totalDoctors = computed(() => doctors.value.length)
@@ -242,7 +141,7 @@ async function fetchDoctors() {
     // 模拟API请求
     await new Promise(resolve => setTimeout(resolve, 600))
     doctors.value = mockDoctors
-    departmentName.value = depName || '心内科'
+    departmentName.value = depName || '未知科室'
     
     console.log('科室代码:', depCode)
     console.log('科室名称:', departmentName.value)
