@@ -1149,3 +1149,64 @@ VALUES
     ('expert', '专家号', 30.00, '专家门诊挂号'),
     ('special', '特需号', 100.00, '特需门诊挂号');
 
+-- 医生1 的排班（内科，普通号）
+INSERT INTO schedules (doctor_id, dept_id, room_id, work_date, time_slot, appointment_type_id, max_slots, available_slots, status)
+VALUES
+    (1, 1, 1, '2025-10-27', 0, 1, 20, 20, 'open'),  -- 周一上午
+    (1, 1, 1, '2025-10-27', 1, 1, 15, 15, 'open'),  -- 周一下午
+    (1, 1, 1, '2025-10-28', 0, 1, 20, 18, 'open'),  -- 周二上午（已预约2个）
+    (1, 1, 1, '2025-10-29', 0, 1, 20, 20, 'open'),  -- 周三上午
+    (1, 1, 1, '2025-10-29', 1, 1, 15, 10, 'open'),  -- 周三下午（已预约5个）
+    (1, 1, 1, '2025-10-30', 0, 1, 20, 0, 'full'),   -- 周四上午（约满）
+    (1, 1, 1, '2025-10-31', 0, 1, 20, 20, 'open');  -- 周五上午
+
+-- 医生2 的排班（外科，专家号）
+INSERT INTO schedules (doctor_id, dept_id, room_id, work_date, time_slot, appointment_type_id, max_slots, available_slots, status)
+VALUES
+    (2, 2, 2, '2025-10-27', 0, 2, 15, 15, 'open'),  -- 周一上午
+    (2, 2, 2, '2025-10-27', 1, 2, 10, 8, 'open'),   -- 周一下午
+    (2, 2, 2, '2025-10-28', 0, 2, 15, 15, 'open'),  -- 周二上午
+    (2, 2, 2, '2025-10-29', 1, 2, 10, 10, 'open'),  -- 周三下午
+    (2, 2, 2, '2025-10-30', 0, 2, 15, 5, 'open'),   -- 周四上午（已预约10个）
+    (2, 2, 2, '2025-10-31', 0, 2, 15, 15, 'open');  -- 周五上午
+
+-- 医生3 的排班（内科，特需号）
+INSERT INTO schedules (doctor_id, dept_id, room_id, work_date, time_slot, appointment_type_id, max_slots, available_slots, status)
+VALUES
+    (3, 1, 3, '2025-10-27', 1, 3, 5, 5, 'open'),    -- 周一下午
+    (3, 1, 3, '2025-10-28', 1, 3, 5, 3, 'open'),    -- 周二下午
+    (3, 1, 3, '2025-10-29', 0, 3, 5, 5, 'open'),    -- 周三上午
+    (3, 1, 3, '2025-10-30', 1, 3, 5, 5, 'open'),    -- 周四下午
+    (3, 1, 3, '2025-10-31', 0, 3, 5, 0, 'full');    -- 周五上午（约满）
+
+-- 插入一些已停诊的排班（用于测试停诊状态）
+INSERT INTO schedules (doctor_id, dept_id, room_id, work_date, time_slot, appointment_type_id, max_slots, available_slots, status)
+VALUES
+    (1, 1, 1, '2025-11-01', 0, 1, 20, 20, 'cancelled'),  -- 医生请假
+    (2, 2, 2, '2025-11-01', 1, 2, 15, 15, 'cancelled');  -- 科室活动
+
+-- 插入晚上时段的排班（time_slot=2）
+INSERT INTO schedules (doctor_id, dept_id, room_id, work_date, time_slot, appointment_type_id, max_slots, available_slots, status)
+VALUES
+    (1, 1, 1, '2025-10-27', 2, 1, 10, 10, 'open'),  -- 周一晚上
+    (2, 2, 2, '2025-10-28', 2, 2, 8, 5, 'open'),    -- 周二晚上
+    (3, 1, 3, '2025-10-29', 2, 3, 3, 3, 'open');    -- 周三晚上
+
+-- 管理员测试账号
+-- 用户名: 1, 密码: 1
+INSERT INTO users (username, password, gender, phone, email, role_type, status)
+VALUES ('admin1', '$2a$10$yHGO4JufiZvY/0LsyOryIOJF1XVx8MNH34g0XwKOw0g.FXZt5jV3G', 'M', 'a', 'admin@test.com', 'admin', 'verified');
+
+-- 患者测试账号
+-- 用户名: patient1, 密码: 1
+INSERT INTO users (username, password, gender, phone, email, role_type, status)
+VALUES ('patient1', '$2a$10$yHGO4JufiZvY/0LsyOryIOJF1XVx8MNH34g0XwKOw0g.FXZt5jV3G', 'F', 'p', 'patient1@test.com', 'patient', 'verified');
+
+-- 对应的患者信息
+INSERT INTO patients (user_id, patient_account, identity_type, birth_date)
+VALUES (LAST_INSERT_ID(), '1', 'student', '2000-01-01');
+
+-- 医生测试账号
+-- 用户名: doctor1, 密码: 1
+INSERT INTO users (username, password, gender, phone, email, role_type, status)
+VALUES ('doctor1', '$2a$10$yHGO4JufiZvY/0LsyOryIOJF1XVx8MNH34g0XwKOw0g.FXZt5jV3G', 'M', 'd', 'doctor1@test.com', 'doctor', 'verified');
