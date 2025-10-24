@@ -1,5 +1,6 @@
 package org.example.backend;
 
+import java.util.concurrent.CompletableFuture;
 import org.example.backend.util.EmailAPI;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,11 +14,11 @@ public class EmailAPITest {
 
     @Test
     void sendEmail() throws Exception {
-        boolean result = emailAPI.sendHtmlEmail(
-                "测试邮件",
-                "<h1>这是一封测试邮件</h1>",
+        CompletableFuture<Boolean> future = emailAPI.sendHtmlEmail(
+                "Test Email",
+                "<h1>This is a test email</h1>",
                 "w15208422679@icloud.com"
         );
-        System.out.println("发送结果：" + result);
+        System.out.println("Email send result: " + future.join());
     }
 }

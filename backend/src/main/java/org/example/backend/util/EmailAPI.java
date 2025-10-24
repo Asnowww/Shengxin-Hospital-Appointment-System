@@ -8,14 +8,16 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import jakarta.mail.internet.MimeMessage;
 import java.io.File;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * 邮件发送工具类
+ * Email sending helper.
  */
 @Component
 @Slf4j
@@ -25,12 +27,11 @@ public class EmailAPI {
     private JavaMailSender mailSender;
 
     @Value("${spring.mail.username}")
-    private String from; // 发件人
+    private String from; // sender address
 
     /**
-     * 发送纯文本邮件
+     * Send a plain text email.
      */
-    @SneakyThrows
     public boolean sendGeneralEmail(String subject, String content, String... to) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(from);
@@ -39,29 +40,34 @@ public class EmailAPI {
         message.setText(content);
 
         mailSender.send(message);
-        log.info("发送纯文本邮件成功");
+        log.info("Plain text email sent successfully");
         return true;
     }
 
     /**
-     * 发送HTML邮件
+     * Send an HTML email asynchronously.
      */
-    @SneakyThrows
-    public boolean sendHtmlEmail(String subject, String content, String... to) {
-        MimeMessage mimeMessage = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true);
-        helper.setFrom(from);
-        helper.setTo(to);
-        helper.setSubject(subject);
-        helper.setText(content, true);
+    @Async("emailTaskExecutor")
+    public CompletableFuture<Boolean> sendHtmlEmail(String subject, String content, String... to) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, false);
+            helper.setFrom(from);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(content, true);
 
-        mailSender.send(mimeMessage);
-        log.info("发送HTML邮件成功");
-        return true;
+            mailSender.send(mimeMessage);
+            log.info("HTML email sent successfully");
+            return CompletableFuture.completedFuture(true);
+        } catch (Exception ex) {
+            log.error("Failed to send HTML email", ex);
+            return CompletableFuture.failedFuture(ex);
+        }
     }
 
     /**
-     * 发送带附件邮件
+     * Send an email with attachments.
      */
     @SneakyThrows
     public boolean sendAttachmentsEmail(String subject, String content, String[] to, String[] filePaths) {
@@ -80,12 +86,12 @@ public class EmailAPI {
         }
 
         mailSender.send(mimeMessage);
-        log.info("发送带附件邮件成功");
+        log.info("Attachment email sent successfully");
         return true;
     }
 
     /**
-     * 发送带静态资源的邮件
+     * Send an email with inline resources.
      */
     @SneakyThrows
     public boolean sendInlineResourceEmail(String subject, String content, String to, String rscPath, String rscId) {
@@ -95,14 +101,14 @@ public class EmailAPI {
         helper.setTo(to);
         helper.setSubject(subject);
 
-        String contentHtml = "<html><body>这是邮件的内容，包含一个图片：<img src='cid:" + rscId + "'>" + content + "</body></html>";
+        String contentHtml = "<html><body>This email contains an inline image:<img src='cid:" + rscId + "'>" + content + "</body></html>";
         helper.setText(contentHtml, true);
 
         FileSystemResource res = new FileSystemResource(new File(rscPath));
         helper.addInline(rscId, res);
 
         mailSender.send(mimeMessage);
-        log.info("发送带静态资源邮件成功");
+        log.info("Inline resource email sent successfully");
         return true;
     }
 }
