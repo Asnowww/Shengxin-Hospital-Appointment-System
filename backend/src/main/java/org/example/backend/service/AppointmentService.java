@@ -5,6 +5,8 @@ import org.example.backend.dto.AppointmentUpdateParam;
 import org.example.backend.pojo.Appointment;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.example.backend.dto.AppointmentInfoDTO;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -23,7 +25,7 @@ public interface AppointmentService {
     /**
      * 根据患者ID查询所有预约
      */
-    List<Appointment> getAppointmentsByPatientId(Long patientId);
+    List<AppointmentInfoDTO> getAppointmentsByPatientId(Long patientId);
 
     /**
      * 根据患者ID和日期查询预约

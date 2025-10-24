@@ -204,7 +204,8 @@ CREATE TABLE waitlist (
                           notified_at DATETIME,
                           converted_appointment_id BIGINT COMMENT '对应正式挂号id',
                           FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE,
-                          FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE CASCADE
+                          FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE CASCADE,
+                          FOREIGN KEY (converted_appointment_id) REFERENCES appointments(appointment_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='候补表';
 
 -- 支付与退款

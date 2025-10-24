@@ -3,6 +3,8 @@ package org.example.backend.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+import org.example.backend.dto.AppointmentInfoDTO;
 import org.example.backend.pojo.Appointment;
 
 import java.time.LocalDate;
@@ -13,17 +15,40 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
 
     /**
      * 查询医生的所有预约
-     * @param doctorId 医生ID
-     * @return 预约列表
      */
     List<Appointment> selectAppointmentsByDoctorId(@Param("doctorId") Long doctorId);
 
     /**
      * 查询医生当天的预约
-     * @param doctorId 医生ID
-     * @param date 日期（LocalDate）
-     * @return 当天预约列表
      */
     List<Appointment> selectAppointmentsByDoctorIdAndDate(@Param("doctorId") Long doctorId,
                                                           @Param("date") LocalDate date);
+
+    /**
+     * 患者端：查询患者所有预约（连表查询，返回DTO）
+     */
+    @Select("""
+        SELECT
+            a.appointment_id,
+            a.patient_id,
+            u_patient.username AS patient_name,
+            u_doctor.username AS doctor_name,
+            d.department_name,
+            r.room_name,
+            a.visit_time AS appointment_time,
+            a.appointment_status AS status,
+            a.fee_final,
+            a.notes AS remarks
+        FROM appointments a
+        JOIN patients p ON a.patient_id = p.patient_id
+        JOIN users u_patient ON p.user_id = u_patient.user_id
+        JOIN schedules s ON a.schedule_id = s.schedule_id
+        JOIN doctors doc ON s.doctor_id = doc.doctor_id
+        JOIN users u_doctor ON doc.user_id = u_doctor.user_id
+        JOIN departments d ON a.dept_id = d.dept_id
+        JOIN consultation_rooms r ON a.room_id = r.room_id
+        WHERE a.patient_id = #{patientId}
+        ORDER BY a.visit_time DESC
+        """)
+    List<AppointmentInfoDTO> selectAppointmentsByPatientId(@Param("patientId") Long patientId);
 }

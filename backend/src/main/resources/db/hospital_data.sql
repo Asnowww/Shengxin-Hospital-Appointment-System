@@ -1142,3 +1142,10 @@ INSERT INTO doctors (user_id, dept_id, title, bio, status) VALUES (LAST_INSERT_I
 -- 医生：席云 (核医学科)
 INSERT IGNORE INTO users (username, password, gender, phone, email, role_type, status) VALUES ('席云', '$2b$12$wdjHf1WtoFp2o4.pPHz6me/YrdrDPAb6pLQQza0eXUfXMEL503VTy', 'F', '14887906704', '14887906704@sx.com', 'doctor', 'verified');
 INSERT INTO doctors (user_id, dept_id, title, bio, status) VALUES (LAST_INSERT_ID(), (SELECT dept_id FROM departments WHERE dept_name='核医学科' LIMIT 1), '副主任医师', '甲亢碘-131治疗、甲癌碘-131治疗、肿瘤多模态分子影像评估。', 'active');
+
+INSERT INTO appointment_types (type_key, type_name, fee_amount, description)
+VALUES
+    ('normal', '普通号', 10.00, '普通门诊挂号'),
+    ('expert', '专家号', 30.00, '专家门诊挂号'),
+    ('special', '特需号', 100.00, '特需门诊挂号');
+

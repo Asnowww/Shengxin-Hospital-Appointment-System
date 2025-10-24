@@ -14,6 +14,8 @@ import org.example.backend.service.AppointmentService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.example.backend.dto.AppointmentInfoDTO;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -116,11 +118,15 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
 
+//    @Override
+//    public List<Appointment> getAppointmentsByPatientId(Long patientId) {
+//        return appointmentMapper.selectList(
+//                new QueryWrapper<Appointment>().eq("patient_id", patientId)
+//        );
+//    }
     @Override
-    public List<Appointment> getAppointmentsByPatientId(Long patientId) {
-        return appointmentMapper.selectList(
-                new QueryWrapper<Appointment>().eq("patient_id", patientId)
-        );
+    public List<AppointmentInfoDTO> getAppointmentsByPatientId(Long patientId) {
+        return appointmentMapper.selectAppointmentsByPatientId(patientId);
     }
 
     @Override

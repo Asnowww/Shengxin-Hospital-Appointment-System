@@ -2,19 +2,15 @@ package org.example.backend.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
-import org.example.backend.dto.AppointmentCreateParam;
-import org.example.backend.dto.AppointmentUpdateParam;
-import org.example.backend.dto.Result;
-import org.example.backend.dto.ScheduleDetailVO;
+import org.example.backend.dto.*;
 import org.example.backend.pojo.Appointment;
 import org.example.backend.pojo.Patient;
 import org.example.backend.service.AppointmentService;
 import org.example.backend.service.PatientService;
 import org.example.backend.service.ScheduleService;
-import org.example.backend.service.UserService;
 import org.example.backend.util.TokenUtil;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import org.example.backend.dto.AppointmentInfoDTO;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -32,16 +28,11 @@ public class PatientAppointmentController {
     private AppointmentService appointmentService;
 
     @Resource
-    private UserService userService;
-
-    @Resource
     private ScheduleService scheduleService;
 
     /**
      * 创建预约（患者挂号）
      *
-     * @param param 预约参数（患者ID、排班ID、备注）
-     * @return 创建的预约信息
      */
     @Resource
     private TokenUtil tokenUtil;
@@ -50,7 +41,7 @@ public class PatientAppointmentController {
     private PatientService patientService;
 
     @PostMapping("/create")
-    public Result createAppointment(
+    public Result<Appointment> createAppointment(
             @RequestBody AppointmentCreateParam param,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam(value = "token", required = false) String tokenParam
@@ -101,12 +92,11 @@ public class PatientAppointmentController {
      * 取消预约
      *
      * @param appointmentId 预约ID
-     * @param patientId 患者ID（用于权限验证）
      * @param cancelReason 取消原因（可选）
      * @return 取消结果
      */
     @PutMapping("/cancel")
-    public Result cancelAppointment(
+    public Result<String> cancelAppointment(
             @RequestParam Long appointmentId,
             @RequestParam(required = false) String cancelReason,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
@@ -174,7 +164,7 @@ public class PatientAppointmentController {
      * 获取当前患者的所有预约
      */
     @GetMapping("/list")
-    public Result getAppointmentsByPatient(
+    public Result<List<AppointmentInfoDTO>> getAppointmentsByPatient(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam(value = "token", required = false) String tokenParam
     ) {
@@ -200,10 +190,8 @@ public class PatientAppointmentController {
                 return Result.error("患者信息不存在");
             }
 
-            Long patientId = patient.getPatientId();
-
             // 查询该患者的预约
-            List<Appointment> list = appointmentService.getAppointmentsByPatientId(patientId);
+            List<AppointmentInfoDTO> list = appointmentService.getAppointmentsByPatientId(patient.getPatientId());
 
             return Result.success(list);
 
@@ -254,7 +242,7 @@ public class PatientAppointmentController {
      * 根据日期查询当前患者当天预约
      */
     @GetMapping("/list/{patientId}/date")
-    public Result getAppointmentsByDate(@PathVariable Long patientId,
+    public Result<List<Appointment>> getAppointmentsByDate(@PathVariable Long patientId,
                                         @RequestParam LocalDate date) {
         List<Appointment> list = appointmentService.getAppointmentsByPatientIdAndDate(patientId, date);
         return Result.success(list);
@@ -272,7 +260,7 @@ public class PatientAppointmentController {
      * @return 可预约的排班列表
      */
     @GetMapping("/available-schedules")
-    public Result getAvailableSchedules(
+    public Result<List<ScheduleDetailVO>> getAvailableSchedules(
             @RequestParam(required = false) Integer deptId,
             @RequestParam(required = false) Long doctorId,
             @RequestParam(required = false) LocalDate startDate,
@@ -315,7 +303,7 @@ public class PatientAppointmentController {
      * @return 当天该科室所有可预约的排班
      */
     @GetMapping("/available-schedules/dept/{deptId}")
-    public Result getAvailableSchedulesByDept(
+    public Result<List<ScheduleDetailVO>> getAvailableSchedulesByDept(
             @PathVariable Integer deptId,
             @RequestParam LocalDate date) {
 
@@ -341,7 +329,7 @@ public class PatientAppointmentController {
      * @return 该医生的可预约排班列表
      */
     @GetMapping("/available-schedules/doctor/{doctorId}")
-    public Result getAvailableSchedulesByDoctor(
+    public Result<List<ScheduleDetailVO>> getAvailableSchedulesByDoctor(
             @PathVariable Long doctorId,
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate) {
@@ -373,7 +361,7 @@ public class PatientAppointmentController {
      * @return 修改结果
      */
     @PutMapping("/update")
-    public Result updateAppointment(@RequestBody AppointmentUpdateParam param) {
+    public Result<Appointment> updateAppointment(@RequestBody AppointmentUpdateParam param) {
         try {
             // 验证必填参数
             if (param.getAppointmentId() == null) {
@@ -414,7 +402,7 @@ public class PatientAppointmentController {
      * @return 支付结果
      */
     @PutMapping("/pay")
-    public Result payAppointment(
+    public Result<Appointment> payAppointment(
             @RequestParam Long appointmentId,
             @RequestParam Long patientId) {
         try {
@@ -474,7 +462,7 @@ public class PatientAppointmentController {
      * @return 是否可修改
      */
     @GetMapping("/can-update")
-    public Result canUpdateAppointment(
+    public Result<Boolean> canUpdateAppointment(
             @RequestParam Long appointmentId,
             @RequestParam Long patientId) {
         boolean canUpdate = appointmentService.canUpdateAppointment(appointmentId, patientId);
@@ -489,7 +477,7 @@ public class PatientAppointmentController {
      * @return 预约详细信息
      */
     @GetMapping("/detail")
-    public Result getAppointmentDetail(
+    public Result<Appointment> getAppointmentDetail(
             @RequestParam Long appointmentId,
             @RequestParam Long patientId) {
         Appointment appointment = appointmentService.getById(appointmentId);
@@ -514,7 +502,7 @@ public class PatientAppointmentController {
      * @return 修改结果
      */
     @PutMapping("/update-notes")
-    public Result updateNotes(
+    public Result<String> updateNotes(
             @RequestParam Long appointmentId,
             @RequestParam Long patientId,
             @RequestParam String notes) {
