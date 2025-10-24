@@ -1,4 +1,3 @@
-
 <template>
   <Navigation ref="navRef" />
   <div class="page-container" :style="{ paddingTop: navHeight + 'px' }">
@@ -16,7 +15,7 @@
             <input 
               v-model="searchQuery" 
               type="text" 
-              placeholder="搜索科室名称或医生姓名..."
+              placeholder="搜索医生姓名、科室、疾病..."
               @input="handleSearch"
             />
             <button v-if="searchQuery" @click="clearSearch" class="clear-btn">
@@ -26,78 +25,106 @@
               </svg>
             </button>
           </div>
-          <button @click="showAdvancedSearch = !showAdvancedSearch" class="filter-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-            </svg>
-            高级筛选
-          </button>
         </div>
-
-        <!-- 高级搜索面板 -->
-        <transition name="slide">
-          <div v-if="showAdvancedSearch" class="advanced-search">
-            <div class="search-row">
-              <div class="search-field">
-                <label>就诊日期</label>
-                <input v-model="searchFilters.date" type="date" :min="minDate" />
-              </div>
-              <div class="search-field">
-                <label>时间段</label>
-                <select v-model="searchFilters.timeSlot">
-                  <option value="">不限</option>
-                  <option value="morning">上午 (08:00-12:00)</option>
-                  <option value="afternoon">下午 (14:00-17:00)</option>
-                </select>
-              </div>
-              <div class="search-field">
-                <label>医生职称</label>
-                <select v-model="searchFilters.title">
-                  <option value="">不限</option>
-                  <option value="主治医师">主治医师</option>
-                  <option value="副主任医师">副主任医师</option>
-                  <option value="主任医师">主任医师</option>
-                </select>
-              </div>
-            </div>
-            <div class="search-actions">
-              <button @click="resetFilters" class="reset-btn">重置</button>
-              <button @click="applyFilters" class="apply-btn">应用筛选</button>
-            </div>
-          </div>
-        </transition>
       </div>
 
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-state">
         <div class="spinner"></div>
-        <p>加载中...</p>
+        <p>搜索中...</p>
       </div>
 
-      <!-- 搜索结果为空 -->
-      <div v-else-if="searchQuery && filteredDepartments.length === 0" class="empty-state">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"></circle>
-          <path d="m21 21-4.35-4.35"></path>
-        </svg>
-        <p>未找到相关科室</p>
+      <!-- 搜索结果 -->
+<div v-if="hasSearched" class="search-results">
+  <div class="results-grid">
+    <!-- 医生列 -->
+    <div class="results-column">
+      <div class="column-header">
+        <h2>医生 ({{ matchedDoctors.length }})</h2>
       </div>
+      <div class="column-content">
+        <template v-if="matchedDoctors.length > 0">
+          <div 
+            v-for="doctor in matchedDoctors" 
+            :key="doctor.id"
+            class="result-card doctor-card"
+            @click="handleDoctorClick(doctor)">
+            
+            <div class="card-avatar">{{ doctor.name.charAt(0) }}</div>
+            
+            <div class="card-main">
+              <div class="card-name">{{ doctor.name }}</div>
+              <div class="card-title">{{ doctor.title }}</div>
+              <div class="card-dept">{{ doctor.deptName }}</div>
+              <div v-if="doctor.description" class="card-description">
+                {{ truncateText(doctor.description, 60) }}
+              </div>
+            </div>
 
-      <!-- 医生搜索结果 -->
-      <div v-if="searchMode === 'doctor'" class="doctor-list">
-        <DoctorCard
-          v-for="doc in matchedDoctors"
-          :key="doc.id"
-          :doctor="doc"
-          :getCategoryLabel="getCategoryLabel"
-          :onAppointment="handleAppointment"
-        />
+            <div class="card-arrow">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+          </div>
+        </template>
+
+        <div v-else class="empty-column">
+          <p>没有查询到符合的结果</p>
+        </div>
       </div>
+    </div>
 
-      <!-- 科室列表 -->
-      <div v-else-if="searchMode === 'department'" class="departments-list">
+    <!-- 科室列 -->
+    <div class="results-column">
+      <div class="column-header">
+        <h2>科室 ({{ matchedDepartments.length }})</h2>
+      </div>
+      <div class="column-content">
+        <template v-if="matchedDepartments.length > 0">
+          <div 
+            v-for="dept in matchedDepartments" 
+            :key="dept.id"
+            class="result-card dept-card"
+            @click="handleDepartmentClick(dept)">
+            
+            <div class="card-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9h12M6 9a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2M6 9v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9M10 14h4"></path>
+              </svg>
+            </div>
+
+            <div class="card-main">
+              <div class="card-name">{{ dept.deptName }}</div>
+              <div class="card-dept-info">
+                <span v-if="dept.building" class="dept-detail">{{ dept.building }}</span>
+                <span v-if="dept.floor" class="dept-detail">{{ dept.floor }}楼</span>
+              </div>
+              <div v-if="dept.description" class="card-description">
+                {{ truncateText(dept.description, 60) }}
+              </div>
+            </div>
+
+            <div class="card-arrow">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+          </div>
+        </template>
+
+        <div v-else class="empty-column">
+          <p>没有查询到符合的结果</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+      <!-- 默认科室列表 -->
+      <div v-else class="departments-list">
         <div 
-          v-for="dept in filteredDepartments" 
+          v-for="dept in departments" 
           :key="dept.id"
           class="department-group">
           
@@ -116,21 +143,10 @@
               v-for="subDept in (dept.subDepartments || [])" 
               :key="subDept.id"
               class="sub-dept-card"
-              @click="handleDepartmentClick(subDept)">
+              @click="handleSubDepartmentClick(subDept)">
               
               <div class="card-content">
                 <h3>{{ subDept.name }}</h3>
-                <div class="card-info">
-                  <span class="doctor-count">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
-                  </span>
-                  <span :class="['status', subDept.available ? 'available' : 'unavailable']">
-                    {{ subDept.available ? '可预约' : '暂满' }}
-                  </span>
-                </div>
               </div>
 
               <svg class="arrow" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -149,101 +165,115 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import Navigation from '@/components/Navigation.vue'
-import DoctorCard from '@/components/DoctorCard.vue'
 
 const router = useRouter()
-const searchMode = ref('department')
-const matchedDoctors = ref([])
 
 const navRef = ref(null)
 const navHeight = ref(110)
 const loading = ref(false)
 const searchQuery = ref('')
 const departments = ref([])
-const doctorIndex = ref([])
-const showAdvancedSearch = ref(false)
-
-const searchFilters = ref({
-  date: '',
-  timeSlot: '',
-  title: ''
-})
-
-const minDate = computed(() => new Date().toISOString().split('T')[0])
+const matchedDoctors = ref([])
+const matchedDepartments = ref([])
+const hasSearched = ref(false)
 
 function clearSearch() {
   searchQuery.value = ''
-  searchMode.value = 'department'
   matchedDoctors.value = []
+  matchedDepartments.value = []
+  hasSearched.value = false
+}
+
+// 文本截断
+function truncateText(text, length) {
+  if (!text) return ''
+  return text.length > length ? text.substring(0, length) + '...' : text
 }
 
 let searchTimeout = null
 function handleSearch() {
-  const query = searchQuery.value.trim()
+  const query = searchQuery.value.trim().toLowerCase()
+  
   if (!query) {
     clearSearch()
     return
   }
 
+  hasSearched.value = true
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(async () => {
-    loading.value = true
-    try {
-      const { data } = await axios.get('/api/doctors/search', {
-        params: {
-          keyword: query,
-          ...searchFilters.value
-        }
-      })
-      matchedDoctors.value = data || []
-      searchMode.value = matchedDoctors.value.length > 0 ? 'doctor' : 'department'
-    } catch (err) {
-      console.error('搜索医生失败', err)
-    } finally {
-      loading.value = false
-    }
-  }, 400)
+  loading.value = true
+  try {
+    const res = await axios.get('/api/patient/search', { params: { keyword: query } })
+    const data = res.data.data || {}  // 取 data
+
+    // 医生字段映射
+    matchedDoctors.value = (data.doctors || []).slice(0, 20).map((d, index) => ({
+      id: d.doctorId || '',
+      name: d.doctorName || '',
+      deptName: d.deptName || '',
+      title: d.title || '',
+      description: d.bio || ''
+    }))
+
+    // 科室字段映射
+    matchedDepartments.value = (data.departments || []).slice(0, 20).map(d => ({
+      id: d.deptId,
+      deptName: d.deptName,
+      building: d.building || '',
+      floor: d.floor || '',
+      description: d.description || ''
+    }))
+  } catch (err) {
+    console.error('搜索失败', err)
+    matchedDoctors.value = []
+    matchedDepartments.value = []
+  } finally {
+    loading.value = false
+  }
+}, 300)
+
 }
 
-//用于初始加载所有一级及二级科室信息
+// 加载所有科室信息（仅在页面初始加载时）
 async function fetchDepartments() {
-  loading.value = true
   try {
     const res = await axios.get('/api/departments/all')
     const depts = res.data?.data || []
-    // 统一处理 subDepartments 为 null
     departments.value = depts.map(d => ({
       ...d,
       subDepartments: d.subDepartments || []
     }))
   } catch (err) {
     console.error('获取科室列表失败', err)
-  } finally {
-    loading.value = false
   }
 }
 
-// async function fetchDoctorIndex() {
-//   try {
-//     const { data } = await axios.get('/api/doctors/brief')
-//     doctorIndex.value = data
-//   } catch (err) {
-//     console.error('加载医生索引失败', err)
-//   }
-// }
-
-async function applyFilters() {
-  await fetchDepartments()
+// 处理医生点击
+function handleDoctorClick(doctor) {
+  // 导航到该医生的预约页面
+  router.push({
+    path: '/doctorSchedule',
+    query: { deptId: doctor.deptId, deptName: doctor.deptName, doctorId: doctor.id ,doctorName: doctor.name }
+  })
 }
 
-//点击看详细信息
-function handleDepartmentClick(subDept) {
+// 处理科室点击
+function handleDepartmentClick(dept) {
+  //导航到该科室的预约页面
+  router.push({
+    path: '/departmentSchedule',
+    query: { deptId: dept.id || dept.deptId, deptName: dept.name || dept.deptName }
+  })
+}
+
+// 处理二级科室点击
+function handleSubDepartmentClick(subDept) {
   router.push({
     path: '/departmentSchedule',
     query: { deptId: subDept.id, deptName: subDept.name }
   })
 }
-
 
 function updateNavHeight() {
   if (navRef.value?.$el) {
@@ -261,20 +291,14 @@ onMounted(async () => {
   updateNavHeight()
   window.addEventListener('resize', handleResize)
 
-  await Promise.all([fetchDepartments(), fetchDoctorIndex()])
+  // 只加载科室列表，用于默认显示
+  await fetchDepartments()
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
 })
-
-// 计算过滤后的科室列表
-const filteredDepartments = computed(() => {
-  if (!searchQuery.value) return departments.value
-  return departments.value.filter(dept => dept.name.includes(searchQuery.value))
-})
 </script>
-
 
 <style scoped>
 .page-container {
@@ -283,7 +307,7 @@ const filteredDepartments = computed(() => {
 }
 
 .overview-wrapper {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
   min-height: calc(100vh - 140px);
@@ -358,121 +382,173 @@ h1 {
   background: #cbd5e0;
 }
 
-.filter-btn {
+/* 搜索结果网格 */
+.search-results {
+  margin-bottom: 2rem;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.results-column {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.column-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem;
+  flex-shrink: 0;
+}
+
+.column-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.column-content {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 600px;
+  padding: 1rem;
+}
+
+/* 结果卡片 */
+.result-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f7fafc;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 0.75rem;
+}
+
+.result-card:hover {
+  background: #f0f4ff;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  transform: translateX(4px);
+}
+
+.result-card:last-child {
+  margin-bottom: 0;
+}
+
+/* 医生卡片 */
+.doctor-card .card-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+/* 科室卡片 */
+.dept-card .card-icon {
+  width: 48px;
+  height: 48px;
   border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.filter-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-/* 高级搜索面板 */
-.advanced-search {
-  margin-top: 1.5rem;
-  padding: 1.5rem;
-  background: #f7fafc;
-  border-radius: 12px;
-  border: 2px solid #e2e8f0;
-}
-
-.search-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.search-field label {
-  display: block;
-  color: #4a5568;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-}
-
-.search-field input,
-.search-field select {
-  width: 100%;
-  padding: 0.625rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
-}
-
-.search-field input:focus,
-.search-field select:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.search-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-}
-
-.reset-btn,
-.apply-btn {
-  padding: 0.625rem 1.25rem;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.reset-btn {
-  background: white;
-  color: #4a5568;
-  border: 1px solid #e2e8f0;
-}
-
-.reset-btn:hover {
-  background: #f7fafc;
-}
-
-.apply-btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.apply-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+.card-main {
+  flex: 1;
+  min-width: 0;
 }
 
-/* 滑入动画 */
-.slide-enter-active,
-.slide-leave-active {
-  transition: all 0.3s ease;
-  max-height: 300px;
+.card-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 0.25rem;
+}
+
+.card-title {
+  font-size: 0.85rem;
+  color: #667eea;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.card-dept {
+  font-size: 0.8rem;
+  color: #718096;
+  margin-bottom: 0.5rem;
+}
+
+.card-description {
+  font-size: 0.8rem;
+  color: #718096;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.slide-enter-from,
-.slide-leave-to {
-  max-height: 0;
-  opacity: 0;
+.card-dept-info {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
 }
 
-/* 加载和空状态 */
-.loading-state,
+.dept-detail {
+  color: #718096;
+  font-weight: 500;
+  background: #f0f4ff;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.card-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a0aec0;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.result-card:hover .card-arrow {
+  color: #667eea;
+  transform: translateX(4px);
+}
+
+/* 空状态 */
+.empty-column {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: #a0aec0;
+  font-size: 0.9rem;
+  min-height: 150px;
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -482,6 +558,35 @@ h1 {
   background: white;
   border-radius: 16px;
   color: #718096;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.empty-state svg {
+  color: #cbd5e0;
+  margin-bottom: 1rem;
+}
+
+.empty-state p {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.empty-hint {
+  font-size: 0.85rem !important;
+  color: #a0aec0 !important;
+}
+
+/* 加载状态 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  background: white;
+  border-radius: 16px;
+  color: #718096;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .spinner {
@@ -498,12 +603,7 @@ h1 {
   to { transform: rotate(360deg); }
 }
 
-.empty-state svg {
-  color: #cbd5e0;
-  margin-bottom: 1rem;
-}
-
-/* 科室列表 */
+/* 科室列表（默认显示） */
 .departments-list {
   display: flex;
   flex-direction: column;
@@ -517,7 +617,6 @@ h1 {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
-/* 一级科室 */
 .primary-department {
   display: flex;
   align-items: center;
@@ -549,7 +648,6 @@ h1 {
   font-weight: 500;
 }
 
-/* 二级科室网格 */
 .sub-departments {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -581,45 +679,10 @@ h1 {
 }
 
 .card-content h3 {
-  margin: 0 0 0.5rem 0;
+  margin: 0;
   color: #2d3748;
   font-size: 1rem;
   font-weight: 600;
-}
-
-.card-info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.8rem;
-}
-
-.doctor-count {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: #718096;
-}
-
-.doctor-count svg {
-  color: #667eea;
-}
-
-.status {
-  padding: 0.125rem 0.5rem;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 0.75rem;
-}
-
-.status.available {
-  background: #d4edda;
-  color: #28a745;
-}
-
-.status.unavailable {
-  background: #f8d7da;
-  color: #721c24;
 }
 
 .arrow {
@@ -633,9 +696,16 @@ h1 {
   transform: translateX(4px);
 }
 
-
 /* 响应式 */
 @media (max-width: 1024px) {
+  .results-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .column-content {
+    max-height: 500px;
+  }
+
   .sub-departments {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }
@@ -654,17 +724,12 @@ h1 {
     font-size: 1.5rem;
   }
 
-  .search-container {
-    flex-direction: column;
-  }
-
-  .filter-btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .search-row {
+  .results-grid {
     grid-template-columns: 1fr;
+  }
+
+  .column-content {
+    max-height: 400px;
   }
 
   .department-group {
@@ -673,6 +738,18 @@ h1 {
 
   .sub-departments {
     grid-template-columns: 1fr;
+  }
+
+  .result-card {
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .card-avatar,
+  .card-icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
   }
 }
 </style>

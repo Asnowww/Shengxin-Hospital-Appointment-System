@@ -4,7 +4,6 @@ import Register from '@/components/Register.vue'
 import Profile from '@/views/Profile.vue'
 import HomePage from '@/views/HomePage.vue'
 import Department from '@/views/Department.vue'
-import DepartmentDetail from '@/views/DepartmentDetail.vue'
 import Password from '@/views/Password.vue'
 import DoctorProfile from '@/views/DoctorProfile.vue'
 import MySchedule from '@/views/MySchedule.vue'
@@ -21,8 +20,8 @@ const routes = [
   { path: '/register', name: 'register', component: Register }, // 注册页
   { path: '/patient/profile', name: 'profile', component: Profile },
   { path: '/department', name: 'department', component: Department }, //科室导览页
-  { path: '/departmentDetail', name: 'departmentDetail', component: DepartmentDetail }, //科室详情页（接受参数）
   { path: '/departmentSchedule', name: 'departmentSchedule', component: DepartmentSchedule }, //科室排班页（接受参数）
+  { path: '/doctorSchedule', name: 'doctorSchedule', component: () => import('@/views/DoctorSchedule.vue') }, //医生排班页（接受参数）
   { path: '/password', name: 'password', component: Password }, // 修改密码页
 
   //医生端界面

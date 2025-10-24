@@ -290,4 +290,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setAppointmentStatus(status);
         return appointmentMapper.updateById(appointment) > 0;
     }
+
+    @Override
+    public boolean updateAppointmentFee(Integer id, Double fee){
+        AppointmentType type = appointmentTypeMapper.selectById(id);
+        if (type == null) return false;
+        type.setFeeAmount(java.math.BigDecimal.valueOf(fee));
+        return appointmentTypeMapper.updateById(type) > 0;
+    }
 }

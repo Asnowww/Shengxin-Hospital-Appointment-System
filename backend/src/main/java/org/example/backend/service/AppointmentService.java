@@ -58,6 +58,11 @@ public interface AppointmentService {
     List<Appointment> getAllAppointments();
 
     /**
+     * 设置号别费用
+     */
+    boolean updateAppointmentFee(Integer id, Double fee);
+
+    /**
      * 更新预约状态
      */
     boolean updateAppointmentStatus(Long appointmentId, String status);
