@@ -36,6 +36,7 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
             doc.title AS doctor_title,
             doc.bio AS doctor_info,
             d.dept_name,
+            r.building,
             r.room_name,
             t.type_name,
             CONCAT(

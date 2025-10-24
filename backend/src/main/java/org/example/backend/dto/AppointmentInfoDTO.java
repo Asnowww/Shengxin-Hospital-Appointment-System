@@ -14,6 +14,7 @@ public class AppointmentInfoDTO {
     private String doctorTitle;      //医生职称
     private String doctorInfo;      //医生信息
     private String deptName;  // 科室名称
+    private String building;        //楼名
     private String roomName;       // 诊室名称
     private String typeName;        //门诊类别
     private String appointmentTime; // 预约就诊时间
