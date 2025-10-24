@@ -143,14 +143,29 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (appointment == null || !appointment.getPatientId().equals(patientId)) {
             return false; // 非本人或不存在
         }
+
         // 如果已支付，顺便改 payment_status 为 refunded
         if ("paid".equals(appointment.getPaymentStatus())) {
             appointment.setPaymentStatus("refunded");
         }
 
         appointment.setAppointmentStatus("cancelled");
-        return appointmentMapper.updateById(appointment) > 0;
+
+        boolean updated = appointmentMapper.updateById(appointment) > 0;
+
+        if (updated) {
+            // 更新对应的 schedule 表 available_slot
+            Integer scheduleId = appointment.getScheduleId();
+            Schedule schedule = scheduleMapper.selectById(scheduleId);
+            if (schedule != null) {
+                schedule.setAvailableSlots(schedule.getAvailableSlots() + 1); // 可用名额加 1
+                scheduleMapper.updateById(schedule);
+            }
+        }
+
+        return updated;
     }
+
 
     @Transactional
     @Override

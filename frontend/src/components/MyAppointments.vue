@@ -5,122 +5,46 @@
       <div class="status-tabs">
         <button 
           :class="['tab-btn', { active: activeStatus === 'current' }]"
-          @click="activeStatus = 'current'">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
+          @click="switchStatus('current')">
           当前预约
         </button>
         <button 
           :class="['tab-btn', { active: activeStatus === 'history' }]"
-          @click="activeStatus = 'history'">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-            <path d="M3 3v5h5"></path>
-            <path d="M12 7v5l4 2"></path>
-          </svg>
+          @click="switchStatus('history')">
           历史预约
         </button>
       </div>
     </div>
 
     <div class="appointments-content">
-      <!-- 加载状态 -->
       <div v-if="loading" class="loading-state">
         <div class="spinner"></div>
         <p>加载中...</p>
       </div>
 
-      <!-- 空状态 -->
       <div v-else-if="displayedAppointments.length === 0" class="empty-state">
-        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-          <line x1="16" y1="2" x2="16" y2="6"></line>
-          <line x1="8" y1="2" x2="8" y2="6"></line>
-          <line x1="3" y1="10" x2="21" y2="10"></line>
-        </svg>
         <p>暂无{{ activeStatus === 'current' ? '当前' : '历史' }}预约</p>
       </div>
 
-      <!-- 预约列表 -->
       <transition-group v-else name="list" tag="div" class="appointments-list">
         <div 
           v-for="appt in displayedAppointments" 
-          :key="appt.id"
+          :key="appt.appointmentId"
           class="appointment-card">
           <div class="card-header">
-            <div class="appointment-type">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-              </svg>
-              <span>{{ appt.type || '健康咨询' }}</span>
-            </div>
-            <span :class="['status-badge', appt.status]">
-              {{ getStatusText(appt.status) }}
-            </span>
+            <span>{{ appt.appointmentTypeId || '健康咨询' }}</span>
+            <span>{{ getStatusText(appt.appointmentStatus) }}</span>
           </div>
-
           <div class="card-body">
-            <div class="info-row">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-              <span>{{ formatDate(appt.date) }}</span>
-            </div>
-
-            <div class="info-row">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-              <span>{{ appt.time || '未指定时间' }}</span>
-            </div>
-
-            <div v-if="appt.doctor" class="info-row">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-              <span>{{ appt.doctor }}</span>
-            </div>
-
-            <div v-if="appt.location" class="info-row">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-              <span>{{ appt.location }}</span>
-            </div>
-
-            <div v-if="appt.description" class="description">
-              <p>{{ appt.description }}</p>
-            </div>
+            <div>预约时间: {{ formatDate(appt.bookingTime) }}</div>
+            <div>支付状态: {{ appt.paymentStatus }}</div>
           </div>
-
           <div class="card-footer">
-              <!-- 改约按钮 -->
             <button 
-                v-if="activeStatus === 'current' && appt.status !== 'cancelled'"
-                @click="rescheduleAppointment(appt)"
-                class="reschedule-btn">
-                改约
-            </button>
-                <!-- 取消预约按钮 -->
-            <button 
-              v-if="activeStatus === 'current' && appt.status !== 'cancelled'"
-              @click="cancelAppointment(appt.id)"
+              v-if="activeStatus === 'current' && appt.appointmentStatus !== 'cancelled'"
+              @click="cancelAppointment(appt.appointmentId)"
               class="cancel-btn">
               取消预约
-            </button>
-            <button 
-              v-if="activeStatus === 'history'"
-              @click="rebookAppointment(appt)"
-              class="rebook-btn">
-              再次预约
             </button>
           </div>
         </div>
@@ -130,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
 
 const activeStatus = ref('current')
@@ -139,127 +63,102 @@ const currentAppointments = ref([])
 const historyAppointments = ref([])
 const token = localStorage.getItem('token')
 
-// 计算显示的预约列表
+// 显示对应状态列表
 const displayedAppointments = computed(() => {
-  return activeStatus.value === 'current' 
-    ? currentAppointments.value 
+  return activeStatus.value === 'current'
+    ? currentAppointments.value
     : historyAppointments.value
 })
 
-// 获取当前及未来预约
-async function fetchCurrentAppointments() {
+// 切换状态
+function switchStatus(status) {
+  activeStatus.value = status
+  loadAppointments()
+}
+
+// 获取预约列表（当前或历史）
+async function fetchAppointments() {
+  if (!token) return
+
   loading.value = true
   try {
- 
- console.log('Token:', token)  // 调试输出  
-
-    const { data } = await axios.get('/api/patient/appointment/current', {
-      headers: {
-        Authorization: `Bearer ${token}`  // 传给后端
-      }
+    const response = await axios.get('/api/patient/appointment/list', {
+      headers: { Authorization: `Bearer ${token}` }
     })
-
-    // 后端返回结构：{ code, message, data }
-    if (data.code === 200) {
-      currentAppointments.value = data.data || []  // 赋值给响应式变量
+    const resData = response.data
+    if (resData.code === 200) {
+      currentAppointments.value = resData.data || []
     } else {
-      console.warn('获取预约失败：', data.message)
+      console.warn('获取预约失败：', resData.message)
       currentAppointments.value = []
     }
   } catch (err) {
-    console.error('获取当前预约失败', err)
+    console.error('获取预约失败', err)
     currentAppointments.value = []
   } finally {
     loading.value = false
   }
 }
 
+// 加载当前或历史预约
+async function loadAppointments() {
+  if (activeStatus.value === 'current' && currentAppointments.value.length === 0) {
+    await fetchAppointments()
+  } else if (activeStatus.value === 'history' && historyAppointments.value.length === 0) {
+    // 如果你有历史接口，可在这里调用
+    historyAppointments.value = []
+  }
+}
 
-// 获取历史预约
-async function fetchHistoryAppointments() {
+// 取消预约
+async function cancelAppointment(appointmentId) {
+  if (!confirm('确定要取消这个预约吗？')) return
+  if (!token) return alert('未登录或登录已过期，请重新登录')
+
   loading.value = true
   try {
-    const { data } = await axios.get('/api/appointments/history')
-    historyAppointments.value = data
+    const { data } = await axios.put('/api/patient/appointment/cancel', null, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { appointmentId }
+    })
+
+    if (data.code === 200) {
+      alert('预约已取消')
+      await fetchAppointments() // 刷新列表
+    } else {
+      alert('取消失败：' + data.message)
+    }
   } catch (err) {
-    console.error('获取历史预约失败', err)
+    console.error('取消预约失败', err)
+    alert('取消失败，请重试')
   } finally {
     loading.value = false
   }
-}
-
-// 切换状态时加载对应数据
-async function loadAppointments() {
-  if (activeStatus.value === 'current' && currentAppointments.value.length === 0) {
-    await fetchCurrentAppointments()
-  } else if (activeStatus.value === 'history' && historyAppointments.value.length === 0) {
-    await fetchHistoryAppointments()
-  }
-}
-
-// 监听状态切换
-const unwatchStatus = computed(() => activeStatus.value)
-unwatchStatus.value // 触发计算
-const originalActiveStatus = activeStatus.value
-if (activeStatus.value !== originalActiveStatus) {
-  loadAppointments()
 }
 
 // 格式化日期
 function formatDate(dateStr) {
   if (!dateStr) return '未指定日期'
   const date = new Date(dateStr)
-  return date.toLocaleDateString('zh-CN', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    weekday: 'short'
-  })
+  return date.toLocaleString('zh-CN', { hour12: false })
 }
 
-// 获取状态文本
+// 状态文本
 function getStatusText(status) {
-  const statusMap = {
+  const map = {
     pending: '待确认',
     confirmed: '已确认',
     completed: '已完成',
     cancelled: '已取消'
   }
-  return statusMap[status] || '未知'
-}
-
-// 改约预约
-function rescheduleAppointment(appt) {
-  // 这里可以跳转到改约页面并预填信息
-  console.log('改约预约:', appt)
-  alert('跳转到改约页面...')
-}
-
-// 取消预约
-async function cancelAppointment(id) {
-  if (!confirm('确定要取消这个预约吗？')) return
-  
-  try {
-    await axios.post(`/api/appointments/${id}/cancel`)
-    alert('预约已取消')
-    await fetchCurrentAppointments()
-  } catch (err) {
-    alert('取消失败，请重试')
-    console.error('取消预约失败', err)
-  }
-}
-
-// 再次预约
-function rebookAppointment(appt) {
-  // 这里可以跳转到预约页面并预填信息
-  console.log('再次预约:', appt)
-  alert('跳转到预约页面...')
+  return map[status] || '未知'
 }
 
 onMounted(() => {
-  fetchCurrentAppointments()
+  fetchAppointments()
 })
 </script>
+
 
 <style scoped>
 .appointments-container {
