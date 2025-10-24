@@ -33,9 +33,21 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
             a.patient_id,
             u_patient.username AS patient_name,
             u_doctor.username AS doctor_name,
-            d.department_name,
+            doc.title AS doctor_title,
+            doc.bio AS doctor_info,
+            d.dept_name,
             r.room_name,
-            a.visit_time AS appointment_time,
+            t.type_name,
+            CONCAT(
+                        DATE_FORMAT(s.work_date, '%Y年%m月%d日 '),
+                        CASE s.time_slot
+                            WHEN 0 THEN '上午'
+                            WHEN 1 THEN '下午'
+                            WHEN 2 THEN '晚上'
+                            ELSE ''
+                        END
+                    ) AS appointmentTime,
+            DATE_FORMAT(a.booking_time, '%Y-%m-%d %H:%i:%s') AS bookingTime,
             a.appointment_status AS status,
             a.fee_final,
             a.notes AS remarks
@@ -47,6 +59,7 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
         JOIN users u_doctor ON doc.user_id = u_doctor.user_id
         JOIN departments d ON a.dept_id = d.dept_id
         JOIN consultation_rooms r ON a.room_id = r.room_id
+        JOIN appointment_types t ON t.appointment_type_id = s.appointment_type_id
         WHERE a.patient_id = #{patientId}
         ORDER BY a.visit_time DESC
         """)
