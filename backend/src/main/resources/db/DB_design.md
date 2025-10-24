@@ -6,12 +6,14 @@
   - 患者账户(patient)
     - 用户名：p
     - 密码：1
+    - token：test-patient-token-001
   - 医生账户(doctor)
     - 用户名：d
     - 密码：1
   - 管理员账户(admin)
     - 用户名：a
     - 密码：1
+    - token：token:test-admin-token-001
 
 ## 用户与认证模块
 ### status用户状态

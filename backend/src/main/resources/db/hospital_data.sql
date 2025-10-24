@@ -1,13 +1,21 @@
--- 修改departments.room为可空
-ALTER TABLE departments MODIFY COLUMN room VARCHAR(20) NULL COMMENT '房间号/诊室号，如201';
+-- 管理员测试账号
+-- 用户名: 1, 密码: 1
+INSERT INTO users (username, password, gender, phone, email, role_type, status)
+VALUES ('admin1', '$2a$10$yHGO4JufiZvY/0LsyOryIOJF1XVx8MNH34g0XwKOw0g.FXZt5jV3G', 'M', 'a', 'admin@test.com', 'admin', 'verified');
 
-ALTER DATABASE hospital CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-ALTER TABLE departments CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-ALTER TABLE doctors CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+-- 患者测试账号
+-- 用户名: patient1, 密码: 1
+INSERT INTO users (username, password, gender, phone, email, role_type, status)
+VALUES ('patient1', '$2a$10$yHGO4JufiZvY/0LsyOryIOJF1XVx8MNH34g0XwKOw0g.FXZt5jV3G', 'F', 'p', 'patient1@test.com', 'patient', 'verified');
 
-ALTER TABLE departments MODIFY building VARCHAR(50) COMMENT '楼宇名称';
-ALTER TABLE doctors MODIFY title VARCHAR(50) COMMENT '职称';
+-- 对应的患者信息
+INSERT INTO patients (user_id, patient_account, identity_type, birth_date)
+VALUES (LAST_INSERT_ID(), '1', 'student', '2000-01-01');
 
+-- 医生测试账号
+-- 用户名: doctor1, 密码: 1
+INSERT INTO users (username, password, gender, phone, email, role_type, status)
+VALUES ('doctor1', '$2a$10$yHGO4JufiZvY/0LsyOryIOJF1XVx8MNH34g0XwKOw0g.FXZt5jV3G', 'M', 'd', 'doctor1@test.com', 'doctor', 'verified');
 
 -- ==================== 科室和诊室数据 ====================
 
@@ -1191,22 +1199,3 @@ VALUES
     (1, 1, 1, '2025-10-27', 2, 1, 10, 10, 'open'),  -- 周一晚上
     (2, 2, 2, '2025-10-28', 2, 2, 8, 5, 'open'),    -- 周二晚上
     (3, 1, 3, '2025-10-29', 2, 3, 3, 3, 'open');    -- 周三晚上
-
--- 管理员测试账号
--- 用户名: 1, 密码: 1
-INSERT INTO users (username, password, gender, phone, email, role_type, status)
-VALUES ('admin1', '$2a$10$yHGO4JufiZvY/0LsyOryIOJF1XVx8MNH34g0XwKOw0g.FXZt5jV3G', 'M', 'a', 'admin@test.com', 'admin', 'verified');
-
--- 患者测试账号
--- 用户名: patient1, 密码: 1
-INSERT INTO users (username, password, gender, phone, email, role_type, status)
-VALUES ('patient1', '$2a$10$yHGO4JufiZvY/0LsyOryIOJF1XVx8MNH34g0XwKOw0g.FXZt5jV3G', 'F', 'p', 'patient1@test.com', 'patient', 'verified');
-
--- 对应的患者信息
-INSERT INTO patients (user_id, patient_account, identity_type, birth_date)
-VALUES (LAST_INSERT_ID(), '1', 'student', '2000-01-01');
-
--- 医生测试账号
--- 用户名: doctor1, 密码: 1
-INSERT INTO users (username, password, gender, phone, email, role_type, status)
-VALUES ('doctor1', '$2a$10$yHGO4JufiZvY/0LsyOryIOJF1XVx8MNH34g0XwKOw0g.FXZt5jV3G', 'M', 'd', 'doctor1@test.com', 'doctor', 'verified');
