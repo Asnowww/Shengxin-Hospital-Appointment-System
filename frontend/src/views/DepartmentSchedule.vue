@@ -484,7 +484,7 @@ onMounted(async () => {
   initializeDate()
   selectedTimeSlot.value = 'all'
   
-  await Promise.all([fetchSchedules(), fetchDoctors()])
+  await Promise.all([fetchSchedules()])
 })
 
 onUnmounted(() => {
@@ -495,7 +495,6 @@ onUnmounted(() => {
 <style scoped>
 .page-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .schedule-wrapper {
