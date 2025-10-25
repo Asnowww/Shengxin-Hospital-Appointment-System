@@ -202,41 +202,6 @@ public class PatientAppointmentController {
         }
     }
 
-//    /**
-//     * 获取当前患者当前预约
-//     */
-//    @GetMapping("/current")
-//    public Result getUpcomingAppointments(
-//            @RequestHeader(value = "Authorization", required = false) String authorization,
-//            @RequestParam(value = "token", required = false) String tokenParam
-//    ) {
-//        try {
-//            // 1. 提取 token
-//            String token = tokenUtil.extractToken(authorization, tokenParam);
-//            if (token == null) {
-//                return Result.error("未传入 token，请登录后重试");
-//            }
-//
-//            // 2. 从 token 解析 userId
-//            Long userId = tokenUtil.resolveUserIdFromToken(token);
-//            if (userId == null) {
-//                return Result.error("token 无效或已过期，请重新登录");
-//            }
-//
-//            // 3. 根据 userId 查询 patientId
-//            Long patientId = patientService.getPatientIdByUserId(userId);
-//            if (patientId == null) {
-//                return Result.error("未找到患者信息");
-//            }
-//
-//            // 4. 查询当前及未来日期的预约
-//            List<Appointment> appointments = appointmentService.getAppointmentsByPatientIdAndDate(patientId, LocalDate.now());
-//
-//            return Result.success(appointments);
-//        } catch (Exception e) {
-//            return Result.error("获取预约失败：" + e.getMessage());
-//        }
-//    }
 
     /**
      * 根据日期查询当前患者当天预约
