@@ -111,14 +111,13 @@
 
               <!-- 状态和按钮 -->
               <div class="card-footer">
-                <span :class="['status', schedule.status]">
+                <span :class="['status', getStatusClass(schedule)]">
                   {{ getStatusText(schedule) }}
                 </span>
                 <button 
-                  :disabled="schedule.availableSlots === 0"
-                  :class="['appoint-btn', { disabled: schedule.availableSlots === 0 }]"
+                  :class="['appoint-btn', { disabled: false }]"
                   @click="handleAppointment(schedule)">
-                  {{ schedule.availableSlots > 0 ? '立即预约' : '已满' }}
+                  {{ schedule.availableSlots > 0 ? '立即预约' : '可候补' }}
                 </button>
               </div>
             </div>
@@ -170,14 +169,13 @@
 
                   <div class="schedule-details">
                     <span class="room">{{ schedule.roomName }}</span>
-                    <span :class="['slots', { available: schedule.availableSlots > 0 }]">
-                      {{ schedule.availableSlots > 0 ? `${schedule.availableSlots}个号` : '已满' }}
+                    <span :class="['slots', getSlotStatusClass(schedule)]">
+                      {{ schedule.availableSlots > 0 ? `${schedule.availableSlots}个号` : '可候补' }}
                     </span>
                   </div>
 
                   <button 
-                    :disabled="schedule.availableSlots === 0"
-                    :class="['quick-appoint', { disabled: schedule.availableSlots === 0 }]"
+                    :class="['quick-appoint', { disabled: false }]"
                     @click="handleAppointment(schedule)">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="12 5 19 12 12 19"></polyline>
@@ -216,7 +214,7 @@
       <div v-if="showAppointModal" class="modal-overlay" @click.self="showAppointModal = false">
         <div class="modal-content">
           <div class="modal-header">
-            <h2>确认预约</h2>
+            <h2>{{ selectedSchedule?.availableSlots > 0 ? '确认预约' : '确认候补' }}</h2>
             <button class="close-btn" @click="showAppointModal = false">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -226,6 +224,14 @@
           </div>
 
           <div class="modal-body">
+            <div v-if="selectedSchedule?.availableSlots === 0" class="waitlist-notice">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <p>该号源已满，加入候补队列后有新号源时将自动为您预约</p>
+            </div>
+            
             <div class="info-group">
               <span class="label">医生：</span>
               <span class="value">{{ selectedSchedule?.doctorName }} ({{ selectedSchedule?.doctorTitle }})</span>
@@ -254,7 +260,9 @@
 
           <div class="modal-footer">
             <button class="btn-cancel" @click="showAppointModal = false">取消</button>
-            <button class="btn-confirm" @click="confirmAppointment">确认预约</button>
+            <button class="btn-confirm" @click="confirmAppointment" :disabled="isSubmitting">
+              {{ isSubmitting ? '提交中...' : (selectedSchedule?.availableSlots > 0 ? '确认预约' : '确认候补') }}
+            </button>
           </div>
         </div>
       </div>
@@ -277,19 +285,19 @@ const departmentId = ref(route.query.deptId)
 const departmentName = ref(route.query.deptName)
 const doctorId = ref(route.query.doctorId || null)
 
-
 const activeTab = ref('general')
 const selectedDate = ref('')
 const selectedTimeSlot = ref('')
 const schedules = ref([])
 const doctors = ref([])
 const loading = ref(false)
+const isSubmitting = ref(false)
 const showAppointModal = ref(false)
 const selectedSchedule = ref(null)
 
 const appointmentTabs = [
   { id: 'general', label: '普通门诊' },
-  {id:'special', label: '特需门诊' },
+  { id: 'special', label: '特需门诊' },
   { id: 'expert', label: '专家门诊' }
 ]
 
@@ -352,11 +360,24 @@ function calculateProgressPercentage(schedule) {
   return (schedule.bookedSlots / schedule.maxSlots) * 100
 }
 
+// 获取状态CSS类
+function getStatusClass(schedule) {
+  if (schedule.availableSlots === 0) return 'waitlist'
+  if (schedule.status === 'open') return 'open'
+  return 'closed'
+}
+
 // 获取状态文本
 function getStatusText(schedule) {
-  if (schedule.availableSlots === 0) return '已满'
+  if (schedule.availableSlots === 0) return '可候补'
   if (schedule.status === 'open') return '可预约'
   return '未开放'
+}
+
+// 获取号源状态CSS类
+function getSlotStatusClass(schedule) {
+  if (schedule.availableSlots > 0) return 'available'
+  return 'waitlist'
 }
 
 // 普通门诊过滤
@@ -395,11 +416,11 @@ function getExpertSchedules(doctorId) {
   )
 }
 
-//加载排班信息
+// 加载排班信息
 async function fetchSchedules() {
   loading.value = true
   try {
-    const { data } = await axios.get('/api/patient/schedules/available', {
+    const { data } = await axios.get('/api/patient/schedules/all', {
       params: {
         deptId: departmentId.value,         
         startDate: dateOptions.value[0].value,
@@ -414,14 +435,13 @@ async function fetchSchedules() {
   }
 }
 
-
-
-// 处理预约
+// 处理预约/候补
 function handleAppointment(schedule) {
   selectedSchedule.value = schedule
   showAppointModal.value = true
 }
 
+// 确认预约或候补
 async function confirmAppointment() {
   if (!selectedSchedule.value) {
     alert('请选择排班')
@@ -434,36 +454,65 @@ async function confirmAppointment() {
     return
   }
 
+  isSubmitting.value = true
   try {
-    const response = await axios.post(
-      '/api/patient/appointment/create',
-      {
-        scheduleId: selectedSchedule.value.scheduleId,
-        appointmentTypeId: selectedSchedule.value.appointmentTypeId
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }
-    )
+    const isWaitlist = selectedSchedule.value.availableSlots === 0
 
-    const resData = response.data
-    if (resData.code !== 200) {
-      alert('预约失败：' + resData.message)
-      return
+    if (isWaitlist) {
+      // 候补预约
+      const response = await axios.post(
+        '/api/waitlist/create',
+        {
+          scheduleId: selectedSchedule.value.scheduleId
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+
+      const resData = response.data
+      if (resData.code !== 200) {
+        alert('候补失败：' + resData.message)
+        return
+      }
+
+      showAppointModal.value = false
+      alert('候补成功！有号源时将自动为您预约')
+    } else {
+      // 正常预约
+      const response = await axios.post(
+        '/api/patient/appointment/create',
+        {
+          scheduleId: selectedSchedule.value.scheduleId,
+          appointmentTypeId: selectedSchedule.value.appointmentTypeId
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+
+      const resData = response.data
+      if (resData.code !== 200) {
+        alert('预约失败：' + resData.message)
+        return
+      }
+
+      showAppointModal.value = false
+      alert('预约成功！')
     }
 
-    showAppointModal.value = false
-    alert('预约成功！')
     await fetchSchedules()
   } catch (err) {
-    console.error('预约失败', err)
-    alert('预约失败，请重试')
+    console.error('操作失败', err)
+    alert('操作失败，请重试')
+  } finally {
+    isSubmitting.value = false
   }
 }
-
-
 
 function updateNavHeight() {
   if (navRef.value?.$el) {
@@ -873,6 +922,11 @@ h1 {
   color: #721c24;
 }
 
+.status.waitlist {
+  background: #cce5ff;
+  color: #0056b3;
+}
+
 .appoint-btn {
   padding: 0.625rem 1.25rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1048,6 +1102,11 @@ h1 {
   background: #d4edda;
 }
 
+.schedule-details .slots.waitlist {
+  color: #0056b3;
+  background: #cce5ff;
+}
+
 .quick-appoint {
   width: 32px;
   height: 32px;
@@ -1162,6 +1221,27 @@ h1 {
   padding: 1.5rem;
 }
 
+.waitlist-notice {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #cce5ff;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  color: #0056b3;
+}
+
+.waitlist-notice svg {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.waitlist-notice p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 .info-group {
   display: flex;
   justify-content: space-between;
@@ -1222,9 +1302,14 @@ h1 {
   color: white;
 }
 
-.btn-confirm:hover {
+.btn-confirm:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-confirm:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 /* 动画 */

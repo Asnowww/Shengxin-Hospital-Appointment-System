@@ -46,6 +46,26 @@ public class PatientScheduleController {
     }
 
     /**
+     * 查询所有排班
+     */
+    @GetMapping("/all")
+    public Result<List<ScheduleDetailVO>> getAllSchedules(
+            @RequestParam(required = false) Integer deptId,
+            @RequestParam(required = false) Long doctorId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        try {
+            // 查询所有状态的排班
+            List<ScheduleDetailVO> schedules = scheduleService.getAllSchedules(deptId, doctorId, startDate, endDate, null);
+
+            return Result.success(schedules);
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+
+    /**
      * 查询排班详情
      */
     @GetMapping("/{scheduleId}")
