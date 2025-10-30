@@ -1,16 +1,14 @@
 package org.example.backend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.AppointmentCreateParam;
 import org.example.backend.dto.WaitlistCreateParam;
-import org.example.backend.mapper.AppointmentMapper;
-import org.example.backend.mapper.ScheduleMapper;
-import org.example.backend.mapper.WaitlistMapper;
-import org.example.backend.pojo.Appointment;
-import org.example.backend.pojo.Schedule;
-import org.example.backend.pojo.Waitlist;
+import org.example.backend.dto.WaitlistDetailVO;
+import org.example.backend.mapper.*;
+import org.example.backend.pojo.*;
 import org.example.backend.service.AppointmentService;
 import org.example.backend.service.NotificationEmailService;
 import org.example.backend.service.WaitlistService;
@@ -20,6 +18,7 @@ import org.springframework.transaction.support.TransactionSynchronizationAdapter
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -39,6 +38,21 @@ public class WaitlistServiceImpl extends ServiceImpl<WaitlistMapper, Waitlist> i
 
     @Resource
     private NotificationEmailService notificationEmailService;
+
+    @Resource
+    private DoctorMapper doctorMapper;
+
+    @Resource
+    private DepartmentMapper departmentMapper;
+
+    @Resource
+    private ConsultationRoomMapper consultationRoomMapper;
+
+    @Resource
+    private AppointmentTypeMapper appointmentTypeMapper;
+
+    @Resource
+    private UserMapper userMapper;
 
     /**
      * 创建候补预约
@@ -159,12 +173,142 @@ public class WaitlistServiceImpl extends ServiceImpl<WaitlistMapper, Waitlist> i
         return waitlistMapper.updateById(waitlist) > 0;
     }
 
+
     /**
-     * 获取患者的候补列表
+     * 获取患者的候补详细列表（包含排班信息和队列统计）
      */
     @Override
-    public List<Waitlist> getPatientWaitlists(Long patientId) {
-        return waitlistMapper.selectByPatientId(patientId);
+    public List<WaitlistDetailVO> getPatientWaitlistsDetail(Long patientId) {
+        // 1. 查询患者的所有候补记录
+        List<Waitlist> waitlists = waitlistMapper.selectByPatientId(patientId);
+
+        if (waitlists.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<WaitlistDetailVO> detailList = new ArrayList<>();
+
+        for (Waitlist waitlist : waitlists) {
+            WaitlistDetailVO vo = new WaitlistDetailVO();
+
+            // 填充候补基本信息
+            vo.setWaitId(waitlist.getWaitId());
+            vo.setScheduleId(waitlist.getScheduleId());
+            vo.setPatientId(waitlist.getPatientId());
+            vo.setPriority(waitlist.getPriority());
+            vo.setStatus(waitlist.getStatus());
+            vo.setRequestedAt(waitlist.getRequestedAt());
+            vo.setNotifiedAt(waitlist.getNotifiedAt());
+            vo.setConvertedAppointmentId(waitlist.getConvertedAppointmentId());
+
+            // 2. 查询关联的排班信息
+            Schedule schedule = scheduleMapper.selectById(waitlist.getScheduleId());
+            if (schedule != null) {
+                vo.setDoctorId(schedule.getDoctorId());
+                vo.setDeptId(schedule.getDeptId());
+                vo.setWorkDate(schedule.getWorkDate());
+                vo.setTimeSlot(schedule.getTimeSlot());
+                vo.setTimeSlotName(getTimeSlotName(schedule.getTimeSlot()));
+                vo.setMaxSlots(schedule.getMaxSlots());
+                vo.setAvailableSlots(schedule.getAvailableSlots());
+                vo.setBookedSlots(schedule.getMaxSlots() - schedule.getAvailableSlots());
+                vo.setScheduleStatus(schedule.getStatus());
+                vo.setRoomId(schedule.getRoomId());
+                vo.setAppointmentTypeId(schedule.getAppointmentTypeId());
+
+
+                Doctor doctor = doctorMapper.selectById(schedule.getDoctorId());
+                if (doctor != null) {
+                    vo.setDoctorTitle(doctor.getTitle());
+                    User user = userMapper.selectById(doctor.getUserId());
+                    if (user != null) {
+                        vo.setDoctorName(user.getName());
+                    }
+                }
+
+                // 4. 查询科室信息
+                Department dept = departmentMapper.selectById(schedule.getDeptId());
+                if (dept != null) {
+                    vo.setDeptName(dept.getDeptName());
+                }
+
+                // 5. 查询诊室信息
+                ConsultationRoom room = consultationRoomMapper.selectById(schedule.getRoomId());
+                if (room != null) {
+                    vo.setRoomName(room.getRoomName());
+                }
+
+                // 6. 查询号别信息
+                AppointmentType appointmentType = appointmentTypeMapper.selectById(schedule.getAppointmentTypeId());
+                if (appointmentType != null) {
+                    vo.setAppointmentTypeName(appointmentType.getTypeName());
+                }
+            }
+
+            // 7. 查询候补队列统计信息（仅对waiting状态的候补计算）
+            if ("waiting".equals(waitlist.getStatus())) {
+                QueryWrapper<Waitlist> queueWrapper = new QueryWrapper<>();
+                queueWrapper.eq("schedule_id", waitlist.getScheduleId())
+                        .eq("status", "waiting")
+                        .orderByDesc("priority")
+                        .orderByAsc("requested_at");
+
+                List<Waitlist> allWaitingList = waitlistMapper.selectList(queueWrapper);
+
+                vo.setTotalWaiting(allWaitingList.size());
+                vo.setHighPriorityCount(
+                        (int) allWaitingList.stream().filter(w -> w.getPriority() >= 1).count()
+                );
+
+                // 计算当前候补的队列位置
+                int position = 1;
+                for (Waitlist w : allWaitingList) {
+                    if (w.getWaitId().equals(waitlist.getWaitId())) {
+                        vo.setQueuePosition(position);
+                        break;
+                    }
+                    position++;
+                }
+
+                // 计算同优先级中的排名
+                int priorityRank = 1;
+                for (Waitlist w : allWaitingList) {
+                    if (w.getPriority().equals(waitlist.getPriority())) {
+                        if (w.getWaitId().equals(waitlist.getWaitId())) {
+                            vo.setMyPriorityRank(priorityRank);
+                            break;
+                        }
+                        priorityRank++;
+                    }
+                }
+            } else {
+                // 非waiting状态不显示队列信息
+                vo.setTotalWaiting(0);
+                vo.setHighPriorityCount(0);
+                vo.setQueuePosition(null);
+                vo.setMyPriorityRank(null);
+            }
+
+            detailList.add(vo);
+        }
+
+        return detailList;
+    }
+
+    /**
+     * 辅助方法：时间段转名称
+     */
+    private String getTimeSlotName(Integer timeSlot) {
+        switch (timeSlot) {
+            case 0:
+                return "上午";
+            case 1:
+                return "下午";
+            case 2:
+                return "晚上";
+            default:
+                return "未知";
+        }
     }
 
     /**
