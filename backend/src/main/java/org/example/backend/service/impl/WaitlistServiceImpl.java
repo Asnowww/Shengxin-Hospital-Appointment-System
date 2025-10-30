@@ -82,7 +82,16 @@ public class WaitlistServiceImpl extends ServiceImpl<WaitlistMapper, Waitlist> i
             throw new RuntimeException("您已预约该排班");
         }
 
-        // 6. 验证优先级参数
+        // 6. 验证候补队列是否已满（最多5人）
+        QueryWrapper<Waitlist> queueLimitCheck = new QueryWrapper<>();
+        queueLimitCheck.eq("schedule_id", param.getScheduleId())
+                .eq("status", "waiting");
+        Long currentQueueSize = waitlistMapper.selectCount(queueLimitCheck);
+        if (currentQueueSize >= 5) {
+            throw new RuntimeException("该排班的候补队列已满（最多5人），暂时无法加入");
+        }
+
+        // 7. 验证优先级参数
         if (param.getPriority() == null) {
             param.setPriority(0); // 默认普通优先级
         }
@@ -90,7 +99,7 @@ public class WaitlistServiceImpl extends ServiceImpl<WaitlistMapper, Waitlist> i
             throw new RuntimeException("优先级参数错误，应为0-2之间");
         }
 
-        // 7. 创建候补记录
+        // 8. 创建候补记录
         Waitlist waitlist = new Waitlist();
         waitlist.setScheduleId(param.getScheduleId());
         waitlist.setPatientId(Long.valueOf(param.getPatientId()));
@@ -98,7 +107,7 @@ public class WaitlistServiceImpl extends ServiceImpl<WaitlistMapper, Waitlist> i
         waitlist.setStatus("waiting");
         waitlist.setRequestedAt(LocalDateTime.now());
 
-        // 8. 计算队列位置
+        // 9. 计算队列位置
         QueryWrapper<Waitlist> queueWrapper = new QueryWrapper<>();
         queueWrapper.eq("schedule_id", param.getScheduleId())
                 .eq("status", "waiting")
@@ -115,6 +124,7 @@ public class WaitlistServiceImpl extends ServiceImpl<WaitlistMapper, Waitlist> i
             throw new RuntimeException("候补创建失败");
         }
 
+        //通知
         int finalQueuePosition = queuePosition;
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
             @Override
