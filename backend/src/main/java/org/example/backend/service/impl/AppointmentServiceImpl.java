@@ -11,10 +11,15 @@ import org.example.backend.pojo.Appointment;
 import org.example.backend.pojo.AppointmentType;
 import org.example.backend.pojo.Schedule;
 import org.example.backend.service.AppointmentService;
+import org.example.backend.service.NotificationEmailService;
+import org.example.backend.service.WaitlistService;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.example.backend.dto.AppointmentInfoDTO;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,6 +36,13 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Resource
     private AppointmentTypeMapper appointmentTypeMapper;
+
+    @Resource
+    @Lazy
+    private WaitlistService waitlistService;
+
+    @Resource
+    private NotificationEmailService notificationEmailService;
 
     // === 病人端 ===
 
@@ -114,16 +126,17 @@ public class AppointmentServiceImpl implements AppointmentService {
         schedule.setUpdatedAt(LocalDateTime.now());
         scheduleMapper.updateById(schedule);
 
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+            @Override
+            public void afterCommit() {
+                notificationEmailService.sendAppointmentCreatedNotification(appointment.getAppointmentId());
+            }
+        });
+
         return appointment;
     }
 
 
-//    @Override
-//    public List<Appointment> getAppointmentsByPatientId(Long patientId) {
-//        return appointmentMapper.selectList(
-//                new QueryWrapper<Appointment>().eq("patient_id", patientId)
-//        );
-//    }
     @Override
     public List<AppointmentInfoDTO> getAppointmentsByPatientId(Long patientId) {
         return appointmentMapper.selectAppointmentsByPatientId(patientId);
@@ -144,29 +157,41 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+    @Transactional
     public boolean cancelAppointment(Long appointmentId, Long patientId) {
         Appointment appointment = appointmentMapper.selectById(appointmentId);
         if (appointment == null || !appointment.getPatientId().equals(patientId)) {
-            return false; // 非本人或不存在
+            return false;
         }
 
-        // 如果已支付，顺便改 payment_status 为 refunded
         if ("paid".equals(appointment.getPaymentStatus())) {
             appointment.setPaymentStatus("refunded");
         }
 
         appointment.setAppointmentStatus("cancelled");
-
         boolean updated = appointmentMapper.updateById(appointment) > 0;
 
         if (updated) {
-            // 更新对应的 schedule 表 available_slot
             Integer scheduleId = appointment.getScheduleId();
             Schedule schedule = scheduleMapper.selectById(scheduleId);
             if (schedule != null) {
-                schedule.setAvailableSlots(schedule.getAvailableSlots() + 1); // 可用名额加 1
+                schedule.setAvailableSlots(schedule.getAvailableSlots() + 1);
                 scheduleMapper.updateById(schedule);
+
+                // ===== 新增：处理候补队列 =====
+                try {
+                    waitlistService.processWaitlistConversion(scheduleId);
+                } catch (Exception e) {
+                    System.err.println("处理候补队列失败: " + e.getMessage());
+                }
             }
+
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+                @Override
+                public void afterCommit() {
+                    notificationEmailService.sendAppointmentCancelledNotification(appointment.getAppointmentId());
+                }
+            });
         }
 
         return updated;

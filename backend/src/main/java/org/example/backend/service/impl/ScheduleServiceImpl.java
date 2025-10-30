@@ -5,6 +5,7 @@ import org.example.backend.dto.*;
 import org.example.backend.mapper.*;
 import org.example.backend.pojo.*;
 import org.example.backend.service.ScheduleService;
+import org.example.backend.service.WaitlistService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +43,10 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private WaitlistService waitlistService;
+
 
     @Override
     @Transactional
@@ -275,18 +280,15 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (schedule == null) {
             throw new RuntimeException("排班不存在");
         }
-
         if ("cancelled".equals(schedule.getStatus())) {
             throw new RuntimeException("已停诊的排班不能加号");
         }
 
-        // 增加号源
         schedule.setMaxSlots(schedule.getMaxSlots() + param.getExtraSlots());
         schedule.setAvailableSlots(schedule.getAvailableSlots() + param.getExtraSlots());
         schedule.setUpdatedAt(LocalDateTime.now());
         scheduleMapper.updateById(schedule);
 
-        // 记录到 schedule_exceptions
         ScheduleException exception = new ScheduleException();
         exception.setScheduleId(schedule.getScheduleId());
         exception.setDoctorId(schedule.getDoctorId());
@@ -298,6 +300,13 @@ public class ScheduleServiceImpl implements ScheduleService {
         exception.setCreatedBy(param.getCreatedBy());
         exception.setCreatedAt(LocalDateTime.now());
         scheduleExceptionMapper.insert(exception);
+
+        // ===== 新增：处理候补队列 =====
+        try {
+            waitlistService.processWaitlistConversion(param.getScheduleId());
+        } catch (Exception e) {
+            System.err.println("处理候补队列失败: " + e.getMessage());
+        }
     }
 
     @Override
