@@ -12,9 +12,12 @@ import org.example.backend.pojo.Appointment;
 import org.example.backend.pojo.Schedule;
 import org.example.backend.pojo.Waitlist;
 import org.example.backend.service.AppointmentService;
+import org.example.backend.service.NotificationEmailService;
 import org.example.backend.service.WaitlistService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,6 +36,9 @@ public class WaitlistServiceImpl extends ServiceImpl<WaitlistMapper, Waitlist> i
 
     @Resource
     private AppointmentMapper appointmentMapper;
+
+    @Resource
+    private NotificationEmailService notificationEmailService;
 
     /**
      * 创建候补预约
@@ -92,10 +98,34 @@ public class WaitlistServiceImpl extends ServiceImpl<WaitlistMapper, Waitlist> i
         waitlist.setStatus("waiting");
         waitlist.setRequestedAt(LocalDateTime.now());
 
+        // 8. 计算队列位置
+        QueryWrapper<Waitlist> queueWrapper = new QueryWrapper<>();
+        queueWrapper.eq("schedule_id", param.getScheduleId())
+                .eq("status", "waiting")
+                .orderByDesc("priority")   // 优先级高的在前
+                .orderByAsc("requested_at"); // 先申请的在前
+        List<Waitlist> waitlists = waitlistMapper.selectList(queueWrapper);
+
+        int queuePosition = 1;
+        queuePosition += waitlists.stream().takeWhile(w -> !w.getWaitId().equals(waitlist.getWaitId())).count();
+
+
         int result = waitlistMapper.insert(waitlist);
         if (result <= 0) {
             throw new RuntimeException("候补创建失败");
         }
+
+        int finalQueuePosition = queuePosition;
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+            @Override
+            public void afterCommit() {
+                notificationEmailService.sendWaitlistCreatedNotification(
+                        Long.valueOf(param.getPatientId()),
+                        param.getScheduleId(),
+                        finalQueuePosition
+                );
+            }
+        });
 
         return waitlist;
     }
@@ -170,7 +200,13 @@ public class WaitlistServiceImpl extends ServiceImpl<WaitlistMapper, Waitlist> i
                 waitlist.setConvertedAppointmentId(appointment.getAppointmentId());
                 waitlistMapper.updateById(waitlist);
 
-                // TODO: 发送通知给患者（短信/站内信/推送）
+                // 6. 发送转正通知
+                notificationEmailService.sendWaitlistConversionNotification(
+                        waitlist.getPatientId(),
+                        appointment.getAppointmentId(),
+                        scheduleId
+                );
+
                 System.out.println("候补转正成功: waitId=" + waitlist.getWaitId() +
                         ", appointmentId=" + appointment.getAppointmentId() +
                         ", patientId=" + waitlist.getPatientId());
