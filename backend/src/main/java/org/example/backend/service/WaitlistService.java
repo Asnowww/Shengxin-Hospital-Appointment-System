@@ -2,6 +2,7 @@ package org.example.backend.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.example.backend.dto.WaitlistCreateParam;
+import org.example.backend.dto.WaitlistDetailVO;
 import org.example.backend.pojo.Waitlist;
 
 import java.util.List;
@@ -24,11 +25,9 @@ public interface WaitlistService extends IService<Waitlist> {
     boolean cancelWaitlist(Long waitId, Long patientId);
 
     /**
-     * 获取患者的候补列表
-     * @param patientId 患者ID
-     * @return 候补列表
+     * 获取患者的候补详细列表（包含排班信息和队列统计）
      */
-    List<Waitlist> getPatientWaitlists(Long patientId);
+    List<WaitlistDetailVO> getPatientWaitlistsDetail(Long patientId);
 
     /**
      * 处理排班释放号源时的候补转正
