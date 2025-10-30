@@ -5,6 +5,7 @@ import jakarta.annotation.Resource;
 import lombok.Data;
 import org.example.backend.dto.ScheduleDetailVO;
 import org.example.backend.dto.WaitlistCreateParam;
+import org.example.backend.dto.WaitlistDetailVO;
 import org.example.backend.pojo.Patient;
 import org.example.backend.pojo.Waitlist;
 import org.example.backend.service.PatientService;
@@ -131,11 +132,17 @@ public class WaitlistController {
     }
 
     /**
-     * 获取我的候补列表
-     * GET /waitlist/my
+     * 获取我的候补详细列表（包含排班信息和统计）
+     * GET /waitlist/my-detail
+     *
+     * 此接口合并了原来的 /my 和 /check 接口功能
+     * 返回患者所有候补记录的详细信息，包括：
+     * - 候补基本信息（状态、时间、优先级等）
+     * - 关联的排班信息（医生、科室、时间、号源等）
+     * - 队列统计信息（排队位置、总人数、优先级排名等）
      */
-    @GetMapping("/my")
-    public Result<List<Waitlist>> getMyWaitlists(
+    @GetMapping("/my-detail")
+    public Result<List<WaitlistDetailVO>> getMyWaitlistsDetail(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam(value = "token", required = false) String tokenParam
     ) {
@@ -160,9 +167,9 @@ public class WaitlistController {
                 return Result.error("患者信息不存在");
             }
 
-            // 查询候补列表
-            List<Waitlist> waitlists = waitlistService.getPatientWaitlists(patient.getPatientId());
-            return Result.success(waitlists);
+            // 查询候补详细列表
+            List<WaitlistDetailVO> waitlistDetails = waitlistService.getPatientWaitlistsDetail(patient.getPatientId());
+            return Result.success(waitlistDetails);
 
         } catch (Exception e) {
             e.printStackTrace();
