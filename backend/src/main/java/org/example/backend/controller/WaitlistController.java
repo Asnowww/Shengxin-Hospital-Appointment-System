@@ -3,15 +3,18 @@ package org.example.backend.controller;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import lombok.Data;
+import org.example.backend.dto.ScheduleDetailVO;
 import org.example.backend.dto.WaitlistCreateParam;
 import org.example.backend.pojo.Patient;
 import org.example.backend.pojo.Waitlist;
 import org.example.backend.service.PatientService;
+import org.example.backend.service.ScheduleService;
 import org.example.backend.service.WaitlistService;
 import org.example.backend.dto.Result;
 import org.example.backend.util.TokenUtil;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -23,6 +26,9 @@ public class WaitlistController {
 
     @Resource
     private PatientService patientService;
+
+    @Resource
+    private ScheduleService scheduleService;
 
     @Resource
     private TokenUtil tokenUtil;
@@ -201,6 +207,62 @@ public class WaitlistController {
             return Result.error("查询失败：" + e.getMessage());
         }
     }
+
+    /**
+     * 查询已预约满的排班（可供候补）
+     * 支持按科室、医生、日期范围筛选
+     *
+     * @param deptId 科室ID（可选）
+     * @param doctorId 医生ID（可选）
+     * @param startDate 开始日期（可选，默认当天）
+     * @param endDate 结束日期（可选，默认7天后）
+     * @param timeSlot 时间段（可选：0-上午，1-下午，2-晚上）
+     * @return 已满排班列表及候补情况
+     */
+    @GetMapping("/fully-booked-schedules")
+    public Result<List<ScheduleDetailVO>> getFullyBookedSchedules(
+            @RequestParam(required = false) Integer deptId,
+            @RequestParam(required = false) Long doctorId,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false) Integer timeSlot) {
+
+        // 默认日期范围：今天到7天后
+        if (startDate == null) {
+            startDate = LocalDate.now();
+        }
+        if (endDate == null) {
+            endDate = startDate.plusDays(7);
+        }
+
+        // 查询状态为open且已满的排班
+        List<ScheduleDetailVO> schedules = scheduleService.getAllSchedules(
+                deptId, doctorId, startDate, endDate, "open");
+
+        List<ScheduleDetailVO> fullyBooked = schedules.stream()
+                .filter(schedule -> schedule.getAvailableSlots() == 0)
+                .filter(schedule -> timeSlot == null || schedule.getTimeSlot().equals(timeSlot))
+                .map(schedule -> {
+                    ScheduleDetailVO vo = new ScheduleDetailVO();
+                    vo.setScheduleId(schedule.getScheduleId());
+                    vo.setDoctorId(schedule.getDoctorId());
+                    vo.setDoctorName(schedule.getDoctorName());
+                    vo.setDoctorTitle(schedule.getDoctorTitle());
+                    vo.setDeptId(schedule.getDeptId());
+                    vo.setDeptName(schedule.getDeptName());
+                    vo.setWorkDate(schedule.getWorkDate());
+                    vo.setTimeSlot(schedule.getTimeSlot());
+                    vo.setTimeSlotName(schedule.getTimeSlotName());
+                    vo.setMaxSlots(schedule.getMaxSlots());
+                    vo.setBookedSlots(schedule.getBookedSlots());
+
+                    return vo;
+                })
+                .toList();
+
+        return Result.success(fullyBooked);
+    }
+
 
     /**
      * 候补统计信息 VO
