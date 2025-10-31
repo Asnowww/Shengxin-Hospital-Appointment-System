@@ -80,10 +80,6 @@
               <span class="value">{{ formatDate(selectedRecord.targetDate) }}</span>
             </div>
             <div class="detail-row">
-              <span class="label">候补队位：</span>
-              <span class="value">第 {{ selectedRecord.queuePosition }} 位</span>
-            </div>
-            <div class="detail-row">
               <span class="label">候补状态：</span>
               <span :class="['value', 'status-' + selectedRecord.status]">
                 {{ getStatusLabel(selectedRecord.status) }}
@@ -101,11 +97,6 @@
               <span class="label">处理时间：</span>
               <span class="value">{{ formatDate(selectedRecord.processedAt) }}</span>
             </div>
-          </div>
-
-          <div v-if="selectedRecord.remarks" class="detail-section">
-            <h4>备注</h4>
-            <p class="remarks-text">{{ selectedRecord.remarks }}</p>
           </div>
         </div>
 
@@ -154,7 +145,7 @@ async function fetchWaitlist() {
 
   loading.value = true
   try {
-    const response = await axios.get('/api/waitlist/my', {
+    const response = await axios.get('/api/waitlist/my-detail', {
       headers: { Authorization: `Bearer ${token.value}` }
     })
     const resData = response.data
@@ -197,30 +188,31 @@ async function loadWaitlist() {
 // 格式化候补数据为卡片格式
 function formatRecordData(item) {
   return {
-    waitlistId: item.waitlistId,
-    patientName: item.patientName || '患者',
-    doctorName: item.doctorName || '医生',
-    doctorTitle: item.doctorTitle || '医师',
-    deptName: item.deptName || '科室',
-    building: item.building || '医院',
-    typeName: item.typeName || '普通',
-    targetTime: item.targetTime || '未指定时间',
-    targetDate: item.targetDate,
-    queuePosition: item.queuePosition || '-',
+    waitlistId: item.waitId,               
+    patientName: item.patientName || '本人',
+    doctorName: item.doctorName,
+    doctorTitle: item.doctorTitle,
+    deptName: item.deptName,
+    building: item.roomName,               
+    typeName: item.appointmentTypeName,    
+    targetTime: item.timeSlotName,         // 下午 / 上午
+    targetDate: item.workDate,
     status: mapStatus(item.status),
-    createdAt: item.createdAt,
-    processedAt: item.processedAt,
-    remarks: item.remarks
+    createdAt: item.requestedAt,           // 加入时间
+    processedAt: item.notifiedAt,          // 通知或处理时间
+    remarks: item.remarks || ''
   }
 }
+
 
 // 映射候补状态
 function mapStatus(apiStatus) {
   const statusMap = {
     'waiting': 'waiting',
+    'notified': 'notified',
     'converted': 'converted',
     'cancelled': 'cancelled',
-    'expired': 'expired'
+    'expired': 'expired' //后端待加上
   }
   return statusMap[apiStatus] || 'waiting'
 }
@@ -229,6 +221,7 @@ function mapStatus(apiStatus) {
 function getStatusLabel(status) {
   const statusMap = {
     'waiting': '等待中',
+    'notified': '可挂号',
     'converted': '已转预约',
     'cancelled': '已取消',
     'expired': '已过期'
@@ -257,30 +250,41 @@ function closeDetailDrawer() {
 
 // 取消候补
 async function handleCancelWaitlist(record) {
-  if (!confirm('确定要取消这个候补吗？')) return
-  if (!token.value) return alert('未登录或登录已过期，请重新登录')
-
-  loading.value = true
   try {
-    const { data } = await axios.put('/api/patient/waitlist/cancel', null, {
-      headers: { Authorization: `Bearer ${token.value}` },
-      params: { waitlistId: record.waitlistId }
+    const token = localStorage.getItem('token')
+    if (!token) {
+      alert('未登录或登录已过期')
+      return
+    }
+
+    const url = `/api/waitlist/cancel/${record.waitlistId || record.waitId}`
+
+    const { data } = await axios.post(url, null, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
     })
 
     if (data.code === 200) {
       alert('候补已取消')
       closeDetailDrawer()
-      await fetchWaitlist()
+      //本地刷新
+      waitingWaitlist.value = waitingWaitlist.value.filter(
+    item => item.waitId !== record.waitlistId
+  )
+  completedWaitlist.value.push({
+    ...record,
+    status: 'cancelled'
+  })
     } else {
-      alert('取消失败：' + data.message)
+      alert('取消失败')
     }
-  } catch (err) {
-    console.error('取消候补失败', err)
-    alert('取消失败，请重试')
-  } finally {
-    loading.value = false
+  } catch (error) {
+    console.error('取消候补失败:', error)
+    alert('取消候补失败，请稍后重试')
   }
 }
+
 
 onMounted(() => {
   fetchWaitlist()

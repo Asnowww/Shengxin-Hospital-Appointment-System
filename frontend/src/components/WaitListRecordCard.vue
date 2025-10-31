@@ -27,10 +27,6 @@
           <span class="content-label">地点</span>
           <span class="content-value">{{ record.building }}</span>
         </div>
-        <div class="content-item">
-          <span class="content-label">队位</span>
-          <span class="content-value queue-position">第 {{ record.queuePosition }} 位</span>
-        </div>
       </div>
 
       <div class="target-time-row">
@@ -42,14 +38,6 @@
         <span class="time-value">{{ record.targetDate }} {{ record.targetTime }}</span>
       </div>
 
-      <div class="patient-row">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
-        </svg>
-        <span class="patient-label">患者：</span>
-        <span class="patient-value">{{ record.patientName }}</span>
-      </div>
     </div>
 
     <div class="record-footer">
@@ -71,7 +59,7 @@
       </div>
       <div v-else class="status-tip waiting">
         <span class="tip-icon">⏳</span>
-        <span class="tip-text">等待中</span>
+        <span class="tip-text">候补中</span>
       </div>
     </div>
   </div>
@@ -95,7 +83,8 @@ const props = defineProps({
 })
 
 const statusMap = {
-  'waiting': '等待中',
+  'waiting': '候补中',
+  'notified': '可挂号',
   'converted': '已转预约',
   'cancelled': '已取消',
   'expired': '已过期'
