@@ -11,6 +11,8 @@ import AdminProfile from '@/views/AdminProfile.vue'
 import AdminSchedule from '@/views/AdminSchedule.vue'
 import LeaveManagement from '@/views/LeaveManagement.vue'
 import DepartmentSchedule from '@/views/DepartmentSchedule.vue'
+import MyWaitlist from '@/views/MyWaitlist.vue'
+import FullyBookedSchedules from '@/views/FullyBookedSchedules.vue'
 
 
 const routes = [
@@ -23,6 +25,10 @@ const routes = [
   { path: '/departmentSchedule', name: 'departmentSchedule', component: DepartmentSchedule }, //科室排班页（接受参数）
   { path: '/doctorSchedule', name: 'doctorSchedule', component: () => import('@/views/DoctorSchedule.vue') }, //医生排班页（接受参数）
   { path: '/password', name: 'password', component: Password }, // 修改密码页
+
+  //候补相关页面
+  { path: '/waitlist/my', name: 'myWaitlist', component: MyWaitlist }, //我的候补
+  { path: '/waitlist/fully-booked', name: 'fullyBookedSchedules', component: FullyBookedSchedules }, //可候补排班列表
 
   //医生端界面
   { path: '/doctor/profile', name: 'docProfile', component: DoctorProfile }, //医生个人信息页
