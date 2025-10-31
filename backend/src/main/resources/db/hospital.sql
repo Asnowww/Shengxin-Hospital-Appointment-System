@@ -299,6 +299,7 @@ CREATE TABLE user_verifications (
                                     reviewed_by BIGINT NULL COMMENT '审核人',
                                     reviewed_at DATETIME NULL COMMENT '审核时间',
                                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                    rejection_reason VARCHAR(255) NULL COMMENT '拒绝理由',
                                     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
                                     FOREIGN KEY (reviewed_by) REFERENCES users(user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='患者身份认证（学生、教工）';

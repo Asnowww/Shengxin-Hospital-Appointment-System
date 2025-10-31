@@ -4,15 +4,29 @@
 2. 执行MySQL数据库建表脚本`src/main/resources/db/hospital.sql`
 3. 在终端输入`run dev`或直接运行`BackendApplication.java`
 
+## 配置文件
+1. `application.properties`中不要修改个人配置信息并推送（如MySQL配置、本地图片路径等）
+2. 个人配置信息放在`application-local.properties`这个文件中：
+   - 手动创建`application-local.properties`文件（与`application.properties`放在同一路径下）
+   - 复制粘贴如下内容：
+    ```
+      spring.datasource.username=your_user_name    # 改成你的MySQL用户名
+      spring.datasource.password=your_pwd     # 改成你的MySQL密码
+      file.upload-dir=D:/hospital_uploads/verifications/    # 改成你本地的路径，用来存放照片
+      file.access-path=/static/verifications/ #不变
+    ```
+   - 按照注释要求修改个人配置，并删除注释
+   - 确保`application-local.properties`文件不被推送（已添加至gitignore）
+
 ## 数据导入
-  # 导入方法：
+  ### 导入方法：
   在数据库中：backend/src/main/resources/db/hospital_data.sql
   -- 先设置客户端编码
   SET NAMES utf8mb4;
   --再导入
   SOURCE C:/Users/wang/IdeaProjects/Shengxin-Hospital-Appointment-System/backend/src/main/resources/db/hospital_data.sql; # 修改为你主机上的路径
 
-# 医生账号密码统一为‘123456’ #
+#### 医生账号密码统一为‘123456’ 
 
 
 ## 接口：
