@@ -18,7 +18,7 @@ import java.util.List;
 
 /**
  * 患者端预约控制器
- * 支持查看、创建、取消预约
+ * 支持查看、创建、取消预约、改约
  */
 @RestController
 @RequestMapping("/patient/appointment")
