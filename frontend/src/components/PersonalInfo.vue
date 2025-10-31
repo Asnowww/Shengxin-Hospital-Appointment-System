@@ -59,6 +59,14 @@
             class="form-control" />
         </div>
 
+<div class="form-group">
+          <label class="form-label">学号/教工号</label>
+          <input 
+            v-model="profile.patientAccount" 
+            type="text" 
+            disabled
+            class="form-control" />
+        </div>
         <div class="form-group">
           <label class="form-label">
             手机号 <span class="required">*</span>
@@ -190,6 +198,8 @@ const showVerifyModal = ref(false)
 
 const profile = reactive({
   identityType: '',
+  username: '',
+  patientAccount: '',
   status: '',
   birthDate: '',
   gender: '',
@@ -283,6 +293,7 @@ async function fetchProfile() {
       const data = res.data.data
       Object.assign(profile, data)
       originalProfile.value = { ...data }
+      localStorage.setItem('patientAccount', data.patientAccount)
     } else {
       alert(res.data.msg || '获取个人信息失败')
     }

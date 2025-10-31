@@ -252,7 +252,7 @@ async function fetchSchedules() {
       .split('T')[0]
 
     const response = await axios.get(
-      `/api/patient/appointment/available-schedules/doctor/${doctorId.value}`,
+      `/api/patient/appointment/all-schedules/doctor/${doctorId.value}`,
       { params: { startDate, endDate } }
     )
 

@@ -10,14 +10,14 @@
     </div>
     
     <Navigation ref="navRef" />
-    <Reminder ref="reminderRef" />
+    <!-- <Reminder ref="reminderRef" /> -->
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import Navigation from '@/components/Navigation.vue'
-import Reminder from '@/components/Reminder.vue'
+// import Reminder from '@/components/Reminder.vue'
 
 const navRef = ref(null)
 const reminderRef = ref(null)

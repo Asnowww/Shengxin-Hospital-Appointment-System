@@ -285,6 +285,29 @@ public class PatientAppointmentController {
     }
 
     /**
+     * 查询指定医生全部号源
+     */
+    @GetMapping("/all-schedules/doctor/{doctorId}")
+    public Result<List<ScheduleDetailVO>> getAllSchedulesByDoctor(
+            @PathVariable Long doctorId,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate) {
+
+        // 设置默认日期范围：从今天开始到14天后
+        if (startDate == null) {
+            startDate = LocalDate.now();
+        }
+        if (endDate == null) {
+            endDate = startDate.plusDays(14);
+        }
+
+        List<ScheduleDetailVO> schedules = scheduleService.getDoctorSchedules(
+                doctorId, startDate, endDate);
+
+        return Result.success(schedules);
+    }
+
+    /**
      * 查询指定医生的可预约号源
      * 常用于患者选择指定医生
      *

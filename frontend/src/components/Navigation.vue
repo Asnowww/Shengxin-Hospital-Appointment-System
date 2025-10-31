@@ -18,6 +18,15 @@
         排班管理
       </router-link>
 
+      <!--管理端：审批-->
+        <router-link
+        v-if="isLoggedIn && currentRole === 'admin'"
+        to="/admin/audit"
+        class="nav-item"
+        :class="{ active: isActive('/admin/audit') }">
+        审核中心
+      </router-link>
+
       <!-- 登录状态判断：已登录显示"个人中心"，未登录显示"登录/注册" -->
       <template v-if="isLoggedIn">
         <router-link 

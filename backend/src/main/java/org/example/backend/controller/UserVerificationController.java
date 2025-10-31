@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/verifications")
+@RequestMapping("/verifications")
 public class UserVerificationController {
 
     private final UserVerificationService verificationService;
@@ -53,8 +53,12 @@ public class UserVerificationController {
                 return Result.error("上传失败：文件为空");
             }
 
+
+
             // 3️⃣ 确保上传目录存在
             File dir = new File(uploadDir);
+            System.out.println("目录存在吗: " + dir.exists());
+            System.out.println("尝试创建: " + dir.mkdirs());
             if (!dir.exists() && !dir.mkdirs()) {
                 return Result.error("上传失败：无法创建目录");
             }

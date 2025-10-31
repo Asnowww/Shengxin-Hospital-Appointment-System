@@ -8,7 +8,6 @@ import Password from '@/views/Password.vue'
 import DoctorProfile from '@/views/DoctorProfile.vue'
 import MySchedule from '@/views/MySchedule.vue'
 import AdminProfile from '@/views/AdminProfile.vue'
-import AdminSchedule from '@/views/AdminSchedule.vue'
 import LeaveManagement from '@/views/LeaveManagement.vue'
 import DepartmentSchedule from '@/views/DepartmentSchedule.vue'
 
@@ -31,9 +30,9 @@ const routes = [
 
   //管理端界面
   { path: '/admin/profile', name: 'adminProfile', component: AdminProfile }, //管理员个人信息页
-  { path: '/admin/schedules', name: 'adminSchedules', component: AdminSchedule }, //管理员排班管理页
+  // { path: '/admin/schedules', name: 'adminSchedules', component: AdminSchedule }, //管理员排班管理页
   { path: '/admin/leaves', name: 'adminLeaves', component: LeaveManagement }, //请假审批页
-  // { path: '/audit', name: 'audit', component: () => import('@/views/Audit.vue') }, //用户审核页
+  { path: '/admin/audit', name: 'audit', component: () => import('@/views/Audit.vue') }, //用户审核页
 
   { path: '/reminder', name: 'reminder', component: () => import('@/components/Reminder.vue') }, // 提醒页
   { path: '/:pathMatch(.*)*', redirect: '/home' } // 其他未定义路由定向到首页

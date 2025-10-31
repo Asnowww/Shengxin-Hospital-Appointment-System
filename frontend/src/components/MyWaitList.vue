@@ -176,7 +176,7 @@ async function fetchWaitlist() {
 async function loadWaitlist() {
   if (activeStatus.value === 'waiting' && waitingWaitlist.value.length === 0) {
     await fetchWaitlist()
-  } else if (activeStatus.value === 'completed' && completedWaitlist.value.length === 0) {
+  } else if (activeStatus.value === 'converted' && completedWaitlist.value.length === 0) {
     if (completedWaitlist.value.length === 0 && waitingWaitlist.value.length > 0) {
       // 数据已加载，只需切换显示
     } else {
