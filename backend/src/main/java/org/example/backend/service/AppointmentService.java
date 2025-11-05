@@ -87,15 +87,6 @@ public interface AppointmentService {
      */
     boolean payAppointment(Long appointmentId, Long patientId, String method);
 
-    /**
-     * 处理预约退款
-     * @param appointmentId 预约ID
-     * @param patientId 患者ID（可选，用于权限验证）
-     * @param reason 退款原因
-     * @return 是否退款成功
-     */
-    boolean refundAppointment(Long appointmentId, Long patientId, String reason);
-
 
 
     /**

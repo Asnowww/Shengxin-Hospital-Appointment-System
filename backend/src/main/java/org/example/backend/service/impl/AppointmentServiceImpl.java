@@ -161,18 +161,63 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     @Transactional
     public boolean cancelAppointment(Long appointmentId, Long patientId) {
+        // 1. 查询预约
         Appointment appointment = appointmentMapper.selectById(appointmentId);
-        if (appointment == null || !appointment.getPatientId().equals(patientId)) {
-            return false;
+        if (appointment == null) {
+            throw new RuntimeException("预约不存在");
         }
 
+        // 2. 验证权限（仅限该患者或管理员）
+        if (patientId != null && !appointment.getPatientId().equals(patientId)) {
+            throw new RuntimeException("无权取消该预约");
+        }
+
+        // 3. 若预约已被取消或退款，不再处理
+        if ("cancelled".equals(appointment.getAppointmentStatus()) ||
+                "refunded".equals(appointment.getPaymentStatus())) {
+            throw new RuntimeException("该预约已取消或已退款");
+        }
+
+        // 4. 如果已支付，则执行退款逻辑
         if ("paid".equals(appointment.getPaymentStatus())) {
-            appointment.setPaymentStatus("refunded");
+            try {
+                // === 创建退款记录 ===
+                Refunds refund = paymentService.createRefund(appointmentId, "用户取消预约自动退款");
+                System.out.println("已创建退款记录：" + refund.getRefundId());
+
+                // === 模拟第三方退款调用 ===
+                Thread.sleep(1000);
+                System.out.println("调用第三方退款接口成功，退款金额：" + refund.getAmount());
+
+                // === 更新退款状态 ===
+                boolean refundSuccess = paymentService.processRefundSuccess(refund.getRefundId());
+                if (!refundSuccess) {
+                    throw new RuntimeException("退款状态更新失败");
+                }
+
+                // === 更新预约支付状态 ===
+                appointment.setPaymentStatus("refunded");
+
+                // === 邮件通知（事务提交后执行）===
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+                    @Override
+                    public void afterCommit() {
+                        notificationEmailService.sendRefundSuccessNotification(appointment.getAppointmentId());
+                    }
+                });
+
+            } catch (Exception e) {
+                System.err.println("退款失败：" + e.getMessage());
+                throw new RuntimeException("退款失败，请稍后重试");
+            }
         }
 
+        // 5. 更新预约状态为已取消
         appointment.setAppointmentStatus("cancelled");
+        appointment.setUpdatedAt(LocalDateTime.now());
         boolean updated = appointmentMapper.updateById(appointment) > 0;
 
+        // 6. 更新排班剩余号源
         if (updated) {
             Integer scheduleId = appointment.getScheduleId();
             Schedule schedule = scheduleMapper.selectById(scheduleId);
@@ -180,7 +225,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 schedule.setAvailableSlots(schedule.getAvailableSlots() + 1);
                 scheduleMapper.updateById(schedule);
 
-                // ===== 新增：处理候补队列 =====
+                // 7. 处理候补队列
                 try {
                     waitlistService.processWaitlistConversion(scheduleId);
                 } catch (Exception e) {
@@ -188,6 +233,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 }
             }
 
+            // 8. 发送取消通知（事务提交后）
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
                 @Override
                 public void afterCommit() {
@@ -198,7 +244,6 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         return updated;
     }
-
 
     @Transactional
     @Override
@@ -366,66 +411,6 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new RuntimeException("支付失败，请稍后重试");
         }
     }
-
-    /**
-     * 处理预约退款
-     */
-    @Override
-    @Transactional
-    public boolean refundAppointment(Long appointmentId, Long patientId, String reason) {
-        // 1. 查询预约
-        Appointment appointment = appointmentMapper.selectById(appointmentId);
-        if (appointment == null) {
-            throw new RuntimeException("预约不存在");
-        }
-
-        // 2. 验证权限（仅限该患者或管理员调用）
-        if (patientId != null && !appointment.getPatientId().equals(patientId)) {
-            throw new RuntimeException("无权操作该预约退款");
-        }
-
-        // 3. 验证支付状态
-        if (!"paid".equals(appointment.getPaymentStatus())) {
-            throw new RuntimeException("该预约未支付或已退款，无法重复退款");
-        }
-
-        // 4. 调用 PaymentService 创建退款记录
-        Refunds refund = paymentService.createRefund(appointmentId, reason);
-        System.out.println("已创建退款记录：" + refund.getRefundId());
-
-        try {
-            // 模拟调用第三方退款接口
-            Thread.sleep(1000);
-            System.out.println("调用第三方退款接口成功，退款金额：" + refund.getAmount());
-
-            // 5. 更新退款状态为成功
-            boolean refundSuccess = paymentService.processRefundSuccess(refund.getRefundId());
-            if (!refundSuccess) {
-                throw new RuntimeException("退款状态更新失败");
-            }
-
-            // 6. 更新预约状态
-            appointment.setPaymentStatus("refunded");
-            appointment.setAppointmentStatus("cancelled");
-            appointment.setUpdatedAt(LocalDateTime.now());
-            appointmentMapper.updateById(appointment);
-
-            // 7. 发送退款成功邮件（事务提交后执行）
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
-                @Override
-                public void afterCommit() {
-                    notificationEmailService.sendRefundSuccessNotification(appointment.getAppointmentId());
-                }
-            });
-
-            return true;
-
-        } catch (Exception e) {
-            System.err.println("退款失败：" + e.getMessage());
-            throw new RuntimeException("退款失败，请稍后重试");
-        }
-    }
-
 
 
     // === 医生端 ===

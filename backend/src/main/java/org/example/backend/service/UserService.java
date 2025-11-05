@@ -30,4 +30,17 @@ public interface UserService extends IService<User> {
     User findByEmail(String email);
 
     User findByPhone(String phone);
+
+    /**
+     *查询用户邮箱
+     */
+    User getOneByEmail(String email);
+
+    /**
+     * 修改密码
+     * @param email
+     * @param newPassword
+     * @return
+     */
+    boolean updatePasswordByEmail(String email, String newPassword);
 }
