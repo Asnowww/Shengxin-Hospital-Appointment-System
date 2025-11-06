@@ -242,7 +242,7 @@ async function fetchDoctors() {
         departmentName: d.deptName,
         deptId: d.deptId,
         title: d.title,
-        enabled: (d.doctorStatus === 'verified') || (d.userStatus === 'active')
+        enabled: (d.doctorStatus === 'active') && (d.userStatus === 'verified')
       }))
     } else {
       doctors.value = []
@@ -293,20 +293,29 @@ async function resetPassword(doc) {
   }
 }
 
-async function toggleStatus(doc) {
-  const next = !doc.enabled
-  if (!confirm(`确定要${next ? '启用' : '停用'}医生【${doc.name}】吗？`)) return
+async function toggleStatus(doctor) {
+  const token = localStorage.getItem('token')
+  const newStatus = doctor.enabled ? 'disabled' : 'verified'
+
   try {
-    const token = localStorage.getItem('token')
-    const status = next ? 'verified' : 'disabled'
-    const { data } = await axios.put(`/api/admin/doctors/status/${doc.id}`, null, {
-      params: { status },
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
-    })
-    doc.enabled = next
-    alert(data?.message || (next ? '已启用' : '已停用'))
+    const { data } = await axios.put(
+        `/api/admin/doctors/status/${doctor.id}`,
+        null,
+        {
+          params: { status: newStatus },
+          headers: { Authorization: `Bearer ${token}` }
+        }
+    )
+
+    if (data.code === 200) {
+      doctor.enabled = !doctor.enabled
+      alert(data.message)
+    } else {
+      alert(data.message || '操作失败')
+    }
   } catch (e) {
-    alert('操作失败，请稍后重试')
+    console.error('更新医生状态失败', e)
+    alert('请求出错')
   }
 }
 

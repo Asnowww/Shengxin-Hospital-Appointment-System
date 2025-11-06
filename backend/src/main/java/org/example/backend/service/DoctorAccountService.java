@@ -37,4 +37,5 @@ public interface DoctorAccountService {
      * 根据ID查询医生详情
      */
     DoctorAccountDTO getDoctorById(Long doctorId);
+
 }
