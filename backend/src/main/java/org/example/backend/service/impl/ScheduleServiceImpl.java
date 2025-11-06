@@ -9,6 +9,7 @@ import org.example.backend.service.WaitlistService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -67,37 +68,26 @@ public class ScheduleServiceImpl implements ScheduleService {
             throw new RuntimeException("诊室不存在");
         }
 
-//        // 验证诊室是否属于该科室
-//        if (!room.getDeptId().equals(param.getDeptId())) {
-//            throw new RuntimeException("诊室不属于该科室");
-//        }
-
-        // 验证号别是否存在
-//        AppointmentType appointmentType = appointmentTypeMapper.selectById(param.getAppointmentTypeId());
-//        if (appointmentType == null) {
-//            throw new RuntimeException("号别类型不存在");
-//        }
-
         List<Schedule> schedulesToInsert = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
 
-        // 遍历日期范围
         LocalDate currentDate = param.getStartDate();
         while (!currentDate.isAfter(param.getEndDate())) {
-            // 如果设置了weekDays，只在指定的星期几创建排班
-            if (param.getWeekDays() != null && !param.getWeekDays().isEmpty()) {
+            // 如果设置了 weekDays，只在这些天创建
+            if (param.getWeekdays() != null && !param.getWeekdays().isEmpty()) {
                 int dayOfWeek = currentDate.getDayOfWeek().getValue(); // 1=周一, 7=周日
-                if (!param.getWeekDays().contains(dayOfWeek)) {
+                if (!param.getWeekdays().contains(dayOfWeek)) {
                     currentDate = currentDate.plusDays(1);
                     continue;
                 }
             }
 
-            // 为每个时间段创建排班
+            // 遍历时间段
             for (Integer timeSlot : param.getTimeSlots()) {
-                // 检查是否有冲突
+                // 检查是否已有排班（防止重复）
                 if (checkDoctorScheduleConflict(param.getDoctorId(), currentDate, timeSlot)) {
-                    throw new RuntimeException(String.format("医生在 %s %s 已有排班",
-                        currentDate, getTimeSlotName(timeSlot)));
+                    errors.add(String.format("医生在 %s 的 %s 时段已有排班", currentDate, getTimeSlotName(timeSlot)));
+                    continue; // 不再创建
                 }
 
                 Schedule schedule = new Schedule();
@@ -119,11 +109,24 @@ public class ScheduleServiceImpl implements ScheduleService {
             currentDate = currentDate.plusDays(1);
         }
 
-        // 批量插入
+        // 如果有冲突错误，直接报错，不插入
+        if (!errors.isEmpty()) {
+            throw new RuntimeException("批量创建排班失败:\n" + String.join("\n", errors));
+        }
+
+        // 如果没有创建任何排班（即所有日期都不匹配 weekDays），则直接报错
+        if (schedulesToInsert.isEmpty()) {
+            throw new RuntimeException("所选日期范围内没有匹配的星期几，未创建任何排班");
+        }
+
+
+        // 插入
         for (Schedule schedule : schedulesToInsert) {
             scheduleMapper.insert(schedule);
         }
     }
+
+
 
     @Override
     @Transactional

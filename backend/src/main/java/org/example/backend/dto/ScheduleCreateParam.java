@@ -16,7 +16,7 @@ public class ScheduleCreateParam {
     private LocalDate startDate;
     private LocalDate endDate;
     private List<Integer> timeSlots; // 0=上午, 1=下午, 2=晚上
-    private List<Integer> weekDays; // 1=周一, 2=周二, ..., 7=周日 (用于按周模板创建)
+    private List<Integer> weekdays; // 1=周一, 2=周二, ..., 7=周日 (用于按周模板创建)
     private Integer appointmentTypeId;
     private Integer maxSlots;
 }

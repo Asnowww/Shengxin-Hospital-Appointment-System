@@ -355,21 +355,62 @@ async function fetchSchedules() {
   loading.value = true
   try {
     const params = {
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-      department: filters.deptName,
-      doctorId: filters.doctorId
+      startDate: filters.startDate || undefined,
+      endDate: filters.endDate || undefined,
+      deptId: filters.department || undefined,  // 修正：department -> deptId
+      doctorId: filters.doctorId || undefined
     }
     const { data } = await axios.get('/api/admin/schedules/list', { params })
 
-    schedules.value = data.data 
+    // 处理返回的数据，确保字段映射正确
+    schedules.value = (data.data || []).map(schedule => ({
+      ...schedule,
+      // 确保日期格式正确
+      date: schedule.workDate,
+      // 映射时间段
+      startTime: getTimeSlotStart(schedule.timeSlot),
+      endTime: getTimeSlotEnd(schedule.timeSlot),
+      // 映射预约数量
+      appointedCount: schedule.bookedSlots || 0,
+      maxPatients: schedule.maxSlots || 0
+    }))
   } catch (err) {
     console.error('获取排班数据失败', err)
-    alert('获取排班数据失败')
+    alert('获取排班数据失败: ' + (err.response?.data?.message || err.message))
   } finally {
     loading.value = false
   }
 }
+
+// 根据 timeSlot 返回开始时间
+function getTimeSlotStart(timeSlot) {
+  switch (timeSlot) {
+    case 0:
+      return '08:00'
+    case 1:
+      return '13:00'
+    case 2:
+      return '18:00'
+    default:
+      return '未知'
+  }
+}
+
+// 根据 timeSlot 返回结束时间
+function getTimeSlotEnd(timeSlot) {
+  switch (timeSlot) {
+    case 0:
+      return '12:00'
+    case 1:
+      return '17:00'
+    case 2:
+      return '21:00'
+    default:
+      return '未知'
+  }
+}
+
+
 
 // 获取医生列表
 async function fetchDoctors() {
