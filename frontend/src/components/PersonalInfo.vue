@@ -19,47 +19,54 @@
       <div class="form-grid">
         
         <div class="form-group">
-  <label class="form-label">身份</label>
-  <input
-    :value ="identityText"
-    type="text"
-    disabled
-    class="form-control"
-  />
-</div>
+          <label class="form-label">身份</label>
+          <input
+            :value="identityText"
+            type="text"
+            disabled
+            class="form-control"
+          />
+        </div>
 
-<!-- 身份认证状态 -->
- <div class="form-group">
-  <label class="form-label">身份认证状态</label>
-  <div class="status-wrapper">
-    <input
-      :value="statusText"
-      type="text"
-      disabled
-      class="form-control"
-      :class="statusClass"
-    />
+        <!-- 身份认证状态 -->
+        <div class="form-group">
+          <label class="form-label">身份认证状态</label>
+          <div class="status-wrapper">
+            <input
+              :value="statusText"
+              type="text"
+              disabled
+              class="form-control"
+              :class="statusClass"
+            />
 
-    <button 
-      v-if="profile.status === 'unverified' || profile.status === 'rejected'" 
-      @click="goVerify" 
-      class="verify-btn"
-      type="button">
-      去认证
-    </button>
-  </div>
-</div>
+            <button 
+              v-if="profile.status === 'unverified' || profile.status === 'rejected'" 
+              @click="showVerifyModal = true" 
+              class="verify-btn"
+              type="button">
+              去认证
+            </button>
+          </div>
+        </div>
 
+        <div class="form-group">
+          <label class="form-label">姓名</label>
+          <input 
+            v-model="profile.username" 
+            type="text" 
+            disabled
+            class="form-control" />
+        </div>
 
-     <div class="form-group">
-  <label class="form-label">姓名</label>
-  <input 
-    v-model="profile.username" 
-    type="text" 
-    disabled
-    class="form-control" />
-</div>
-
+<div class="form-group">
+          <label class="form-label">学号/教工号</label>
+          <input 
+            v-model="profile.patientAccount" 
+            type="text" 
+            disabled
+            class="form-control" />
+        </div>
         <div class="form-group">
           <label class="form-label">
             手机号 <span class="required">*</span>
@@ -167,20 +174,32 @@
         </button>
       </div>
     </form>
+
+    <!-- 身份认证弹窗 -->
+    <Verify 
+      :visible="showVerifyModal"
+      @update:visible="showVerifyModal = $event"
+      @success="handleVerifySuccess"
+      @cancel="showVerifyModal = false"
+    />
   </div>
 </template>
 
 <script setup>
-import { reactive, ref, onMounted,computed } from 'vue'
+import { reactive, ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import Verify from '@/views/Verify.vue'
 
 const router = useRouter()
 const isEditing = ref(false)
 const originalProfile = ref({})
+const showVerifyModal = ref(false)
 
 const profile = reactive({
   identityType: '',
+  username: '',
+  patientAccount: '',
   status: '',
   birthDate: '',
   gender: '',
@@ -208,10 +227,6 @@ const statusMap = {
   rejected: '审核失败'
 }
 const statusText = computed(() => statusMap[profile.status] || '未知')
-
-function goVerify() {
-  router.push('/verify') 
-}
 
 const statusClass = computed(() => {
   switch (profile.status) {
@@ -278,6 +293,7 @@ async function fetchProfile() {
       const data = res.data.data
       Object.assign(profile, data)
       originalProfile.value = { ...data }
+      localStorage.setItem('patientAccount', data.patientAccount)
     } else {
       alert(res.data.msg || '获取个人信息失败')
     }
@@ -292,7 +308,6 @@ async function fetchProfile() {
     }
   }
 }
-
 
 // 保存修改
 async function handleSave() {
@@ -313,12 +328,18 @@ async function handleSave() {
   }
 }
 
+// 认证成功回调
+function handleVerifySuccess() {
+  showVerifyModal.value = false
+  // 重新获取个人信息以更新认证状态
+  fetchProfile()
+}
+
 // 页面加载时自动获取个人信息
 onMounted(() => {
   fetchProfile()
 })
 </script>
-
 
 <style scoped>
 .profile-info {
@@ -498,12 +519,12 @@ h2 {
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .verify-btn:hover {
   background-color: #c53030;
 }
-
 
 @media (max-width: 768px) {
   .profile-info {

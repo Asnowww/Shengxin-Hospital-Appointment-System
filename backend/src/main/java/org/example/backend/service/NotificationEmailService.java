@@ -193,6 +193,53 @@ public class NotificationEmailService {
         }
     }
 
+
+    /**
+     * 发送订单退款通知
+     */
+    public void sendRefundSuccessNotification(Long appointmentId) {
+        try {
+            Appointment appointment = appointmentMapper.selectById(appointmentId);
+            if (appointment == null) return;
+
+            Patient patient = patientMapper.selectById(appointment.getPatientId());
+            if (patient == null) return;
+
+            User user = userMapper.selectById(patient.getUserId());
+            if (user == null || user.getEmail() == null) return;
+
+            Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
+            String subject = "【支付成功】您的预约已支付成功";
+            String content = buildRefundSuccessEmail(appointment, schedule);
+
+            sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
+        } catch (Exception e) {
+            log.error("发送支付成功邮件失败: appointmentId={}", appointmentId, e);
+        }
+    }
+
+
+    /**
+     * 发送订单过期提醒
+     */
+    public void sendAppointmentExpiredNotification(Long appointmentId) {
+        try {
+            Appointment appointment = appointmentMapper.selectById(appointmentId);
+            if (appointment == null) return;
+            Patient patient = patientMapper.selectById(appointment.getPatientId());
+            if (patient == null) return;
+            User user = userMapper.selectById(patient.getUserId());
+            if (user == null || user.getEmail() == null) return;
+            Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
+            String subject = "【订单过期】您的预约订单未支付，现已过期";
+            String content = buildAppointmentExpiredEmail(appointment,schedule);
+            sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
+
+        }catch (Exception e) {
+            log.error("<UNK>: appointmentId={}", appointmentId, e);
+        }
+    }
+
     /**
      * 发送就诊提醒
      */
@@ -460,6 +507,83 @@ public class NotificationEmailService {
                 workDate, timeSlot, appointment.getQueueNumber(), appointment.getFeeFinal());
     }
 
+    private String buildRefundSuccessEmail(Appointment appointment, Schedule schedule) {
+        String patientName = getPatientName(String.valueOf(appointment.getPatientId()));
+        String deptName = getDeptName(schedule.getDeptId());
+        String doctorInfo = getDoctorInfo(schedule.getDoctorId());
+
+        return String.format("""
+            <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="background: linear-gradient(135deg, #56ab2f 0%%, #a8e063 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                        <h1>💰 退款成功通知</h1>
+                    </div>
+                    <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                        <p>尊敬的 <strong>%s</strong> 患者，您好：</p>
+                        <p>您于本院的挂号预约已成功退款，相关金额已原路退回，请留意您的支付账户。</p>
+                        
+                        <div style="background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #56ab2f; border-radius: 5px;">
+                            <h3 style="color: #56ab2f; margin-top: 0;">📋 退款详情</h3>
+                            <p><strong>预约编号：</strong>%d</p>
+                            <p><strong>就诊科室：</strong>%s</p>
+                            <p><strong>主治医生：</strong>%s</p>
+                            <p><strong>退款金额：</strong>¥%.2f</p>
+                            <p><strong>状态：</strong>退款成功 ✅</p>
+                        </div>
+                        
+                        <p>感谢您的理解与配合，如有疑问请联系医院客服。</p>
+                        <p style="color: #888;">此邮件为系统自动发送，请勿回复。</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """,
+                patientName,
+                appointment.getAppointmentId(),
+                deptName,
+                doctorInfo,
+                appointment.getFeeFinal());
+    }
+
+
+    private String buildAppointmentExpiredEmail(Appointment appointment, Schedule schedule) {
+        String patientName = getPatientName(String.valueOf(appointment.getPatientId()));
+        String doctorInfo = getDoctorInfo(schedule.getDoctorId());
+        String deptName = getDeptName(schedule.getDeptId());
+        String workDate = schedule.getWorkDate().format(DATE_FORMATTER);
+        String timeSlot = getTimeSlotName(schedule.getTimeSlot());
+
+        return String.format("""
+                <html>
+                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                        <div style="background: linear-gradient(135deg, #f093fb 0%%, #f5576c 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                            <h1>❌ 预约已过期</h1>
+                        </div>
+                        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                            <p>尊敬的 <strong>%s</strong> 患者，您好！</p>
+                            <p>您的订单未在规定时间内支付，现已过期。</p>
+                            
+                            <div style="background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #f5576c; border-radius: 5px;">
+                                <h3 style="color: #f5576c; margin-top: 0;">📋 预约信息</h3>
+                                <p><strong>预约编号：</strong>%d</p>
+                                <p><strong>就诊科室：</strong>%s</p>
+                                <p><strong>就诊医生：</strong>%s</p>
+                                <p><strong>就诊时间：</strong>%s %s</p>
+                            </div>
+                            
+                            <p>如有疑问，请联系医院客服。</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """,
+                patientName, appointment.getAppointmentId(), deptName, doctorInfo, workDate, timeSlot);
+
+    }
+
+
     /**
      * 就诊提醒邮件模板
      */
@@ -510,8 +634,7 @@ public class NotificationEmailService {
     /**
      * 候补成功邮件模板
      */
-    private String buildWaitlistCreatedEmail(String patientId, Schedule schedule, Integer queuePosition) {
-        String patientName = getPatientName(patientId);
+    private String buildWaitlistCreatedEmail(String patientName, Schedule schedule, Integer queuePosition) {
         String doctorInfo = getDoctorInfo(schedule.getDoctorId());
         String deptName = getDeptName(schedule.getDeptId());
         String workDate = schedule.getWorkDate().format(DATE_FORMATTER);
@@ -557,8 +680,7 @@ public class NotificationEmailService {
     /**
      * 候补转正邮件模板
      */
-    private String buildWaitlistConversionEmail(String patientId, Appointment appointment, Schedule schedule) {
-        String patientName = getPatientName(patientId);
+    private String buildWaitlistConversionEmail(String patientName, Appointment appointment, Schedule schedule) {
         String doctorInfo = getDoctorInfo(schedule.getDoctorId());
         String deptName = getDeptName(schedule.getDeptId());
         String workDate = schedule.getWorkDate().format(DATE_FORMATTER);
@@ -597,8 +719,7 @@ public class NotificationEmailService {
     /**
      * 排班取消邮件模板
      */
-    private String buildScheduleCancelledEmail(String patientId, Schedule schedule, String reason) {
-        String patientName = getPatientName(patientId);
+    private String buildScheduleCancelledEmail(String patientName, Schedule schedule, String reason) {
         String doctorInfo = getDoctorInfo(schedule.getDoctorId());
         String deptName = getDeptName(schedule.getDeptId());
         String workDate = schedule.getWorkDate().format(DATE_FORMATTER);
@@ -632,4 +753,5 @@ public class NotificationEmailService {
                 """,
                 patientName, deptName, doctorInfo, workDate, timeSlot, reason != null ? reason : "医生临时有事");
     }
+
 }

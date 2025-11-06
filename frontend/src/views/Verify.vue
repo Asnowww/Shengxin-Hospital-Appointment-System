@@ -148,6 +148,7 @@ const showCamera = ref(false)
 const error = ref('')
 const videoRef = ref(null)
 const canvasRef = ref(null)
+const patientAccount = localStorage.getItem('patientAccount') || ''
 let stream = null
 
 const formData = reactive({
@@ -183,12 +184,12 @@ const initCamera = async () => {
   }
 }
 
-const handleVideoLoaded = () => {
-  if (canvasRef.value && videoRef.value) {
-    canvasRef.value.width = videoRef.value.videoWidth
-    canvasRef.value.height = videoRef.value.videoHeight
-  }
-}
+// const handleVideoLoaded = () => {
+//   if (canvasRef.value && videoRef.value) {
+//     canvasRef.value.width = videoRef.value.videoWidth
+//     canvasRef.value.height = videoRef.value.videoHeight
+//   }
+// }
 
 const capturePhoto = () => {
   if (!canvasRef.value || !videoRef.value) return
@@ -231,16 +232,18 @@ const handleSubmit = async () => {
 
   try {
     const payload = new FormData()
-    payload.append('idPhoto', formData.credentialPhoto)
+    payload.append('file', formData.credentialPhoto)
+    payload.append('identityType', 'student')
+    payload.append('idNumber',patientAccount )
 
-    const { data } = await axios.post('/api/patient/verify', payload, {
+    const { data } = await axios.post('/api/verifications/submit', payload, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'multipart/form-data'
       }
     })
 
-    if (data.success) {
+    if (data.code=200) {
       emit('success')
       alert('认证申请已提交，请等待管理员审核')
       handleClose()
@@ -255,11 +258,11 @@ const handleSubmit = async () => {
   }
 }
 
-const handleCancel = () => {
-  if (loading.value) return
-  emit('cancel')
-  handleClose()
-}
+// const handleCancel = () => {
+//   if (loading.value) return
+//   emit('cancel')
+//   handleClose()
+// }
 
 const handleCloseClick = () => {
   if (formData.credentialPhoto) {

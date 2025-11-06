@@ -227,7 +227,7 @@ public class WaitlistController {
      * @return 已满排班列表及候补情况
      */
     @GetMapping("/fully-booked-schedules")
-    public Result<List<ScheduleDetailVO>> getFullyBookedSchedules(
+    public Result<List<FullyBookedScheduleVO>> getFullyBookedSchedules(
             @RequestParam(required = false) Integer deptId,
             @RequestParam(required = false) Long doctorId,
             @RequestParam(required = false) LocalDate startDate,
@@ -246,11 +246,11 @@ public class WaitlistController {
         List<ScheduleDetailVO> schedules = scheduleService.getAllSchedules(
                 deptId, doctorId, startDate, endDate, "open");
 
-        List<ScheduleDetailVO> fullyBooked = schedules.stream()
+        List<FullyBookedScheduleVO> fullyBooked = schedules.stream()
                 .filter(schedule -> schedule.getAvailableSlots() == 0)
                 .filter(schedule -> timeSlot == null || schedule.getTimeSlot().equals(timeSlot))
                 .map(schedule -> {
-                    ScheduleDetailVO vo = new ScheduleDetailVO();
+                    FullyBookedScheduleVO vo = new FullyBookedScheduleVO();
                     vo.setScheduleId(schedule.getScheduleId());
                     vo.setDoctorId(schedule.getDoctorId());
                     vo.setDoctorName(schedule.getDoctorName());
@@ -263,11 +263,52 @@ public class WaitlistController {
                     vo.setMaxSlots(schedule.getMaxSlots());
                     vo.setBookedSlots(schedule.getBookedSlots());
 
+                    // 查询候补队列信息
+                    QueryWrapper<Waitlist> wrapper = new QueryWrapper<>();
+                    wrapper.eq("schedule_id", schedule.getScheduleId())
+                            .eq("status", "waiting");
+                    List<Waitlist> waitlists = waitlistMapper.selectList(wrapper);
+
+                    int totalWaiting = waitlists.size();
+                    vo.setTotalWaiting(totalWaiting);
+                    vo.setHighPriorityCount(
+                            (int) waitlists.stream().filter(w -> w.getPriority() >= 1).count()
+                    );
+
+                    // 候补队列未满5人则可候补
+                    vo.setCanWaitlist(totalWaiting < 5);
+                    vo.setRemainingWaitlistSlots(Math.max(0, 5 - totalWaiting));
+
                     return vo;
                 })
                 .toList();
 
         return Result.success(fullyBooked);
+    }
+
+    /**
+     * 已满排班信息VO（包含候补统计）
+     */
+    @Data
+    public static class FullyBookedScheduleVO {
+        // 排班基本信息
+        private Integer scheduleId;
+        private Long doctorId;
+        private String doctorName;
+        private String doctorTitle;
+        private Integer deptId;
+        private String deptName;
+        private LocalDate workDate;
+        private Integer timeSlot;
+        private String timeSlotName;
+        private Integer maxSlots;
+        private Integer bookedSlots;
+
+        // 候补统计信息
+        private Integer totalWaiting;          // 当前候补总人数
+        private Integer highPriorityCount;     // 高优先级候补人数
+        private Boolean canWaitlist;           // 是否可以候补（队列未满5人）
+        private Integer remainingWaitlistSlots; // 剩余候补名额（0-5）
     }
 
 

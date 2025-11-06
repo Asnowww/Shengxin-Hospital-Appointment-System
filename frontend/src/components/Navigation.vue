@@ -9,6 +9,15 @@
         预约挂号
       </router-link>
 
+      <!-- 患者端：我的候补 -->
+      <router-link
+        v-if="isLoggedIn && currentRole === 'patient'"
+        to="/waitlist/my"
+        class="nav-item"
+        :class="{ active: isActive('/waitlist/my') }">
+        我的候补
+      </router-link>
+
       <!-- 医生端：仅医生登录后显示 -->
       <router-link
         v-if="isLoggedIn && currentRole === 'doctor'"
@@ -16,6 +25,24 @@
         class="nav-item"
         :class="{ active: isActive('/doctor/schedules') }">
         排班管理
+      </router-link>
+
+      <!--管理端：审批-->
+        <router-link
+        v-if="isLoggedIn && currentRole === 'admin'"
+        to="/admin/audit"
+        class="nav-item"
+        :class="{ active: isActive('/admin/audit') }">
+        审核中心
+      </router-link>
+
+      <!-- 管理端：医生管理 -->
+      <router-link
+        v-if="isLoggedIn && currentRole === 'admin'"
+        to="/admin/doctors"
+        class="nav-item"
+        :class="{ active: isActive('/admin/doctors') }">
+        医生管理
       </router-link>
 
       <!-- 登录状态判断：已登录显示"个人中心"，未登录显示"登录/注册" -->

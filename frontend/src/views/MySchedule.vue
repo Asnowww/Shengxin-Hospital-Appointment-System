@@ -1,4 +1,4 @@
-<!-- 目前今日排班/未来排班通过两个接口获取，实际操作时应该根据当前日期过滤？还是后端调整？ -->
+
 <template>
   <Navigation ref="navRef" />
   <div class="page-container" :style="{ paddingTop: navHeight + 'px' }">

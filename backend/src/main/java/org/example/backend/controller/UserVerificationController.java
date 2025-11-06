@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/verifications")
+@RequestMapping("/verifications")
 public class UserVerificationController {
 
     private final UserVerificationService verificationService;
@@ -46,13 +46,65 @@ public class UserVerificationController {
         try {
             String token = tokenUtil.extractToken(authorizationHeader, tokenParam);
             Long userId = tokenUtil.resolveUserIdFromToken(token);
-            if (userId == null) return Result.error(401, "无效的登录凭证");
+            if (userId == null) {
+                return Result.error(401, "无效的登录凭证");
+            }
 
-            UserVerification verification = verificationService.submitVerification(userId, identityType, idNumber, file);
-            User user = userMapper.selectById(userId);
-            Map<String, Object> data = verification.toMap(user);
+            // 2️⃣ 校验文件
+            if (file.isEmpty()) {
+                return Result.error("上传失败：文件为空");
+            }
 
-            return Result.success("上传成功，待审核", data);
+
+
+            // 3️⃣ 确保上传目录存在
+            File dir = new File(uploadDir);
+            System.out.println("目录存在吗: " + dir.exists());
+            System.out.println("尝试创建: " + dir.mkdirs());
+            if (!dir.exists() && !dir.mkdirs()) {
+                return Result.error("上传失败：无法创建目录");
+            }
+
+            // 4️⃣ 提取安全的扩展名
+            String originalName = file.getOriginalFilename();
+            String ext = "";
+            if (originalName != null && originalName.contains(".")) {
+                ext = originalName.substring(originalName.lastIndexOf("."));
+            }
+
+            // 5️⃣ 生成随机安全文件名
+            String safeFileName = UUID.randomUUID().toString().replace("-", "") + ext;
+            File dest = new File(dir, safeFileName);
+
+            // 6️⃣ 防止路径遍历攻击
+            String canonicalPath = dest.getCanonicalPath();
+            String canonicalDir = dir.getCanonicalPath();
+            if (!canonicalPath.startsWith(canonicalDir + File.separator)) {
+                return Result.error("非法文件路径");
+            }
+
+            // 7️⃣ 保存文件
+            file.transferTo(dest);
+
+            // 8️⃣ 构造访问 URL（之后会映射到静态目录）
+            String docUrl = "/static/verifications/" + safeFileName;
+
+            // 9️⃣ 保存认证信息到数据库
+            UserVerification verification = new UserVerification();
+            verification.setUserId(userId);
+            verification.setIdentityType(identityType);
+            verification.setIdNumber(idNumber);
+            verification.setDocUrl(docUrl);
+            verification.setStatus("pending");
+
+            verificationService.save(verification);
+
+            return Result.success("上传成功，待审核", docUrl);
+
+        } catch (IOException e) {
+            return Result.error("上传异常：" + e.getMessage());
+        } catch (SecurityException e) {
+            return Result.error("安全检查失败：" + e.getMessage());
         } catch (Exception e) {
             return Result.error("上传或提交失败：" + e.getMessage());
         }

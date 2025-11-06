@@ -11,41 +11,26 @@
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
           </div>
-          <h3>个人中心</h3>
+          <h3>管理员审核</h3>
         </div>
 
         <nav class="sidebar-nav">
           <button 
-            :class="['nav-item', { active: activeTab === 'info' }]" 
-            @click="activeTab = 'info'">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            <span>个人信息</span>
+            :class="['nav-item', { active: activeTab === 'doctorInfo' }]" 
+            @click="activeTab = 'doctorInfo'">
+            <span>医生信息更改审核</span>
           </button>
-          
+
           <button 
-            :class="['nav-item', { active: activeTab === 'appointment' }]" 
-            @click="activeTab = 'appointment'">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            <span>我的预约</span>
+            :class="['nav-item', { active: activeTab === 'leave' }]" 
+            @click="activeTab = 'leave'">
+            <span>请假审批</span>
           </button>
-           <button 
-            :class="['nav-item', { active: activeTab === 'waitlist' }]" 
-            @click="activeTab = 'waitlist'">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            <span>我的候补</span>
+
+          <button 
+            :class="['nav-item', { active: activeTab === 'identity' }]" 
+            @click="activeTab = 'identity'">
+            <span>身份认证审核</span>
           </button>
         </nav>
       </aside>
@@ -53,19 +38,9 @@
       <!-- 右侧主内容区 -->
       <main class="main-content">
         <transition name="fade" mode="out-in">
-          <ProfileInfo 
-            v-if="activeTab === 'info'" 
-            @updated="handleProfileUpdated"
-            key="info"
-          />
-          <ProfileAppointments 
-            v-else-if="activeTab === 'appointment'"
-            key="appointment"
-          />
-          <ProfileWaitList
-            v-else-if="activeTab === 'waitlist'"
-            key="waitlist"
-          />
+          <DoctorInfoChangeAudit v-if="activeTab === 'doctorInfo'" key="doctorInfo" />
+          <LeaveAudit v-else-if="activeTab === 'leave'" key="leave" />
+          <IdentityAudit v-else key="identity" />
         </transition>
       </main>
     </div>
@@ -75,13 +50,11 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import Navigation from '@/components/Navigation.vue'
-import ProfileInfo from '@/components/PersonalInfo.vue'
-import ProfileAppointments from '@/components/MyAppointments.vue'
-import ProfileWaitList from '@/components/MyWaitList.vue'
-import axios from 'axios'
+import IdentityAudit from '@/components/IdentityAudit.vue'
+import LeaveAudit from '@/components/LeaveAudit.vue'
+import DoctorInfoChangeAudit from '@/components/DoctorInfoChangeAudit.vue'
 
-// tab 管理
-const activeTab = ref('info')
+const activeTab = ref('doctorInfo')
 
 // 导航栏高度管理
 const navRef = ref(null)
@@ -99,10 +72,6 @@ function handleResize() {
   updateNavHeight()
 }
 
-function handleProfileUpdated() {
-  console.log('个人信息已更新')
-}
-
 onMounted(async () => {
   await nextTick()
   updateNavHeight()
@@ -117,7 +86,6 @@ onUnmounted(() => {
 <style scoped>
 .page-container {
   min-height: 100vh;
-  /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
 }
 
 .profile-layout {
@@ -206,10 +174,6 @@ onUnmounted(() => {
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
-.nav-item svg {
-  flex-shrink: 0;
-}
-
 .nav-item span {
   flex: 1;
 }
@@ -238,75 +202,5 @@ onUnmounted(() => {
 .fade-leave-to {
   opacity: 0;
   transform: translateX(-20px);
-}
-
-/* 响应式设计 */
-@media (max-width: 1024px) {
-  .profile-layout {
-    padding: 1.5rem;
-    gap: 1.5rem;
-  }
-
-  .sidebar {
-    width: 240px;
-  }
-}
-
-@media (max-width: 768px) {
-  .profile-layout {
-    flex-direction: column;
-    padding: 1rem;
-    gap: 1rem;
-  }
-
-  .sidebar {
-    width: 100%;
-    position: static;
-    padding: 1.5rem;
-  }
-
-  .sidebar-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    text-align: left;
-    padding-bottom: 1rem;
-  }
-
-  .avatar {
-    width: 60px;
-    height: 60px;
-    margin: 0;
-  }
-
-  .avatar svg {
-    width: 32px;
-    height: 32px;
-  }
-
-  .sidebar-header h3 {
-    font-size: 1.1rem;
-  }
-
-  .sidebar-nav {
-    flex-direction: row;
-    overflow-x: auto;
-  }
-
-  .nav-item {
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    min-width: 100px;
-    text-align: center;
-  }
-
-  .nav-item span {
-    font-size: 0.875rem;
-  }
-
-  .main-content {
-    min-height: 400px;
-  }
 }
 </style>

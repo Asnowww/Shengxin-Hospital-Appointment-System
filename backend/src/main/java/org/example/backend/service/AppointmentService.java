@@ -77,6 +77,17 @@ public interface AppointmentService {
     @Transactional
     boolean updateAppointment(AppointmentUpdateParam param);
 
+    /**
+     *
+     * 支付挂号订单
+     * @param appointmentId
+     * @param patientId
+     * @param method
+     * @return
+     */
+    boolean payAppointment(Long appointmentId, Long patientId, String method);
+
+
 
     /**
      * 验证预约是否可以修改

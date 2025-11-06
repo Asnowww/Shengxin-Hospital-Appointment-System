@@ -7,11 +7,10 @@ import org.example.backend.dto.AppointmentUpdateParam;
 import org.example.backend.mapper.AppointmentMapper;
 import org.example.backend.mapper.AppointmentTypeMapper;
 import org.example.backend.mapper.ScheduleMapper;
-import org.example.backend.pojo.Appointment;
-import org.example.backend.pojo.AppointmentType;
-import org.example.backend.pojo.Schedule;
+import org.example.backend.pojo.*;
 import org.example.backend.service.AppointmentService;
 import org.example.backend.service.NotificationEmailService;
+import org.example.backend.service.PaymentService;
 import org.example.backend.service.WaitlistService;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -43,6 +42,9 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Resource
     private NotificationEmailService notificationEmailService;
+
+    @Resource
+    private PaymentService paymentService;
 
     // === 病人端 ===
 
@@ -159,18 +161,63 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     @Transactional
     public boolean cancelAppointment(Long appointmentId, Long patientId) {
+        // 1. 查询预约
         Appointment appointment = appointmentMapper.selectById(appointmentId);
-        if (appointment == null || !appointment.getPatientId().equals(patientId)) {
-            return false;
+        if (appointment == null) {
+            throw new RuntimeException("预约不存在");
         }
 
+        // 2. 验证权限（仅限该患者或管理员）
+        if (patientId != null && !appointment.getPatientId().equals(patientId)) {
+            throw new RuntimeException("无权取消该预约");
+        }
+
+        // 3. 若预约已被取消或退款，不再处理
+        if ("cancelled".equals(appointment.getAppointmentStatus()) ||
+                "refunded".equals(appointment.getPaymentStatus())) {
+            throw new RuntimeException("该预约已取消或已退款");
+        }
+
+        // 4. 如果已支付，则执行退款逻辑
         if ("paid".equals(appointment.getPaymentStatus())) {
-            appointment.setPaymentStatus("refunded");
+            try {
+                // === 创建退款记录 ===
+                Refunds refund = paymentService.createRefund(appointmentId, "用户取消预约自动退款");
+                System.out.println("已创建退款记录：" + refund.getRefundId());
+
+                // === 模拟第三方退款调用 ===
+                Thread.sleep(1000);
+                System.out.println("调用第三方退款接口成功，退款金额：" + refund.getAmount());
+
+                // === 更新退款状态 ===
+                boolean refundSuccess = paymentService.processRefundSuccess(refund.getRefundId());
+                if (!refundSuccess) {
+                    throw new RuntimeException("退款状态更新失败");
+                }
+
+                // === 更新预约支付状态 ===
+                appointment.setPaymentStatus("refunded");
+
+                // === 邮件通知（事务提交后执行）===
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+                    @Override
+                    public void afterCommit() {
+                        notificationEmailService.sendRefundSuccessNotification(appointment.getAppointmentId());
+                    }
+                });
+
+            } catch (Exception e) {
+                System.err.println("退款失败：" + e.getMessage());
+                throw new RuntimeException("退款失败，请稍后重试");
+            }
         }
 
+        // 5. 更新预约状态为已取消
         appointment.setAppointmentStatus("cancelled");
+        appointment.setUpdatedAt(LocalDateTime.now());
         boolean updated = appointmentMapper.updateById(appointment) > 0;
 
+        // 6. 更新排班剩余号源
         if (updated) {
             Integer scheduleId = appointment.getScheduleId();
             Schedule schedule = scheduleMapper.selectById(scheduleId);
@@ -178,7 +225,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 schedule.setAvailableSlots(schedule.getAvailableSlots() + 1);
                 scheduleMapper.updateById(schedule);
 
-                // ===== 新增：处理候补队列 =====
+                // 7. 处理候补队列
                 try {
                     waitlistService.processWaitlistConversion(scheduleId);
                 } catch (Exception e) {
@@ -186,6 +233,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 }
             }
 
+            // 8. 发送取消通知（事务提交后）
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
                 @Override
                 public void afterCommit() {
@@ -196,7 +244,6 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         return updated;
     }
-
 
     @Transactional
     @Override
@@ -305,6 +352,64 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         return true;
+    }
+
+    /**
+     * 支付预约
+     */
+    @Transactional
+    public boolean payAppointment(Long appointmentId, Long patientId, String method) {
+        // 1. 查询预约记录
+        Appointment appointment = appointmentMapper.selectById(appointmentId);
+        if (appointment == null || !appointment.getPatientId().equals(patientId)) {
+            throw new RuntimeException("无效的预约记录或无权支付");
+        }
+
+        // 2. 验证当前状态
+        if (!"unpaid".equals(appointment.getPaymentStatus())) {
+            throw new RuntimeException("该预约已支付或无法重复支付");
+        }
+
+        // 3. 创建支付记录
+        Payments payment = paymentService.createPayment(
+                appointmentId,
+                appointment.getFeeFinal().doubleValue(),
+                method
+        );
+
+        try {
+            // === 模拟调用第三方支付接口 ===
+            System.out.println("正在调用第三方支付接口，支付方式：" + method);
+            Thread.sleep(1000); // 模拟网络请求
+            String tradeNo = "TRADE-" + System.currentTimeMillis();
+
+            // 4. 支付成功，更新支付状态
+            boolean paySuccess = paymentService.markPaymentSuccess(payment.getPaymentId(), tradeNo);
+            if (!paySuccess) {
+                throw new RuntimeException("支付状态更新失败");
+            }
+
+            // 5. 更新预约状态
+            appointment.setPaymentStatus("paid");
+            appointment.setAppointmentStatus("booked");
+            appointment.setUpdatedAt(LocalDateTime.now());
+            appointmentMapper.updateById(appointment);
+
+            // 6. 支付成功后发送邮件（事务提交后执行）
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+                @Override
+                public void afterCommit() {
+                    notificationEmailService.sendPaymentSuccessNotification(appointment.getAppointmentId());
+                }
+            });
+
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("支付失败：" + e.getMessage());
+            paymentService.markPaymentFailed(payment.getPaymentId());
+            throw new RuntimeException("支付失败，请稍后重试");
+        }
     }
 
 

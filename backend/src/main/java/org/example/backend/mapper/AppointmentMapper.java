@@ -8,6 +8,7 @@ import org.example.backend.dto.AppointmentInfoDTO;
 import org.example.backend.pojo.Appointment;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -65,4 +66,28 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
         ORDER BY a.visit_time DESC
         """)
     List<AppointmentInfoDTO> selectAppointmentsByPatientId(@Param("patientId") Long patientId);
+
+
+    /**
+     * 查询过期的未支付订单
+     * @param currentTime 当前时间
+     * @return 过期订单列表
+     */
+    @Select("SELECT * FROM appointments " +
+            "WHERE appointment_status = 'pending' " +
+            "AND payment_status = 'unpaid' " +
+            "AND expire_time <= #{currentTime}")
+    List<Appointment> selectExpiredUnpaidAppointments(@Param("currentTime") LocalDateTime currentTime);
+
+    /**
+     * 查询当日已支付待就诊的预约
+     * @param date 日期
+     * @return 当日预约列表
+     */
+    @Select("SELECT a.* FROM appointment a " +
+            "INNER JOIN schedules s ON a.schedule_id = s.schedule_id " +
+            "WHERE a.payment_status = 'paid' " +
+            "AND a.appointment_status = 'booked' " +
+            "AND DATE(s.schedule_date) = #{date}")
+    List<Appointment> selectTodayPaidAppointments(@Param("date") LocalDate date);
 }

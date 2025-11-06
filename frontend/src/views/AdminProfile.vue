@@ -72,37 +72,15 @@
             <div class="form-grid">
               <!-- 基本信息 -->
               <div class="form-group">
-                <label class="form-label">姓名</label>
+                <label class="form-label">用户名</label>
                 <input
-                  v-model="profile.name"
+                  v-model="profile.username"
                   type="text"
                   disabled
                   class="form-control"
-                  placeholder="姓名" />
+                  placeholder="用户名" />
               </div>
 
-              <div class="form-group">
-                <label class="form-label">工号</label>
-                <input
-                  v-model="profile.employeeId"
-                  type="text"
-                  disabled
-                  class="form-control"
-                  placeholder="工号" />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">
-                  职位 <span class="required">*</span>
-                </label>
-                <input
-                  v-model="profile.position"
-                  type="text"
-                  :disabled="!isEditing"
-                  :class="['form-control', { 'error': errors.position }]"
-                  placeholder="请输入职位" />
-                <span v-if="errors.position" class="error-text">{{ errors.position }}</span>
-              </div>
 
               <div class="form-group">
                 <label class="form-label">
@@ -125,16 +103,6 @@
                   :disabled="!isEditing"
                   class="form-control"
                   placeholder="请输入邮箱" />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">部门</label>
-                <input
-                  v-model="profile.department"
-                  type="text"
-                  disabled
-                  class="form-control"
-                  placeholder="部门" />
               </div>
             </div>
 
@@ -165,19 +133,15 @@ const navRef = ref(null)
 const navHeight = ref(110)
 const isEditing = ref(false)
 const originalProfile = ref({})
+const token = localStorage.getItem('token')
 
 const profile = reactive({
-  name: '',
-  employeeId: '',
-  position: '',
+  username: '',
   phone: '',
   email: '',
-  department: '',
-  status: ''
 })
 
 const errors = reactive({
-  position: '',
   phone: ''
 })
 
@@ -194,18 +158,12 @@ function cancelEdit() {
 }
 
 function clearErrors() {
-  errors.position = ''
   errors.phone = ''
 }
 
 function validateForm() {
   clearErrors()
   let isValid = true
-
-  if (!profile.position) {
-    errors.position = '请输入职位'
-    isValid = false
-  }
 
   if (!profile.phone) {
     errors.phone = '请输入手机号'
@@ -220,24 +178,16 @@ function validateForm() {
 
 async function fetchProfile() {
   try {
-    // 实际使用时替换为：
-    // const { data } = await axios.get('/api/admin/profile')
+    
+    const { data } = await axios.get('/api/admin/profile', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
 
-    // 模拟API请求
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    const mockData = {
-      name: '管理员',
-      employeeId: 'A2020001',
-      position: '系统管理员',
-      phone: '13900139000',
-      email: 'admin@hospital.com',
-      department: '信息科',
-      status: 'ACTIVE'
+    if (data.code === 200 && data.data) {
+      Object.assign(profile, data.data)
+    } else {
+      console.warn('获取管理员信息失败', data.message)
     }
-
-    Object.assign(profile, mockData)
-    originalProfile.value = JSON.parse(JSON.stringify(mockData))
   } catch (err) {
     console.error('获取管理员信息失败', err)
   }
@@ -249,15 +199,22 @@ async function handleSave() {
   }
 
   try {
-    // 实际使用时替换为：
-    // await axios.post('/api/admin/profile/update', profile)
+    const payload = {
+      phone: profile.phone,
+      email: profile.email
+    }
 
-    // 模拟API请求
-    await new Promise(resolve => setTimeout(resolve, 800))
+    const { data } = await axios.put('/api/admin/profile/update', payload,{
+      headers: { Authorization: `Bearer ${token}` }
+    })
 
-    alert('保存成功！')
-    isEditing.value = false
-    originalProfile.value = JSON.parse(JSON.stringify(profile))
+    if (data.code === 200) {
+      alert('修改成功')
+      isEditing.value = false
+      originalProfile.value = JSON.parse(JSON.stringify(profile))
+    } else {
+      alert(`修改失败：${data.message}`)
+    }
   } catch (err) {
     alert('保存失败！')
     console.error('保存失败', err)
@@ -287,6 +244,7 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
 })
 </script>
+
 
 <style scoped>
 .page-container {

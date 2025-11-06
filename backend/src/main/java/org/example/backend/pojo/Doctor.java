@@ -32,4 +32,5 @@ public class Doctor {
 
     @TableField("updated_at")
     private LocalDateTime updatedAt;
+
 }
