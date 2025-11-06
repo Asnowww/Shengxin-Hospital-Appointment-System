@@ -6,9 +6,13 @@ import java.util.List;
 
 @Data
 public class DepartmentTreeVO {
-    private Integer id;
-    private String name;
-    private Integer parentId;
-    private Boolean available;
-    private List<DepartmentTreeVO> subDepartments;
+    private Integer deptId;
+    private Integer parentDeptId;
+    private String deptName;
+    private String building;
+    private Integer floor;
+    private String room;
+    private String description;
+
+    private List<DepartmentTreeVO> children;
 }
