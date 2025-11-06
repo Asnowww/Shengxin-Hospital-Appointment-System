@@ -221,162 +221,16 @@
     </div>
   </div>
 
-  <!-- 创建/编辑排班弹窗 -->
-<transition name="modal">
-  <div v-if="showScheduleModal" class="modal-overlay" @click.self="closeScheduleModal">
-    <div class="modal-container large">
-      <button @click="closeScheduleModal" class="close-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-
-      <div class="modal-header">
-        <h2>{{ isEditing ? '编辑排班' : '创建排班' }}</h2>
-        <p class="subtitle">{{ isEditing ? '修改排班信息' : '为医生创建新的排班' }}</p>
-      </div>
-
-      <form @submit.prevent="handleSubmit" class="modal-body">
-        <!-- 批量创建选项 -->
-        <div v-if="!isEditing" class="batch-section">
-          <label class="checkbox-label">
-            <input type="checkbox" v-model="scheduleForm.isBatch" />
-            <span>批量创建排班</span>
-          </label>
-        </div>
-
-        <div class="form-grid">
-          <!-- 医生 -->
-          <div class="form-group">
-            <label class="form-label">
-              医生 <span class="required">*</span>
-            </label>
-            <select
-              v-model="scheduleForm.doctorId"
-              :disabled="isEditing"
-              @change="checkConflict"
-              :class="['form-control', { error: errors.doctorId }]"
-              required
-            >
-              <option value="">请选择医生</option>
-              <option v-for="doctor in doctors" :key="doctor.doctorId" :value="doctor.doctorId">
-                {{ doctor.doctorName }} - {{ doctor.deptName }} - {{ doctor.title }}
-              </option>
-            </select>
-            <span v-if="errors.doctorId" class="error-text">{{ errors.doctorId }}</span>
-          </div>
-
-          <!-- 日期 / 日期范围 -->
-          <div v-if="!scheduleForm.isBatch" class="form-group">
-            <label class="form-label">日期 <span class="required">*</span></label>
-            <input
-              v-model="scheduleForm.date"
-              type="date"
-              @change="checkConflict"
-              :min="minDate"
-              :class="['form-control', { error: errors.date }]"
-              required
-            />
-            <span v-if="errors.date" class="error-text">{{ errors.date }}</span>
-          </div>
-
-          <div v-else class="form-group full-width">
-            <label class="form-label">日期范围 <span class="required">*</span></label>
-            <div class="date-range-input">
-              <input v-model="scheduleForm.startDate" type="date" :min="minDate" class="form-control" required />
-              <span class="date-separator">至</span>
-              <input v-model="scheduleForm.endDate" type="date" :min="scheduleForm.startDate || minDate" class="form-control" required />
-            </div>
-          </div>
-
-          <!-- 时间段选择 -->
-          <div class="form-group full-width">
-            <label class="form-label">时段 <span class="required">*</span></label>
-            <div class="time-period-selector">
-              <label class="time-period-option">
-                <input type="checkbox" :value="0" v-model="scheduleForm.timeSlots" />
-                <span>上午（08:00 - 12:00）</span>
-              </label>
-              <label class="time-period-option">
-                <input type="checkbox" :value="1" v-model="scheduleForm.timeSlots" />
-                <span>下午（13:00 - 17:00）</span>
-              </label>
-              <label class="time-period-option">
-                <input type="checkbox" :value="2" v-model="scheduleForm.timeSlots" />
-                <span>夜班（18:00 - 22:00）</span>
-              </label>
-            </div>
-          </div>
-          
-          <!-- 最大接诊人数 -->
-          <div class="form-group">
-            <label class="form-label">最大接诊人数 <span class="required">*</span></label>
-            <input
-              v-model.number="scheduleForm.maxPatients"
-              type="number"
-              min="1"
-              max="100"
-              :class="['form-control', { error: errors.maxPatients }]"
-              required
-            />
-            <span v-if="errors.maxPatients" class="error-text">{{ errors.maxPatients }}</span>
-          </div>
-
-          <!-- 批量：工作日 -->
-          <div v-if="scheduleForm.isBatch" class="form-group full-width">
-            <label class="form-label">工作日 <span class="required">*</span></label>
-            <div class="weekday-selector">
-              <label
-                v-for="day in weekDays"
-                :key="day.value"
-                class="weekday-checkbox"
-              >
-                <input type="checkbox" :value="day.value" v-model="scheduleForm.weekdays" />
-                <span class="checkbox-label">{{ day.label }}</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- 备注 -->
-          <div class="form-group full-width">
-            <label class="form-label">备注</label>
-            <textarea
-              v-model="scheduleForm.notes"
-              class="form-control textarea"
-              rows="3"
-              placeholder="备注信息（选填）"
-            ></textarea>
-          </div>
-        </div>
-
-        <!-- 冲突警告 -->
-        <div v-if="hasConflict" class="warning-box">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-            <line x1="12" y1="9" x2="12" y2="13"></line>
-            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-          </svg>
-          <div>
-            <strong>排班冲突：</strong>该医生在此时间段已有排班，请调整时间。
-          </div>
-        </div>
-
-        <!-- 按钮 -->
-        <div class="button-group">
-          <button type="button" @click="closeScheduleModal" class="cancel-btn">取消</button>
-          <button type="submit" class="submit-btn" :disabled="hasConflict || scheduleForm.timeSlots.length === 0">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-            {{ isEditing ? '保存修改' : (scheduleForm.isBatch ? '批量创建' : '创建排班') }}
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-</transition>
-
+  <!-- 创建/编辑排班子组件 -->
+  <AdminCreateSchedule
+    :show="showScheduleModal"
+    :isEditing="isEditing"
+    :initialData="selectedScheduleData"
+    :doctors="doctors"
+    :rooms="rooms"
+    @close="closeScheduleModal"
+    @submit="handleScheduleSubmit"
+  />
 
   <!-- 查看详情弹窗 -->
   <transition name="modal">
@@ -460,6 +314,7 @@
 <script setup>
 import { reactive, ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import Navigation from '@/components/Navigation.vue'
+import AdminCreateSchedule from '@/components/AdminCreateSchedule.vue'
 import axios from 'axios'
 
 const navRef = ref(null)
@@ -468,17 +323,7 @@ const loading = ref(false)
 const showScheduleModal = ref(false)
 const showDetailModal = ref(false)
 const isEditing = ref(false)
-const hasConflict = ref(false)
-
-const weekDays = [
-  { label: '周一', value: 1 },
-  { label: '周二', value: 2 },
-  { label: '周三', value: 3 },
-  { label: '周四', value: 4 },
-  { label: '周五', value: 5 },
-  { label: '周六', value: 6 },
-  { label: '周日', value: 7 }
-]
+const selectedScheduleData = ref(null)
 
 // 筛选条件
 const filters = reactive({
@@ -491,36 +336,14 @@ const filters = reactive({
 // 医生列表
 const doctors = ref([])
 
+// 诊室列表
+const rooms = ref([])
+
 // 排班列表
 const schedules = ref([])
 
-// 选中的排班
+// 选中的排班（用于查看详情）
 const selectedSchedule = ref(null)
-
-// 排班表单
-const scheduleForm = reactive({
-  id: null,
-  doctorId: '',
-  deptId: '',
-  date: '',
-  startDate: '',
-  endDate: '',
-  startTime: '',
-  endTime: '',
-  maxPatients: 30,
-  notes: '',
-  isBatch: false,
-  weekdays: []
-})
-
-// 表单错误
-const errors = reactive({
-  doctorId: '',
-  date: '',
-  startTime: '',
-  endTime: '',
-  maxPatients: ''
-})
 
 // 最小日期（今天）
 const minDate = computed(() => {
@@ -534,83 +357,10 @@ async function fetchSchedules() {
     const params = {
       startDate: filters.startDate,
       endDate: filters.endDate,
-      department: filters.department,
+      department: filters.deptName,
       doctorId: filters.doctorId
     }
-    const { data } = await axios.get('/api/admin/schedules', { params })
-
-    模拟API请求
-    await new Promise(resolve => setTimeout(resolve, 600))
-
-    // const mockData = [
-    //   {
-    //     id: 1,
-    //     doctorId: 1,
-    //     doctorName: '张明',
-    //     doctorTitle: '主任医师',
-    //     department: 'CARDIO',
-    //     date: '2025-10-23',
-    //     startTime: '08:00',
-    //     endTime: '12:00',
-    //     maxPatients: 30,
-    //     appointedCount: 15,
-    //     status: 'active',
-    //     hasConflict: false,
-    //     notes: '',
-    //     appointments: [
-    //       { id: 1, patientName: '李四', gender: '男', age: 45, appointmentTime: '08:30' },
-    //       { id: 2, patientName: '王五', gender: '女', age: 32, appointmentTime: '09:00' }
-    //     ]
-    //   },
-    //   {
-    //     id: 2,
-    //     doctorId: 2,
-    //     doctorName: '李红',
-    //     doctorTitle: '副主任医师',
-    //     department: 'GASTRO',
-    //     date: '2025-10-23',
-    //     startTime: '14:00',
-    //     endTime: '17:00',
-    //     maxPatients: 25,
-    //     appointedCount: 25,
-    //     status: 'active',
-    //     hasConflict: false,
-    //     notes: '',
-    //     appointments: []
-    //   },
-    //   {
-    //     id: 3,
-    //     doctorId: 1,
-    //     doctorName: '张明',
-    //     doctorTitle: '主任医师',
-    //     department: 'CARDIO',
-    //     date: '2025-10-24',
-    //     startTime: '08:00',
-    //     endTime: '12:00',
-    //     maxPatients: 30,
-    //     appointedCount: 8,
-    //     status: 'active',
-    //     hasConflict: true,
-    //     notes: '与其他排班时间重叠',
-    //     appointments: []
-    //   },
-    //   {
-    //     id: 4,
-    //     doctorId: 3,
-    //     doctorName: '王强',
-    //     doctorTitle: '主治医师',
-    //     department: 'ORTHO',
-    //     date: '2025-10-25',
-    //     startTime: '08:00',
-    //     endTime: '17:00',
-    //     maxPatients: 20,
-    //     appointedCount: 0,
-    //     status: 'pending',
-    //     hasConflict: false,
-    //     notes: '新增排班',
-    //     appointments: []
-    //   }
-    // ]
+    const { data } = await axios.get('/api/admin/schedules/list', { params })
 
     schedules.value = data.data 
   } catch (err) {
@@ -624,11 +374,23 @@ async function fetchSchedules() {
 // 获取医生列表
 async function fetchDoctors() {
   try {
-   
     const { data } = await axios.get('/api/doctor/list')
     doctors.value = data.data
   } catch (err) {
     console.error('获取医生列表失败', err)
+  }
+}
+
+// 获取诊室列表
+async function getAllRooms() {
+  try {
+    // 模拟数据（可根据你的项目字段名调整）
+    rooms.value = [
+      { roomId: 1, roomName: '诊室 1', location: '圣心楼', deptId: 2 },
+    ]
+    console.log('✅ 已加载模拟诊室数据')
+  } catch (err) {
+    console.error('加载诊室模拟数据出错:', err)
   }
 }
 
@@ -644,22 +406,14 @@ function resetFilters() {
 // 打开创建对话框
 function openCreateDialog() {
   isEditing.value = false
-  resetForm()
+  selectedScheduleData.value = null
   showScheduleModal.value = true
 }
 
 // 编辑排班
 function editSchedule(schedule) {
   isEditing.value = true
-  scheduleForm.id = schedule.scheduleId
-  scheduleForm.doctorId = schedule.doctorId
-  scheduleForm.date = schedule.date
-  scheduleForm.startTime = schedule.startTime
-  scheduleForm.endTime = schedule.endTime
-  scheduleForm.maxPatients = schedule.maxPatients
-  scheduleForm.notes = schedule.notes
-  scheduleForm.isBatch = false
-  scheduleForm.weekdays = []
+  selectedScheduleData.value = schedule
   showScheduleModal.value = true
 }
 
@@ -667,6 +421,25 @@ function editSchedule(schedule) {
 function viewSchedule(schedule) {
   selectedSchedule.value = schedule
   showDetailModal.value = true
+}
+
+// 关闭创建/编辑弹窗
+function closeScheduleModal() {
+  showScheduleModal.value = false
+  selectedScheduleData.value = null
+}
+
+// 关闭详情弹窗
+function closeDetailModal() {
+  showDetailModal.value = false
+  selectedSchedule.value = null
+}
+
+// 处理子组件的提交事件
+async function handleScheduleSubmit(formData) {
+  console.log('排班表单已提交:', formData)
+  // 重新获取排班列表
+  fetchSchedules()
 }
 
 // 确认删除
@@ -686,165 +459,12 @@ function confirmDelete(schedule) {
 // 删除排班
 async function deleteSchedule(id) {
   try {
-    // 实际使用时替换为：
-    // await axios.delete(`/api/admin/schedules/${id}`)
-
-    // 模拟API请求
-    await new Promise(resolve => setTimeout(resolve, 500))
-
+    await axios.delete(`/api/admin/schedules/${id}`)
     alert('删除成功')
     fetchSchedules()
   } catch (err) {
     console.error('删除失败', err)
     alert('删除失败')
-  }
-}
-
-// 关闭弹窗
-function closeScheduleModal() {
-  showScheduleModal.value = false
-  resetForm()
-}
-
-function closeDetailModal() {
-  showDetailModal.value = false
-  selectedSchedule.value = null
-}
-
-// 重置表单
-function resetForm() {
-  scheduleForm.id = null
-  scheduleForm.doctorId = ''
-  scheduleForm.date = ''
-  scheduleForm.startDate = ''
-  scheduleForm.endDate = ''
-  scheduleForm.startTime = ''
-  scheduleForm.endTime = ''
-  scheduleForm.maxPatients = 30
-  scheduleForm.notes = ''
-  scheduleForm.isBatch = false
-  scheduleForm.timeSlots =[],
-  scheduleForm.weekdays = []
-  clearErrors()
-  hasConflict.value = false
-}
-
-// 清除错误
-function clearErrors() {
-  errors.doctorId = ''
-  errors.date = ''
-  errors.startTime = ''
-  errors.endTime = ''
-  errors.maxPatients = ''
-}
-
-// 验证表单
-function validateForm() {
-  clearErrors()
-  let isValid = true
-
-  if (!scheduleForm.doctorId) {
-    console.log('doctorId missing')
-    errors.doctorId = '请选择医生'
-    isValid = false
-  }
-
-  if (!scheduleForm.isBatch && !scheduleForm.date) {
-    errors.date = '请选择日期'
-    isValid = false
-  }
-
-  // if (!scheduleForm.startTime) {
-  //   errors.startTime = '请选择开始时间'
-  //   isValid = false
-  // }
-
-  // if (!scheduleForm.endTime) {
-  //   errors.endTime = '请选择结束时间'
-  //   isValid = false
-  // }
-
-  // if (scheduleForm.startTime && scheduleForm.endTime && scheduleForm.startTime >= scheduleForm.endTime) {
-  //   errors.endTime = '结束时间必须晚于开始时间'
-  //   isValid = false
-  // }
-
-  if (!scheduleForm.maxPatients || scheduleForm.maxPatients < 1) {
-    errors.maxPatients = '请输入有效的接诊人数'
-    isValid = false
-  }
-
-  if (scheduleForm.isBatch && scheduleForm.weekdays.length === 0) {
-    alert('请至少选择一个工作日')
-    isValid = false
-  }
-
-  return isValid
-}
-
-// 检查冲突
-async function checkConflict() {
-  if (!scheduleForm.doctorId || !scheduleForm.date || !scheduleForm.startTime || !scheduleForm.endTime) {
-    hasConflict.value = false
-    return
-  }
-
-  try {
-    // 实际使用时替换为：
-    // const { data } = await axios.post('/api/admin/schedules/check-conflict', {
-    //   doctorId: scheduleForm.doctorId,
-    //   date: scheduleForm.date,
-    //   startTime: scheduleForm.startTime,
-    //   endTime: scheduleForm.endTime,
-    //   excludeId: scheduleForm.id
-    // })
-    // hasConflict.value = data.hasConflict
-
-    // 模拟检查
-    await new Promise(resolve => setTimeout(resolve, 200))
-    hasConflict.value = false
-  } catch (err) {
-    console.error('检查冲突失败', err)
-  }
-}
-
-// 提交表单
-async function handleSubmit() {
-  if (!validateForm()) {
-    console.log('表单验证失败')
-    return
-  }
-
-  if (hasConflict.value) {
-    alert('存在排班冲突，请调整时间')
-    return
-  }
-
-  try {
-    if (isEditing.value) {
-      // 实际使用时替换为：
-      // await axios.put(`/api/admin/schedules/${scheduleForm.id}`, scheduleForm)
-
-      // 模拟API请求
-      await new Promise(resolve => setTimeout(resolve, 800))
-      alert('修改成功')
-    } else {
-      
-      await axios.post('/api/admin/schedules/create', scheduleForm)
-
-
-      if (scheduleForm.isBatch) {
-        alert('批量创建成功')
-      } else {
-        alert('创建成功')
-      }
-    }
-
-    closeScheduleModal()
-    fetchSchedules()
-  } catch (err) {
-    console.error('操作失败', err)
-    alert('操作失败')
   }
 }
 
@@ -859,19 +479,6 @@ function getWeekday(dateStr) {
   const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
   return weekdays[date.getDay()]
 }
-
-// function getDepartmentName(code) {
-//   const map = {
-//     'CARDIO': '心内科',
-//     'GASTRO': '消化内科',
-//     'RESPIR': '呼吸内科',
-//     'ORTHO': '骨科',
-//     'NEURO': '神经外科',
-//     'GYNEC': '妇科',
-//     'PEDIM': '小儿内科'
-//   }
-//   return map[code] || code
-// }
 
 function getStatusText(status) {
   const map = {
@@ -911,6 +518,7 @@ onMounted(async () => {
 
   fetchDoctors()
   fetchSchedules()
+  getAllRooms()
 })
 
 onUnmounted(() => {
@@ -1464,10 +1072,6 @@ onUnmounted(() => {
   position: relative;
 }
 
-.modal-container.large {
-  max-width: 800px;
-}
-
 .close-btn {
   position: absolute;
   top: 1rem;
@@ -1505,227 +1109,6 @@ onUnmounted(() => {
 
 .modal-body {
   padding: 2rem;
-}
-
-/* 表单样式 */
-.batch-section {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: #f7fafc;
-  border-radius: 8px;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  font-weight: 500;
-  color: #4a5568;
-}
-
-.checkbox-label input[type="checkbox"] {
-  cursor: pointer;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group.full-width {
-  grid-column: 1 / -1;
-}
-
-.form-label {
-  font-weight: 600;
-  color: #4a5568;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.required {
-  color: #e53e3e;
-  margin-left: 0.25rem;
-}
-
-.form-control {
-  padding: 0.75rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  transition: all 0.3s ease;
-  background: white;
-}
-
-.form-control:focus {
-  outline: none;
-  border-color: #f5576c;
-  box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.1);
-}
-
-.form-control.error {
-  border-color: #e53e3e;
-}
-
-.error-text {
-  color: #e53e3e;
-  font-size: 0.8rem;
-  margin-top: 0.25rem;
-}
-
-.textarea {
-  resize: vertical;
-  min-height: 80px;
-  font-family: inherit;
-}
-
-.date-range-input {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.weekday-selector {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 0.75rem;
-}
-
-.weekday-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: #f7fafc;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  user-select: none;
-}
-
-.weekday-checkbox:hover {
-  background: #edf2f7;
-  border-color: #cbd5e0;
-}
-
-.weekday-checkbox input[type="checkbox"]:checked ~ .checkbox-label {
-  color: #f5576c;
-  font-weight: 600;
-}
-
-.warning-box {
-  display: flex;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: #fff3cd;
-  border: 2px solid #ffc107;
-  border-radius: 10px;
-  color: #856404;
-  font-size: 0.9rem;
-  margin-bottom: 1.5rem;
-}
-
-.warning-box svg {
-  flex-shrink: 0;
-  color: #ffc107;
-}
-
-.warning-box strong {
-  font-weight: 700;
-}
-
-/* 按钮组 */
-.button-group {
-  display: flex;
-  gap: 1rem;
-  padding-top: 1.5rem;
-  border-top: 2px solid #f0f0f0;
-}
-
-.cancel-btn,
-.submit-btn {
-  flex: 1;
-  padding: 0.875rem 1.5rem;
-  border: none;
-  border-radius: 10px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.cancel-btn {
-  background: #e2e8f0;
-  color: #4a5568;
-}
-
-.cancel-btn:hover {
-  background: #cbd5e0;
-}
-
-.submit-btn {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
-}
-
-.submit-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4);
-}
-
-.submit-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.time-period-selector {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-  padding: 0.75rem;
-  background: #f7fafc;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-}
-
-.time-period-option {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-weight: 500;
-  color: #4a5568;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-}
-
-.time-period-option:hover {
-  background: white;
-}
-
-.time-period-option input[type="checkbox"] {
-  accent-color: #f5576c;
-  cursor: pointer;
-  width: 18px;
-  height: 18px;
-}
-
-.time-period-option input[type="checkbox"]:checked {
-  accent-color: #f093fb;
 }
 
 /* 详情区域 */
@@ -1914,16 +1297,8 @@ onUnmounted(() => {
     justify-content: center;
   }
 
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-
   .detail-grid {
     grid-template-columns: 1fr;
-  }
-
-  .button-group {
-    flex-direction: column-reverse;
   }
 
   .modal-container {
