@@ -29,11 +29,13 @@ public class UserVerificationController {
         this.userMapper = userMapper;
     }
 
+    // 从 application.properties 或 application-local.properties 读取上传目录
     @Value("${file.upload-dir:uploads/verifications/}")
     private String uploadDir;
 
     /**
-     * 用户提交认证信息
+     * 用户提交认证信息（含图片）
+     * token 来源：Header 或 参数，统一解析 userId
      */
     @PostMapping("/submit")
     public Result<Map<String, Object>> submitVerification(
@@ -59,7 +61,7 @@ public class UserVerificationController {
     }
 
     /**
-     * 管理员审核认证
+     * 审核接口（管理员）
      */
     @PostMapping("/review")
     public Result<Map<String, Object>> reviewVerification(
@@ -88,7 +90,7 @@ public class UserVerificationController {
     }
 
     /**
-     * 查询当前用户认证状态
+     * 查询当前用户的认证状态
      */
     @GetMapping("/status")
     public Result<Map<String, Object>> getStatus(

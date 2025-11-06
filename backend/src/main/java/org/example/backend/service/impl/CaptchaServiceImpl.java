@@ -35,10 +35,10 @@ public class CaptchaServiceImpl implements CaptchaService {
     @Override
     public boolean sendCaptcha(String email) {
         String key = "login:email:captcha:" + email;
-        return sendMailCaptcha(key);
+        return sendMailCaptcha(key, EmailTemplateEnum.VERIFICATION_CODE_EMAIL_HTML);
     }
 
-    private boolean sendMailCaptcha(String key) {
+    private boolean sendMailCaptcha(String key, EmailTemplateEnum template) {
         BoundHashOperations<String, String, String> hashOps = stringRedisTemplate.boundHashOps(key);
 
         String lastSendTimestamp = hashOps.get("lastSendTimestamp");
@@ -46,21 +46,20 @@ public class CaptchaServiceImpl implements CaptchaService {
 
         if (StringUtils.isNotBlank(sendCount) && Integer.parseInt(sendCount) >= 5) {
             hashOps.expire(24, TimeUnit.HOURS);
-            throw new RuntimeException("Email captcha requested too frequently (max 5 per day).");
+            throw new RuntimeException("验证码请求太频繁（每天最多5次）");
         }
 
         if (StringUtils.isNotBlank(lastSendTimestamp)) {
             long lastSendTime = Long.parseLong(lastSendTimestamp);
-            long currentTime = System.currentTimeMillis();
-            if ((currentTime - lastSendTime) < 60_000) {
-                throw new RuntimeException("Email captcha requested too frequently (max once per minute).");
+            if ((System.currentTimeMillis() - lastSendTime) < 60_000) {
+                throw new RuntimeException("验证码请求太频繁（每分钟最多1次）");
             }
         }
 
         int newSendCount = StringUtils.isNotBlank(sendCount) ? Integer.parseInt(sendCount) + 1 : 1;
         String captcha = RandomStringUtils.randomNumeric(6);
 
-        CompletableFuture<Boolean> sendFuture = sendCaptchaMail(key, captcha);
+        CompletableFuture<Boolean> sendFuture = sendCaptchaMail(key, captcha, template);
         sendFuture.whenComplete((result, throwable) -> {
             if (throwable != null || !Boolean.TRUE.equals(result)) {
                 log.error("Failed to send captcha email, clearing cache key {}", key, throwable);
@@ -78,18 +77,27 @@ public class CaptchaServiceImpl implements CaptchaService {
         return true;
     }
 
-    private CompletableFuture<Boolean> sendCaptchaMail(String hashKey, String captcha) {
+
+    private CompletableFuture<Boolean> sendCaptchaMail(String hashKey, String captcha, EmailTemplateEnum template) {
         String[] parts = hashKey.split(":");
-        if (parts.length >= 4 && "email".equals(parts[1])) {
-            String toEmail = parts[3];
+        if (parts.length >= 4 && "email".equals(parts[2])) {
+            String toEmail = parts[parts.length - 1];
             return emailAPI.sendHtmlEmail(
-                    EmailTemplateEnum.VERIFICATION_CODE_EMAIL_HTML.getSubject(),
-                    EmailTemplateEnum.VERIFICATION_CODE_EMAIL_HTML.set(captcha),
+                    template.getSubject(),
+                    template.set(captcha),
                     toEmail
             );
         }
         return CompletableFuture.completedFuture(true);
     }
+
+
+    @Override
+    public boolean sendPasswordResetCaptcha(String email) {
+        String key = "login:email:captcha:" + email;
+        return sendMailCaptcha(key, EmailTemplateEnum.PASSWORD_RESET_CODE_EMAIL_HTML);
+    }
+
 
     @Override
     public void createGraphCaptcha(HttpServletResponse response) throws IOException {

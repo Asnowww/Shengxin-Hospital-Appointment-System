@@ -33,12 +33,15 @@ const routes = [
   { path: '/doctor/profile', name: 'docProfile', component: DoctorProfile }, //医生个人信息页
   { path: '/doctor/schedules', name: 'doctorSchedules', component: MySchedule }, //医生排班页
   { path: '/mySchedule', name: 'mySchedule', component: MySchedule }, //医生排班页（兼容旧路径）
+  { path: '/doctor/leave/apply', name: 'doctorLeaveApply', component: () => import('@/views/DoctorLeaveApply.vue') }, // 医生请假申请
+  { path: '/doctor/info-change/apply', name: 'doctorInfoChangeApply', component: () => import('@/views/DoctorInfoChangeApply.vue') }, // 医生信息变更申请
 
   //管理端界面
   { path: '/admin/profile', name: 'adminProfile', component: AdminProfile }, //管理员个人信息页
   // { path: '/admin/schedules', name: 'adminSchedules', component: AdminSchedule }, //管理员排班管理页
   { path: '/admin/leaves', name: 'adminLeaves', component: LeaveManagement }, //请假审批页
   { path: '/admin/audit', name: 'audit', component: () => import('@/views/Audit.vue') }, //用户审核页
+  { path: '/admin/doctors', name: 'doctorManagement', component: () => import('@/views/DoctorManagement.vue') }, // 医生管理
 
   { path: '/reminder', name: 'reminder', component: () => import('@/components/Reminder.vue') }, // 提醒页
   { path: '/:pathMatch(.*)*', redirect: '/home' } // 其他未定义路由定向到首页

@@ -19,6 +19,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Resource
     private PatientMapper patientMapper;
 
+    @Resource
+    private UserMapper userMapper;
+
     @Override
     public boolean register(User user) {
         // 默认角色
@@ -88,5 +91,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public User findByPhone(String phone) {
         return this.getOne(new LambdaQueryWrapper<User>().eq(User::getPhone, phone));
+    }
+
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    @Override
+    public User getOneByEmail(String email) {
+        return userMapper.selectByEmail(email);
+    }
+
+    @Override
+    public boolean updatePasswordByEmail(String email, String newPassword) {
+        String encoded = passwordEncoder.encode(newPassword);
+        return userMapper.updatePasswordByEmail(email, encoded) > 0;
     }
 }

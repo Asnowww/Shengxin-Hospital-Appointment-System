@@ -382,65 +382,66 @@ public class PatientAppointmentController {
     }
 
     /**
-     * 支付预约
-     * 将预约状态从 pending(待支付) 更新为 booked(已预约)
+     * 支付预约（修改后的版本）
+     * 调用 AppointmentServiceImpl 中的 payAppointment 方法
      *
      * @param appointmentId 预约ID
-     * @param patientId 患者ID（用于权限验证）
+     * @param paymentMethod 支付方式（alipay/wechat/card/cash）
      * @return 支付结果
      */
     @PutMapping("/pay")
     public Result<Appointment> payAppointment(
             @RequestParam Long appointmentId,
-            @RequestParam Long patientId) {
+            @RequestParam String paymentMethod,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(value = "token", required = false) String tokenParam) {
         try {
-            // 验证预约是否存在
-            Appointment appointment = appointmentService.getById(appointmentId);
-            if (appointment == null) {
-                return Result.error("预约不存在");
+            // 提取 token
+            String token = tokenUtil.extractToken(authHeader, tokenParam);
+            if (token == null) {
+                return Result.error("未提供 token");
             }
 
-            // 验证权限
-            if (!appointment.getPatientId().equals(patientId)) {
-                return Result.error("无权操作该预约");
+            // 解析 userId
+            Long userId = tokenUtil.resolveUserIdFromToken(token);
+            if (userId == null) {
+                return Result.error("token 无效或已过期");
             }
 
-            // 验证支付状态
-            if (!"unpaid".equals(appointment.getPaymentStatus())) {
-                return Result.error("该预约不是待支付状态");
+            // 根据 userId 查 patientId
+            Patient patient = patientService.getOne(
+                    new QueryWrapper<Patient>().lambda()
+                            .eq(Patient::getUserId, userId)
+            );
+            if (patient == null) {
+                return Result.error("患者信息不存在");
             }
 
-            // 验证预约状态
-            if (!"pending".equals(appointment.getAppointmentStatus())) {
-                return Result.error("该预约状态不允许支付");
+            Long patientId = patient.getPatientId();
+
+            // 验证支付方式
+            if (!paymentMethod.matches("alipay|wechat|card|cash")) {
+                return Result.error("不支持的支付方式，请选择: alipay, wechat, card, cash");
             }
 
-            // 验证是否过期
-            if (appointment.getExpireTime() != null &&
-                    LocalDateTime.now().isAfter(appointment.getExpireTime())) {
-                return Result.error("预约已过期，请重新挂号");
-            }
-
-            // 执行支付（更新支付状态和预约状态）
-            AppointmentUpdateParam param = new AppointmentUpdateParam();
-            param.setAppointmentId(appointmentId);
-            param.setPatientId(patientId);
-            param.setPaymentStatus("paid");
-            param.setAppointmentStatus("booked");
-
-            boolean success = appointmentService.updateAppointment(param);
+            // 调用支付服务
+            boolean success = appointmentService.payAppointment(appointmentId, patientId, paymentMethod);
 
             if (success) {
+                // 返回更新后的预约信息
                 Appointment updatedAppointment = appointmentService.getById(appointmentId);
                 return Result.success(updatedAppointment);
             } else {
                 return Result.error("支付失败");
             }
 
+        } catch (RuntimeException e) {
+            return Result.error(e.getMessage());
         } catch (Exception e) {
             return Result.error("系统错误：" + e.getMessage());
         }
     }
+
 
     /**
      * 验证预约是否可以修改

@@ -16,24 +16,31 @@
 
         <nav class="sidebar-nav">
           <button 
+            :class="['nav-item', { active: activeTab === 'doctorInfo' }]" 
+            @click="activeTab = 'doctorInfo'">
+            <span>医生信息更改审核</span>
+          </button>
+
+          <button 
+            :class="['nav-item', { active: activeTab === 'leave' }]" 
+            @click="activeTab = 'leave'">
+            <span>请假审批</span>
+          </button>
+
+          <button 
             :class="['nav-item', { active: activeTab === 'identity' }]" 
             @click="activeTab = 'identity'">
             <span>身份认证审核</span>
           </button>
-          
-          <!-- <button 
-            :class="['nav-item', { active: activeTab === 'leave' }]" 
-            @click="activeTab = 'leave'">
-            <span>请假审核</span>
-          </button> -->
         </nav>
       </aside>
 
       <!-- 右侧主内容区 -->
       <main class="main-content">
         <transition name="fade" mode="out-in">
-          <IdentityAudit v-if="activeTab === 'identity'" key="identity" />
-          <!-- <LeaveAudit v-else-if="activeTab === 'leave'" key="leave" /> -->
+          <DoctorInfoChangeAudit v-if="activeTab === 'doctorInfo'" key="doctorInfo" />
+          <LeaveAudit v-else-if="activeTab === 'leave'" key="leave" />
+          <IdentityAudit v-else key="identity" />
         </transition>
       </main>
     </div>
@@ -44,9 +51,10 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import Navigation from '@/components/Navigation.vue'
 import IdentityAudit from '@/components/IdentityAudit.vue'
-// import LeaveAudit from '@/components/LeaveAudit.vue'
+import LeaveAudit from '@/components/LeaveAudit.vue'
+import DoctorInfoChangeAudit from '@/components/DoctorInfoChangeAudit.vue'
 
-const activeTab = ref('identity')
+const activeTab = ref('doctorInfo')
 
 // 导航栏高度管理
 const navRef = ref(null)
