@@ -386,7 +386,13 @@ async function handleSubmit() {
     if (props.isEditing) {
       response = await axios.put(`/api/admin/schedules/${scheduleForm.id}`, scheduleForm)
     } else {
-      response = await axios.post('/api/admin/schedules/batchCreate', scheduleForm)
+      if (scheduleForm.isBatch) {
+        // 批量创建
+        response = await axios.post('/api/admin/schedules/batchCreate', scheduleForm)
+      } else {
+        // 单条创建
+        response = await axios.post('/api/admin/schedules/create', scheduleForm)
+      }
     }
 
     const { code, message } = response.data

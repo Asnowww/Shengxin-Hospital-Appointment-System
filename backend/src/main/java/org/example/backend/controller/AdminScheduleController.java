@@ -24,9 +24,22 @@ public class AdminScheduleController {
      * 批量创建排班
      */
     @PostMapping("/batchCreate")
-    public Result<Void> createSchedules(@RequestBody ScheduleCreateParam param) {
+    public Result<Void> createBatchSchedules(@RequestBody ScheduleCreateParam param) {
         try {
             scheduleService.batchCreateSchedules(param);
+            return Result.success();
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 创建单例排班
+     */
+    @PostMapping("/create")
+    public Result<Void> createSchedules(@RequestBody ScheduleCreateParam param) {
+        try {
+            scheduleService.createSchedules(param);
             return Result.success();
         } catch (Exception e) {
             return Result.error(e.getMessage());

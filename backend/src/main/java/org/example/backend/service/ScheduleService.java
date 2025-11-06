@@ -14,6 +14,11 @@ public interface ScheduleService {
     void batchCreateSchedules(ScheduleCreateParam param);
 
     /**
+     * 创建排班单例排班
+     */
+    void createSchedules(ScheduleCreateParam param);
+
+    /**
      * 修改排班
      */
     void updateSchedule(ScheduleUpdateParam param);

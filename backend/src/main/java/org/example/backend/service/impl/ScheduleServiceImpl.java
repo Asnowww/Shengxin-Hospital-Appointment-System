@@ -127,6 +127,83 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
 
+    @Override
+    @Transactional
+    public void createSchedules(ScheduleCreateParam param) {
+        // 1️⃣ 验证医生、科室、诊室是否存在
+        Doctor doctor = doctorMapper.selectById(param.getDoctorId());
+        if (doctor == null) {
+            throw new RuntimeException("医生不存在");
+        }
+
+        Department department = departmentMapper.selectById(param.getDeptId());
+        if (department == null) {
+            throw new RuntimeException("科室不存在");
+        }
+
+        ConsultationRoom room = consultationRoomMapper.selectById(param.getRoomId());
+        if (room == null) {
+            throw new RuntimeException("诊室不存在");
+        }
+
+        // 2️⃣ 验证日期与时间段
+        LocalDate workDate = param.getStartDate(); // 原来的
+        if (workDate == null && param.getDate() != null) {
+            workDate = param.getDate();
+        }
+        if (workDate == null) {
+            throw new RuntimeException("排班日期不能为空");
+        }
+
+        if (param.getTimeSlots() == null || param.getTimeSlots().isEmpty()) {
+            throw new RuntimeException("必须选择至少一个时间段");
+        }
+
+//        LocalDate workDate = param.getStartDate();
+        List<Schedule> schedulesToInsert = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
+
+        // 3️⃣ 遍历选择的时间段
+        for (Integer timeSlot : param.getTimeSlots()) {
+            // 检查是否已有排班
+            if (checkDoctorScheduleConflict(param.getDoctorId(), workDate, timeSlot)) {
+                errors.add(String.format("医生在 %s 的 %s 时段已有排班", workDate, getTimeSlotName(timeSlot)));
+                continue;
+            }
+
+            // 构造排班对象
+            Schedule schedule = new Schedule();
+            schedule.setDoctorId(param.getDoctorId());
+            schedule.setDeptId(param.getDeptId());
+            schedule.setRoomId(param.getRoomId());
+            schedule.setWorkDate(workDate);
+            schedule.setTimeSlot(timeSlot);
+            schedule.setAppointmentTypeId(param.getAppointmentTypeId());
+            schedule.setMaxSlots(param.getMaxSlots());
+            schedule.setAvailableSlots(param.getMaxSlots());
+            schedule.setStatus("open");
+            schedule.setCreatedAt(LocalDateTime.now());
+            schedule.setUpdatedAt(LocalDateTime.now());
+
+            schedulesToInsert.add(schedule);
+        }
+
+        // 4️⃣ 如果所有时间段都冲突，直接报错
+        if (schedulesToInsert.isEmpty()) {
+            throw new RuntimeException("所选时间段都已被占用，未创建任何排班:\n" + String.join("\n", errors));
+        }
+
+        // 5️⃣ 插入数据库
+        for (Schedule schedule : schedulesToInsert) {
+            scheduleMapper.insert(schedule);
+        }
+
+        // 6️⃣ 如果部分时间段冲突，提示警告
+        if (!errors.isEmpty()) {
+            throw new RuntimeException("部分时间段未创建:\n" + String.join("\n", errors));
+        }
+    }
+
 
     @Override
     @Transactional
