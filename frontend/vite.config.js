@@ -22,7 +22,6 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080', // Spring Boot 后端地址
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
       },
       '/captcha': {
         target: 'http://localhost:8080', // 验证码接口也代理到后端

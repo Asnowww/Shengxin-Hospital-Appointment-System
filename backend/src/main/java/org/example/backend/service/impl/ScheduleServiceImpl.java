@@ -73,10 +73,10 @@ public class ScheduleServiceImpl implements ScheduleService {
 //        }
 
         // 验证号别是否存在
-        AppointmentType appointmentType = appointmentTypeMapper.selectById(param.getAppointmentTypeId());
-        if (appointmentType == null) {
-            throw new RuntimeException("号别类型不存在");
-        }
+//        AppointmentType appointmentType = appointmentTypeMapper.selectById(param.getAppointmentTypeId());
+//        if (appointmentType == null) {
+//            throw new RuntimeException("号别类型不存在");
+//        }
 
         List<Schedule> schedulesToInsert = new ArrayList<>();
 
