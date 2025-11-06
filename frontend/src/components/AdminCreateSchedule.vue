@@ -100,7 +100,7 @@
               >
                 <option value="">请选择诊室</option>
                 <option v-for="room in rooms" :key="room.roomId" :value="room.roomId">
-                  {{ room.roomName }}（{{ room.location }}）
+                  {{ room.roomName }}（{{ room.building }}）
                 </option>
               </select>
               <span v-if="errors.roomId" class="error-text">{{ errors.roomId }}</span>
@@ -386,7 +386,7 @@ async function handleSubmit() {
     if (props.isEditing) {
       response = await axios.put(`/api/admin/schedules/${scheduleForm.id}`, scheduleForm)
     } else {
-      response = await axios.post('/api/admin/schedules/create', scheduleForm)
+      response = await axios.post('/api/admin/schedules/batchCreate', scheduleForm)
     }
 
     const { code, message } = response.data

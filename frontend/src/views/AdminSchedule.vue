@@ -425,10 +425,13 @@ async function fetchDoctors() {
 // 获取诊室列表
 async function getAllRooms() {
   try {
-    // 模拟数据（可根据你的项目字段名调整）
-    rooms.value = [
-      { roomId: 1, roomName: '诊室 1', location: '圣心楼', deptId: 2 },
-    ]
+    // // 模拟数据（可根据你的项目字段名调整）
+    // rooms.value = [
+    //   { roomId: 1, roomName: '诊室 1', location: '圣心楼', deptId: 2 },
+    // ]
+    const { data } = await axios.get('/api/rooms/list')
+    rooms.value = data
+    
     console.log('✅ 已加载模拟诊室数据')
   } catch (err) {
     console.error('加载诊室模拟数据出错:', err)

@@ -23,7 +23,7 @@ public class AdminScheduleController {
     /**
      * 批量创建排班
      */
-    @PostMapping("/create")
+    @PostMapping("/batchCreate")
     public Result<Void> createSchedules(@RequestBody ScheduleCreateParam param) {
         try {
             scheduleService.batchCreateSchedules(param);
