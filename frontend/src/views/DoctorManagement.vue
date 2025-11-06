@@ -136,7 +136,7 @@
                   <div class="doctor-name">{{ doc.name }}</div>
                 </div>
                 <div class="td-job">{{ doc.jobNumber }}</div>
-                <div class="td-dept"><span class="department-badge">{{ getDepartmentName(doc.department) }}</span></div>
+                <div class="td-dept"><span class="department-badge">{{ doc.departmentName || getDepartmentName(doc.department) }}</span></div>
                 <div class="td-title">{{ doc.title || '-' }}</div>
                 <div class="td-status">
                   <span :class="['status-badge', doc.enabled ? 'active' : 'disabled']">{{ doc.enabled ? '启用' : '停用' }}</span>

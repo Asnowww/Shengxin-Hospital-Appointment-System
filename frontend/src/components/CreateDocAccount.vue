@@ -4,20 +4,52 @@
 
     <div class="form-container">
       <div class="form-item">
-        <label>医生姓名：</label>
-        <input v-model="doctor.name" type="text" placeholder="请输入医生姓名" />
+        <label>用户名 / 医生姓名：</label>
+        <input v-model="doctor.name" type="text" placeholder="请输入用户名（姓名）" />
       </div>
 
       <div class="form-item">
-        <label>工号：</label>
-        <input v-model="doctor.jobNumber" type="text" placeholder="请输入工号" />
+        <label>手机号：</label>
+        <input v-model="doctor.phone" type="tel" placeholder="请输入手机号（必填）" />
       </div>
 
-      
-      <!-- <div class="form-item">
+      <div class="form-item">
+        <label>邮箱：</label>
+        <input v-model="doctor.email" type="email" placeholder="请输入邮箱（可选）" />
+      </div>
+
+      <div class="form-item">
+        <label>性别：</label>
+        <select v-model="doctor.gender">
+          <option value="">未选择</option>
+          <option value="male">男</option>
+          <option value="female">女</option>
+        </select>
+      </div>
+
+      <div class="form-item">
         <label>所属科室：</label>
-        <input v-model="doctor.department" type="text" placeholder="请输入科室" />
-      </div> -->
+        <select v-model.number="doctor.deptId">
+          <option value="">请选择科室（必选）</option>
+          <option v-for="item in deptOptions" :key="item.deptId" :value="item.deptId">{{ item.deptName }}</option>
+        </select>
+      </div>
+
+      <div class="form-item">
+        <label>职称：</label>
+        <select v-model="doctor.title">
+          <option value="">请选择（默认：住院医师）</option>
+          <option value="住院医师">住院医师</option>
+          <option value="主治医师">主治医师</option>
+          <option value="副主任医师">副主任医师</option>
+          <option value="主任医师">主任医师</option>
+        </select>
+      </div>
+
+      <div class="form-item">
+        <label>简介：</label>
+        <textarea v-model="doctor.bio" rows="3" placeholder="医生简介（可选）"></textarea>
+      </div>
 
       <button class="submit-btn" @click="createAccount">创建账号</button>
 
@@ -27,33 +59,84 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import axios from 'axios'
 const emit = defineEmits(['created'])
 
 // 表单数据
 const doctor = ref({
   name: '',
-  jobNumber: '',
-//   department: '',
+  phone: '',
+  email: '',
+  gender: '',
+  deptId: '',
+  title: '',
+  bio: '',
+  jobNumber: ''
 })
 
 // 提示信息
 const message = ref('')
 
+// 科室下拉
+const deptOptions = ref([])
+async function fetchDepartments() {
+  try {
+    const { data } = await axios.get('/api/departments/all')
+    if (data && data.code === 200) {
+      const flat = []
+      const walk = (nodes) => {
+        if (!Array.isArray(nodes)) return
+        nodes.forEach(n => {
+          // DepartmentTreeVO: id, name, subDepartments
+          if (n?.id && n?.name) flat.push({ deptId: n.id, deptName: n.name })
+          if (n.subDepartments && n.subDepartments.length) walk(n.subDepartments)
+        })
+      }
+      walk(data.data)
+      const seen = new Set()
+      deptOptions.value = flat.filter(it => {
+        if (seen.has(it.deptId)) return false
+        seen.add(it.deptId)
+        return true
+      })
+    }
+  } catch (e) {
+    console.warn('获取科室列表失败', e)
+  }
+}
+onMounted(fetchDepartments)
+
 // 接入后端“创建医生账号”接口
 const createAccount = async () => {
   if (!doctor.value.name) {
-    message.value = '请填写医生姓名（用户名）'
+    message.value = '请填写用户名（姓名）'
+    return
+  }
+  if (!doctor.value.phone) {
+    message.value = '请填写手机号'
+    return
+  }
+  if (!/^1[3-9]\d{9}$/.test(doctor.value.phone)) {
+    message.value = '请输入有效的中国大陆手机号'
+    return
+  }
+  if (!doctor.value.deptId) {
+    message.value = '请选择科室'
     return
   }
   try {
     message.value = '正在创建账号...'
     const token = localStorage.getItem('token')
-    // 后端 DoctorAccountDTO 主要字段：username、deptId、title 等
+    const payloadGender = doctor.value.gender === 'male' ? 'M' : (doctor.value.gender === 'female' ? 'F' : undefined)
     const payload = {
-      username: doctor.value.name
-      // TODO: 可扩展 deptId、title、email、phone 等字段
+      username: doctor.value.name,
+      phone: doctor.value.phone,
+      email: doctor.value.email || undefined,
+      gender: payloadGender,
+      deptId: doctor.value.deptId,
+      title: (doctor.value.title && doctor.value.title.trim()) ? doctor.value.title.trim() : '住院医师',
+      bio: (doctor.value.bio ?? '')
     }
     const { data } = await axios.post('/api/admin/doctors/add', payload, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
@@ -61,13 +144,14 @@ const createAccount = async () => {
     if (data && data.code === 200) {
       message.value = `✅ ${data.message || '账号创建成功'}`
       emit('created')
-      doctor.value = { name: '', jobNumber: '' }
+      doctor.value = { name: '', phone: '', email: '', gender: '', deptId: '', title: '', bio: '', jobNumber: '' }
     } else {
       message.value = `❌ 创建失败：${data?.message || ''}`
     }
   } catch (e) {
-    message.value = '❌ 创建失败，请稍后重试'
-    console.error(e)
+    const backendMsg = e?.response?.data?.message || e?.response?.data?.msg
+    message.value = `❌ 创建失败：${backendMsg || '请稍后重试'}`
+    console.error('创建医生失败:', e)
   }
 }
 
@@ -121,6 +205,24 @@ input {
   border-radius: 8px;
   outline: none;
   font-size: 15px;
+}
+
+select {
+  padding: 10px 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  outline: none;
+  font-size: 15px;
+  background: #fff;
+}
+
+textarea {
+  padding: 10px 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  outline: none;
+  font-size: 15px;
+  resize: vertical;
 }
 
 input:focus {
