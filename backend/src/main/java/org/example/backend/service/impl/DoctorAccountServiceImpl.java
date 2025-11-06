@@ -1,7 +1,9 @@
 package org.example.backend.service.impl;
 
+import jakarta.annotation.Resource;
 import org.example.backend.dto.DoctorAccountDTO;
 import org.example.backend.dto.DoctorQueryDTO;
+import org.example.backend.mapper.AppointmentMapper;
 import org.example.backend.pojo.Doctor;
 import org.example.backend.pojo.User;
 import org.example.backend.mapper.DoctorMapper;
@@ -28,6 +30,9 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
 
     @Autowired
     private UserMapper userMapper; // 操作 users 表（医生登录账号信息）
+
+    @Resource
+    private AppointmentMapper appointmentMapper;
 
     @Autowired
     private PasswordEncoder passwordEncoder; // Spring Security 密码加密器
@@ -108,7 +113,7 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
     }
 
     /**
-     * 修改医生账号状态（启用 / 禁用）
+     * 修改医生账号状态(启用 / 禁用)
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -119,15 +124,22 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
             throw new IllegalArgumentException("医生不存在");
         }
 
-        // 2. 更新 user 表状态（账号层面）
+        // 2. 更新 user 表状态(账号层面)
         User user = userMapper.selectById(doctor.getUserId());
         user.setStatus(status);
         user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
 
-        // 3. 如果禁用账号，同时标记医生状态为退休
+        // 3. 同步更新医生状态
         if ("rejected".equals(status)) {
+            // 禁用账号时,标记医生为退休
             doctor.setStatus("retired");
+            doctor.setUpdatedAt(LocalDateTime.now());
+            doctorMapper.updateById(doctor);
+        } else if ("verified".equals(status)) {
+            // 启用账号时,恢复医生为在职状态
+            doctor.setStatus("active");
+            doctor.setUpdatedAt(LocalDateTime.now());
             doctorMapper.updateById(doctor);
         }
     }

@@ -10,8 +10,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/verifications")
@@ -36,7 +39,7 @@ public class UserVerificationController {
      * 用户提交认证信息
      */
     @PostMapping("/submit")
-    public Result<Map<String, Object>> submitVerification(
+    public Result<String> submitVerification(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestParam(value = "token", required = false) String tokenParam,
             @RequestParam("identityType") String identityType,
@@ -95,7 +98,7 @@ public class UserVerificationController {
             verification.setIdentityType(identityType);
             verification.setIdNumber(idNumber);
             verification.setDocUrl(docUrl);
-            verification.setStatus("pending");
+            verification.setStatus(UserVerification.VerificationStatus.valueOf("pending"));
 
             verificationService.save(verification);
 
