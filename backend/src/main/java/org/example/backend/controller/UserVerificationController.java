@@ -10,11 +10,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/verifications")
@@ -32,14 +29,16 @@ public class UserVerificationController {
         this.userMapper = userMapper;
     }
 
+    // 从 application.properties 或 application-local.properties 读取上传目录
     @Value("${file.upload-dir:uploads/verifications/}")
     private String uploadDir;
 
     /**
-     * 用户提交认证信息
+     * 用户提交认证信息（含图片）
+     * token 来源：Header 或 参数，统一解析 userId
      */
     @PostMapping("/submit")
-    public Result<String> submitVerification(
+    public Result<Map<String, Object>> submitVerification(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestParam(value = "token", required = false) String tokenParam,
             @RequestParam("identityType") String identityType,
@@ -49,72 +48,20 @@ public class UserVerificationController {
         try {
             String token = tokenUtil.extractToken(authorizationHeader, tokenParam);
             Long userId = tokenUtil.resolveUserIdFromToken(token);
-            if (userId == null) {
-                return Result.error(401, "无效的登录凭证");
-            }
+            if (userId == null) return Result.error(401, "无效的登录凭证");
 
-            // 2️⃣ 校验文件
-            if (file.isEmpty()) {
-                return Result.error("上传失败：文件为空");
-            }
+            UserVerification verification = verificationService.submitVerification(userId, identityType, idNumber, file);
+            User user = userMapper.selectById(userId);
+            Map<String, Object> data = verification.toMap(user);
 
-
-
-            // 3️⃣ 确保上传目录存在
-            File dir = new File(uploadDir);
-            System.out.println("目录存在吗: " + dir.exists());
-            System.out.println("尝试创建: " + dir.mkdirs());
-            if (!dir.exists() && !dir.mkdirs()) {
-                return Result.error("上传失败：无法创建目录");
-            }
-
-            // 4️⃣ 提取安全的扩展名
-            String originalName = file.getOriginalFilename();
-            String ext = "";
-            if (originalName != null && originalName.contains(".")) {
-                ext = originalName.substring(originalName.lastIndexOf("."));
-            }
-
-            // 5️⃣ 生成随机安全文件名
-            String safeFileName = UUID.randomUUID().toString().replace("-", "") + ext;
-            File dest = new File(dir, safeFileName);
-
-            // 6️⃣ 防止路径遍历攻击
-            String canonicalPath = dest.getCanonicalPath();
-            String canonicalDir = dir.getCanonicalPath();
-            if (!canonicalPath.startsWith(canonicalDir + File.separator)) {
-                return Result.error("非法文件路径");
-            }
-
-            // 7️⃣ 保存文件
-            file.transferTo(dest);
-
-            // 8️⃣ 构造访问 URL（之后会映射到静态目录）
-            String docUrl = "/static/verifications/" + safeFileName;
-
-            // 9️⃣ 保存认证信息到数据库
-            UserVerification verification = new UserVerification();
-            verification.setUserId(userId);
-            verification.setIdentityType(identityType);
-            verification.setIdNumber(idNumber);
-            verification.setDocUrl(docUrl);
-            verification.setStatus(UserVerification.VerificationStatus.valueOf("pending"));
-
-            verificationService.save(verification);
-
-            return Result.success("上传成功，待审核", docUrl);
-
-        } catch (IOException e) {
-            return Result.error("上传异常：" + e.getMessage());
-        } catch (SecurityException e) {
-            return Result.error("安全检查失败：" + e.getMessage());
+            return Result.success("上传成功，待审核", data);
         } catch (Exception e) {
             return Result.error("上传或提交失败：" + e.getMessage());
         }
     }
 
     /**
-     * 管理员审核认证
+     * 审核接口（管理员）
      */
     @PostMapping("/review")
     public Result<Map<String, Object>> reviewVerification(
@@ -143,7 +90,7 @@ public class UserVerificationController {
     }
 
     /**
-     * 查询当前用户认证状态
+     * 查询当前用户的认证状态
      */
     @GetMapping("/status")
     public Result<Map<String, Object>> getStatus(
