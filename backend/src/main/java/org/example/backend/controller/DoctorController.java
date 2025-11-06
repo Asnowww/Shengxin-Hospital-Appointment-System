@@ -7,10 +7,7 @@ import org.example.backend.dto.Result;
 import org.example.backend.mapper.DoctorMapper;
 import org.example.backend.pojo.Doctor;
 import org.example.backend.service.DoctorService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -36,6 +33,52 @@ public class DoctorController {
     @GetMapping("/{id}")
     public Doctor getDoctorById(@PathVariable Long id) {
         return doctorMapper.selectById(id);
+    }
+
+    /**
+     * 新增医生
+     */
+    @PutMapping
+    public Result<String> addDoctor(@RequestBody DoctorVO doctorVO) {
+        try {
+            doctorService.addDoctor(doctorVO);
+            return Result.success("新增医生成功");
+        } catch (Exception e) {
+            return Result.error("新增医生失败: " + e.getMessage());
+        }
+    }
+
+
+    /**
+     * 修改医生信息
+     * 前端：在医生信息编辑页面，提交修改表单。
+     * 请求：PUT /doctors/{id}
+     * 参数：医生信息 JSON
+     */
+    @PutMapping("/{id}")
+    public Result<String> updateDoctor(@PathVariable Long id, @RequestBody DoctorVO doctorVO) {
+        try {
+            doctorVO.setDoctorId(id);
+            doctorService.updateDoctorInfo(doctorVO);
+            return Result.success("修改成功");
+        } catch (RuntimeException e) {
+            return Result.error("修改失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 删除医生
+     * 前端：点击医生列表中的“删除”按钮
+     * 请求：DELETE /doctor/{id}
+     */
+    @DeleteMapping("/{id}")
+    public Result<String> deleteDoctor(@PathVariable Integer id) {
+        boolean success = doctorService.removeById(id);
+        if (success) {
+            return Result.success("删除成功");
+        } else {
+            return Result.error("删除失败：医生不存在");
+        }
     }
 }
 
