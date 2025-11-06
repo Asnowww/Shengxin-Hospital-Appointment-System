@@ -28,7 +28,8 @@
 
 <script setup>
 import { ref } from 'vue'
-// import axios from 'axios' // 后端完成后可替换使用
+import axios from 'axios'
+const emit = defineEmits(['created'])
 
 // 表单数据
 const doctor = ref({
@@ -40,38 +41,33 @@ const doctor = ref({
 // 提示信息
 const message = ref('')
 
-// 模拟“创建医生账号”接口
+// 接入后端“创建医生账号”接口
 const createAccount = async () => {
-  if (!doctor.value.name || !doctor.value.jobNumber) {
-    message.value = '请完整填写医生信息'
+  if (!doctor.value.name) {
+    message.value = '请填写医生姓名（用户名）'
     return
   }
-
-  message.value = '正在创建账号...'
-
-  // 模拟接口延迟
-  await new Promise((r) => setTimeout(r, 800))
-
-  // 模拟接口响应
-  const res = {
-    code: 200,
-    data: {
-      id: Math.floor(Math.random() * 10000),
-      ...doctor.value,
-    },
-    msg: '账号创建成功',
-  }
-
-  if (res.code === 200) {
-    message.value = `✅ ${res.msg}（账号ID：${res.data.id}）`
-    // 创建成功后清空输入
-    doctor.value = {
-      name: '',
-      jobNumber: '',
-    //   department: '',
+  try {
+    message.value = '正在创建账号...'
+    const token = localStorage.getItem('token')
+    // 后端 DoctorAccountDTO 主要字段：username、deptId、title 等
+    const payload = {
+      username: doctor.value.name
+      // TODO: 可扩展 deptId、title、email、phone 等字段
     }
-  } else {
+    const { data } = await axios.post('/api/admin/doctors/add', payload, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+    if (data && data.code === 200) {
+      message.value = `✅ ${data.message || '账号创建成功'}`
+      emit('created')
+      doctor.value = { name: '', jobNumber: '' }
+    } else {
+      message.value = `❌ 创建失败：${data?.message || ''}`
+    }
+  } catch (e) {
     message.value = '❌ 创建失败，请稍后重试'
+    console.error(e)
   }
 }
 

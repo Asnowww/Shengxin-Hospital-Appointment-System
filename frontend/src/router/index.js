@@ -39,6 +39,7 @@ const routes = [
   // { path: '/admin/schedules', name: 'adminSchedules', component: AdminSchedule }, //管理员排班管理页
   { path: '/admin/leaves', name: 'adminLeaves', component: LeaveManagement }, //请假审批页
   { path: '/admin/audit', name: 'audit', component: () => import('@/views/Audit.vue') }, //用户审核页
+  { path: '/admin/doctors', name: 'doctorManagement', component: () => import('@/views/DoctorManagement.vue') }, // 医生管理
 
   { path: '/reminder', name: 'reminder', component: () => import('@/components/Reminder.vue') }, // 提醒页
   { path: '/:pathMatch(.*)*', redirect: '/home' } // 其他未定义路由定向到首页
