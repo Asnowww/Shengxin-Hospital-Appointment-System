@@ -97,8 +97,8 @@
               <label class="filter-label">医生</label>
               <select v-model="filters.doctorId" @change="fetchSchedules" class="filter-select">
                 <option value="">全部医生</option>
-                <option v-for="doctor in doctors" :key="doctor.id" :value="doctor.id">
-                  {{ doctor.name }} - {{ doctor.title }}
+                <option v-for="doctor in doctors" :key="doctor.doctorId" :value="doctor.doctorId">
+                  {{ doctor.doctorName }} - {{ doctor.title }}
                 </option>
               </select>
             </div>
@@ -143,7 +143,7 @@
 
               <div
                 v-for="schedule in schedules"
-                :key="schedule.id"
+                :key="schedule.scheduleId"
                 class="table-row"
                 :class="{ conflict: schedule.hasConflict }">
                 <div class="td-date">
@@ -155,7 +155,7 @@
                   <div class="doctor-title">{{ schedule.doctorTitle }}</div>
                 </div>
                 <div class="td-department">
-                  <span class="department-badge">{{ getDepartmentName(schedule.department) }}</span>
+                  <span class="department-badge">{{ schedule.deptName }}</span>
                 </div>
                 <div class="td-time">
                   <div class="time-info">
@@ -222,179 +222,161 @@
   </div>
 
   <!-- 创建/编辑排班弹窗 -->
-  <transition name="modal">
-    <div v-if="showScheduleModal" class="modal-overlay" @click.self="closeScheduleModal">
-      <div class="modal-container large">
-        <button @click="closeScheduleModal" class="close-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+<transition name="modal">
+  <div v-if="showScheduleModal" class="modal-overlay" @click.self="closeScheduleModal">
+    <div class="modal-container large">
+      <button @click="closeScheduleModal" class="close-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
 
-        <div class="modal-header">
-          <h2>{{ isEditing ? '编辑排班' : '创建排班' }}</h2>
-          <p class="subtitle">{{ isEditing ? '修改排班信息' : '为医生创建新的排班' }}</p>
+      <div class="modal-header">
+        <h2>{{ isEditing ? '编辑排班' : '创建排班' }}</h2>
+        <p class="subtitle">{{ isEditing ? '修改排班信息' : '为医生创建新的排班' }}</p>
+      </div>
+
+      <form @submit.prevent="handleSubmit" class="modal-body">
+        <!-- 批量创建选项 -->
+        <div v-if="!isEditing" class="batch-section">
+          <label class="checkbox-label">
+            <input type="checkbox" v-model="scheduleForm.isBatch" />
+            <span>批量创建排班</span>
+          </label>
         </div>
 
-        <form @submit.prevent="handleSubmit" class="modal-body">
-          <!-- 批量创建选项 -->
-          <div v-if="!isEditing" class="batch-section">
-            <label class="checkbox-label">
-              <input type="checkbox" v-model="scheduleForm.isBatch" />
-              <span>批量创建排班</span>
+        <div class="form-grid">
+          <!-- 医生 -->
+          <div class="form-group">
+            <label class="form-label">
+              医生 <span class="required">*</span>
             </label>
+            <select
+              v-model="scheduleForm.doctorId"
+              :disabled="isEditing"
+              @change="checkConflict"
+              :class="['form-control', { error: errors.doctorId }]"
+              required
+            >
+              <option value="">请选择医生</option>
+              <option v-for="doctor in doctors" :key="doctor.doctorId" :value="doctor.doctorId">
+                {{ doctor.doctorName }} - {{ doctor.deptName }} - {{ doctor.title }}
+              </option>
+            </select>
+            <span v-if="errors.doctorId" class="error-text">{{ errors.doctorId }}</span>
           </div>
 
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">
-                医生 <span class="required">*</span>
-              </label>
-              <select
-                v-model="scheduleForm.doctorId"
-                :disabled="isEditing"
-                @change="checkConflict"
-                :class="['form-control', { error: errors.doctorId }]"
-                required>
-                <option value="">请选择医生</option>
-                <option v-for="doctor in doctors" :key="doctor.id" :value="doctor.id">
-                  {{ doctor.name }} - {{ getDepartmentName(doctor.department) }} - {{ doctor.title }}
-                </option>
-              </select>
-              <span v-if="errors.doctorId" class="error-text">{{ errors.doctorId }}</span>
-            </div>
+          <!-- 日期 / 日期范围 -->
+          <div v-if="!scheduleForm.isBatch" class="form-group">
+            <label class="form-label">日期 <span class="required">*</span></label>
+            <input
+              v-model="scheduleForm.date"
+              type="date"
+              @change="checkConflict"
+              :min="minDate"
+              :class="['form-control', { error: errors.date }]"
+              required
+            />
+            <span v-if="errors.date" class="error-text">{{ errors.date }}</span>
+          </div>
 
-            <div v-if="!scheduleForm.isBatch" class="form-group">
-              <label class="form-label">
-                日期 <span class="required">*</span>
-              </label>
-              <input
-                v-model="scheduleForm.date"
-                type="date"
-                @change="checkConflict"
-                :min="minDate"
-                :class="['form-control', { error: errors.date }]"
-                required />
-              <span v-if="errors.date" class="error-text">{{ errors.date }}</span>
-            </div>
-
-            <div v-else class="form-group full-width">
-              <label class="form-label">
-                日期范围 <span class="required">*</span>
-              </label>
-              <div class="date-range-input">
-                <input
-                  v-model="scheduleForm.startDate"
-                  type="date"
-                  :min="minDate"
-                  class="form-control"
-                  required />
-                <span class="date-separator">至</span>
-                <input
-                  v-model="scheduleForm.endDate"
-                  type="date"
-                  :min="scheduleForm.startDate || minDate"
-                  class="form-control"
-                  required />
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">
-                开始时间 <span class="required">*</span>
-              </label>
-              <input
-                v-model="scheduleForm.startTime"
-                type="time"
-                @change="checkConflict"
-                :class="['form-control', { error: errors.startTime }]"
-                required />
-              <span v-if="errors.startTime" class="error-text">{{ errors.startTime }}</span>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">
-                结束时间 <span class="required">*</span>
-              </label>
-              <input
-                v-model="scheduleForm.endTime"
-                type="time"
-                @change="checkConflict"
-                :class="['form-control', { error: errors.endTime }]"
-                required />
-              <span v-if="errors.endTime" class="error-text">{{ errors.endTime }}</span>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">
-                最大接诊人数 <span class="required">*</span>
-              </label>
-              <input
-                v-model.number="scheduleForm.maxPatients"
-                type="number"
-                min="1"
-                max="100"
-                :class="['form-control', { error: errors.maxPatients }]"
-                required />
-              <span v-if="errors.maxPatients" class="error-text">{{ errors.maxPatients }}</span>
-            </div>
-
-            <div v-if="scheduleForm.isBatch" class="form-group full-width">
-              <label class="form-label">
-                工作日 <span class="required">*</span>
-              </label>
-              <div class="weekday-selector">
-                <label
-                  v-for="day in weekDays"
-                  :key="day.value"
-                  class="weekday-checkbox">
-                  <input
-                    type="checkbox"
-                    :value="day.value"
-                    v-model="scheduleForm.weekdays" />
-                  <span class="checkbox-label">{{ day.label }}</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="form-group full-width">
-              <label class="form-label">备注</label>
-              <textarea
-                v-model="scheduleForm.notes"
-                class="form-control textarea"
-                rows="3"
-                placeholder="备注信息（选填）"></textarea>
+          <div v-else class="form-group full-width">
+            <label class="form-label">日期范围 <span class="required">*</span></label>
+            <div class="date-range-input">
+              <input v-model="scheduleForm.startDate" type="date" :min="minDate" class="form-control" required />
+              <span class="date-separator">至</span>
+              <input v-model="scheduleForm.endDate" type="date" :min="scheduleForm.startDate || minDate" class="form-control" required />
             </div>
           </div>
 
-          <!-- 冲突警告 -->
-          <div v-if="hasConflict" class="warning-box">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-              <line x1="12" y1="9" x2="12" y2="13"></line>
-              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          <!-- 时间段选择 -->
+          <div class="form-group full-width">
+            <label class="form-label">时段 <span class="required">*</span></label>
+            <div class="time-period-selector">
+              <label class="time-period-option">
+                <input type="checkbox" :value="0" v-model="scheduleForm.timeSlots" />
+                <span>上午（08:00 - 12:00）</span>
+              </label>
+              <label class="time-period-option">
+                <input type="checkbox" :value="1" v-model="scheduleForm.timeSlots" />
+                <span>下午（13:00 - 17:00）</span>
+              </label>
+              <label class="time-period-option">
+                <input type="checkbox" :value="2" v-model="scheduleForm.timeSlots" />
+                <span>夜班（18:00 - 22:00）</span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- 最大接诊人数 -->
+          <div class="form-group">
+            <label class="form-label">最大接诊人数 <span class="required">*</span></label>
+            <input
+              v-model.number="scheduleForm.maxPatients"
+              type="number"
+              min="1"
+              max="100"
+              :class="['form-control', { error: errors.maxPatients }]"
+              required
+            />
+            <span v-if="errors.maxPatients" class="error-text">{{ errors.maxPatients }}</span>
+          </div>
+
+          <!-- 批量：工作日 -->
+          <div v-if="scheduleForm.isBatch" class="form-group full-width">
+            <label class="form-label">工作日 <span class="required">*</span></label>
+            <div class="weekday-selector">
+              <label
+                v-for="day in weekDays"
+                :key="day.value"
+                class="weekday-checkbox"
+              >
+                <input type="checkbox" :value="day.value" v-model="scheduleForm.weekdays" />
+                <span class="checkbox-label">{{ day.label }}</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 备注 -->
+          <div class="form-group full-width">
+            <label class="form-label">备注</label>
+            <textarea
+              v-model="scheduleForm.notes"
+              class="form-control textarea"
+              rows="3"
+              placeholder="备注信息（选填）"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- 冲突警告 -->
+        <div v-if="hasConflict" class="warning-box">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <div>
+            <strong>排班冲突：</strong>该医生在此时间段已有排班，请调整时间。
+          </div>
+        </div>
+
+        <!-- 按钮 -->
+        <div class="button-group">
+          <button type="button" @click="closeScheduleModal" class="cancel-btn">取消</button>
+          <button type="submit" class="submit-btn" :disabled="hasConflict || scheduleForm.timeSlots.length === 0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            <div>
-              <strong>排班冲突：</strong>该医生在此时间段已有排班，请调整时间。
-            </div>
-          </div>
-
-          <div class="button-group">
-            <button type="button" @click="closeScheduleModal" class="cancel-btn">
-              取消
-            </button>
-            <button type="submit" class="submit-btn" :disabled="hasConflict">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-              {{ isEditing ? '保存修改' : (scheduleForm.isBatch ? '批量创建' : '创建排班') }}
-            </button>
-          </div>
-        </form>
-      </div>
+            {{ isEditing ? '保存修改' : (scheduleForm.isBatch ? '批量创建' : '创建排班') }}
+          </button>
+        </div>
+      </form>
     </div>
-  </transition>
+  </div>
+</transition>
+
 
   <!-- 查看详情弹窗 -->
   <transition name="modal">
@@ -425,7 +407,7 @@
               </div>
               <div class="detail-item">
                 <span class="item-label">科室：</span>
-                <span class="item-value">{{ getDepartmentName(selectedSchedule.department) }}</span>
+                <span class="item-value">{{ selectedSchedule.deptName }}</span>
               </div>
               <div class="detail-item">
                 <span class="item-label">日期：</span>
@@ -478,7 +460,7 @@
 <script setup>
 import { reactive, ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import Navigation from '@/components/Navigation.vue'
-// import axios from 'axios'
+import axios from 'axios'
 
 const navRef = ref(null)
 const navHeight = ref(110)
@@ -519,6 +501,7 @@ const selectedSchedule = ref(null)
 const scheduleForm = reactive({
   id: null,
   doctorId: '',
+  deptId: '',
   date: '',
   startDate: '',
   endDate: '',
@@ -548,89 +531,88 @@ const minDate = computed(() => {
 async function fetchSchedules() {
   loading.value = true
   try {
-    // 实际使用时替换为：
-    // const params = {
-    //   startDate: filters.startDate,
-    //   endDate: filters.endDate,
-    //   department: filters.department,
-    //   doctorId: filters.doctorId
-    // }
-    // const { data } = await axios.get('/api/admin/schedules', { params })
+    const params = {
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      department: filters.department,
+      doctorId: filters.doctorId
+    }
+    const { data } = await axios.get('/api/admin/schedules', { params })
 
-    // 模拟API请求
+    模拟API请求
     await new Promise(resolve => setTimeout(resolve, 600))
 
-    const mockData = [
-      {
-        id: 1,
-        doctorId: 1,
-        doctorName: '张明',
-        doctorTitle: '主任医师',
-        department: 'CARDIO',
-        date: '2025-10-23',
-        startTime: '08:00',
-        endTime: '12:00',
-        maxPatients: 30,
-        appointedCount: 15,
-        status: 'active',
-        hasConflict: false,
-        notes: '',
-        appointments: [
-          { id: 1, patientName: '李四', gender: '男', age: 45, appointmentTime: '08:30' },
-          { id: 2, patientName: '王五', gender: '女', age: 32, appointmentTime: '09:00' }
-        ]
-      },
-      {
-        id: 2,
-        doctorId: 2,
-        doctorName: '李红',
-        doctorTitle: '副主任医师',
-        department: 'GASTRO',
-        date: '2025-10-23',
-        startTime: '14:00',
-        endTime: '17:00',
-        maxPatients: 25,
-        appointedCount: 25,
-        status: 'active',
-        hasConflict: false,
-        notes: '',
-        appointments: []
-      },
-      {
-        id: 3,
-        doctorId: 1,
-        doctorName: '张明',
-        doctorTitle: '主任医师',
-        department: 'CARDIO',
-        date: '2025-10-24',
-        startTime: '08:00',
-        endTime: '12:00',
-        maxPatients: 30,
-        appointedCount: 8,
-        status: 'active',
-        hasConflict: true,
-        notes: '与其他排班时间重叠',
-        appointments: []
-      },
-      {
-        id: 4,
-        doctorId: 3,
-        doctorName: '王强',
-        doctorTitle: '主治医师',
-        department: 'ORTHO',
-        date: '2025-10-25',
-        startTime: '08:00',
-        endTime: '17:00',
-        maxPatients: 20,
-        appointedCount: 0,
-        status: 'pending',
-        hasConflict: false,
-        notes: '新增排班',
-        appointments: []
-      }
-    ]
+    // const mockData = [
+    //   {
+    //     id: 1,
+    //     doctorId: 1,
+    //     doctorName: '张明',
+    //     doctorTitle: '主任医师',
+    //     department: 'CARDIO',
+    //     date: '2025-10-23',
+    //     startTime: '08:00',
+    //     endTime: '12:00',
+    //     maxPatients: 30,
+    //     appointedCount: 15,
+    //     status: 'active',
+    //     hasConflict: false,
+    //     notes: '',
+    //     appointments: [
+    //       { id: 1, patientName: '李四', gender: '男', age: 45, appointmentTime: '08:30' },
+    //       { id: 2, patientName: '王五', gender: '女', age: 32, appointmentTime: '09:00' }
+    //     ]
+    //   },
+    //   {
+    //     id: 2,
+    //     doctorId: 2,
+    //     doctorName: '李红',
+    //     doctorTitle: '副主任医师',
+    //     department: 'GASTRO',
+    //     date: '2025-10-23',
+    //     startTime: '14:00',
+    //     endTime: '17:00',
+    //     maxPatients: 25,
+    //     appointedCount: 25,
+    //     status: 'active',
+    //     hasConflict: false,
+    //     notes: '',
+    //     appointments: []
+    //   },
+    //   {
+    //     id: 3,
+    //     doctorId: 1,
+    //     doctorName: '张明',
+    //     doctorTitle: '主任医师',
+    //     department: 'CARDIO',
+    //     date: '2025-10-24',
+    //     startTime: '08:00',
+    //     endTime: '12:00',
+    //     maxPatients: 30,
+    //     appointedCount: 8,
+    //     status: 'active',
+    //     hasConflict: true,
+    //     notes: '与其他排班时间重叠',
+    //     appointments: []
+    //   },
+    //   {
+    //     id: 4,
+    //     doctorId: 3,
+    //     doctorName: '王强',
+    //     doctorTitle: '主治医师',
+    //     department: 'ORTHO',
+    //     date: '2025-10-25',
+    //     startTime: '08:00',
+    //     endTime: '17:00',
+    //     maxPatients: 20,
+    //     appointedCount: 0,
+    //     status: 'pending',
+    //     hasConflict: false,
+    //     notes: '新增排班',
+    //     appointments: []
+    //   }
+    // ]
 
-    schedules.value = mockData
+    schedules.value = data.data 
   } catch (err) {
     console.error('获取排班数据失败', err)
     alert('获取排班数据失败')
@@ -642,20 +624,9 @@ async function fetchSchedules() {
 // 获取医生列表
 async function fetchDoctors() {
   try {
-    // 实际使用时替换为：
-    // const { data } = await axios.get('/api/admin/doctors')
-
-    // 模拟API请求
-    await new Promise(resolve => setTimeout(resolve, 300))
-
-    const mockData = [
-      { id: 1, name: '张明', department: 'CARDIO', title: '主任医师' },
-      { id: 2, name: '李红', department: 'GASTRO', title: '副主任医师' },
-      { id: 3, name: '王强', department: 'ORTHO', title: '主治医师' },
-      { id: 4, name: '赵敏', department: 'NEURO', title: '主任医师' }
-    ]
-
-    doctors.value = mockData
+   
+    const { data } = await axios.get('/api/doctor/list')
+    doctors.value = data.data
   } catch (err) {
     console.error('获取医生列表失败', err)
   }
@@ -680,7 +651,7 @@ function openCreateDialog() {
 // 编辑排班
 function editSchedule(schedule) {
   isEditing.value = true
-  scheduleForm.id = schedule.id
+  scheduleForm.id = schedule.scheduleId
   scheduleForm.doctorId = schedule.doctorId
   scheduleForm.date = schedule.date
   scheduleForm.startTime = schedule.startTime
@@ -709,7 +680,7 @@ function confirmDelete(schedule) {
       return
     }
   }
-  deleteSchedule(schedule.id)
+  deleteSchedule(schedule.scheduleId)
 }
 
 // 删除排班
@@ -752,6 +723,7 @@ function resetForm() {
   scheduleForm.maxPatients = 30
   scheduleForm.notes = ''
   scheduleForm.isBatch = false
+  scheduleForm.timeSlots =[],
   scheduleForm.weekdays = []
   clearErrors()
   hasConflict.value = false
@@ -772,6 +744,7 @@ function validateForm() {
   let isValid = true
 
   if (!scheduleForm.doctorId) {
+    console.log('doctorId missing')
     errors.doctorId = '请选择医生'
     isValid = false
   }
@@ -781,20 +754,20 @@ function validateForm() {
     isValid = false
   }
 
-  if (!scheduleForm.startTime) {
-    errors.startTime = '请选择开始时间'
-    isValid = false
-  }
+  // if (!scheduleForm.startTime) {
+  //   errors.startTime = '请选择开始时间'
+  //   isValid = false
+  // }
 
-  if (!scheduleForm.endTime) {
-    errors.endTime = '请选择结束时间'
-    isValid = false
-  }
+  // if (!scheduleForm.endTime) {
+  //   errors.endTime = '请选择结束时间'
+  //   isValid = false
+  // }
 
-  if (scheduleForm.startTime && scheduleForm.endTime && scheduleForm.startTime >= scheduleForm.endTime) {
-    errors.endTime = '结束时间必须晚于开始时间'
-    isValid = false
-  }
+  // if (scheduleForm.startTime && scheduleForm.endTime && scheduleForm.startTime >= scheduleForm.endTime) {
+  //   errors.endTime = '结束时间必须晚于开始时间'
+  //   isValid = false
+  // }
 
   if (!scheduleForm.maxPatients || scheduleForm.maxPatients < 1) {
     errors.maxPatients = '请输入有效的接诊人数'
@@ -838,6 +811,7 @@ async function checkConflict() {
 // 提交表单
 async function handleSubmit() {
   if (!validateForm()) {
+    console.log('表单验证失败')
     return
   }
 
@@ -855,11 +829,9 @@ async function handleSubmit() {
       await new Promise(resolve => setTimeout(resolve, 800))
       alert('修改成功')
     } else {
-      // 实际使用时替换为：
-      // await axios.post('/api/admin/schedules', scheduleForm)
+      
+      await axios.post('/api/admin/schedules/create', scheduleForm)
 
-      // 模拟API请求
-      await new Promise(resolve => setTimeout(resolve, 800))
 
       if (scheduleForm.isBatch) {
         alert('批量创建成功')
@@ -888,18 +860,18 @@ function getWeekday(dateStr) {
   return weekdays[date.getDay()]
 }
 
-function getDepartmentName(code) {
-  const map = {
-    'CARDIO': '心内科',
-    'GASTRO': '消化内科',
-    'RESPIR': '呼吸内科',
-    'ORTHO': '骨科',
-    'NEURO': '神经外科',
-    'GYNEC': '妇科',
-    'PEDIM': '小儿内科'
-  }
-  return map[code] || code
-}
+// function getDepartmentName(code) {
+//   const map = {
+//     'CARDIO': '心内科',
+//     'GASTRO': '消化内科',
+//     'RESPIR': '呼吸内科',
+//     'ORTHO': '骨科',
+//     'NEURO': '神经外科',
+//     'GYNEC': '妇科',
+//     'PEDIM': '小儿内科'
+//   }
+//   return map[code] || code
+// }
 
 function getStatusText(status) {
   const map = {
@@ -1717,6 +1689,43 @@ onUnmounted(() => {
 .submit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.time-period-selector {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  padding: 0.75rem;
+  background: #f7fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.time-period-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 500;
+  color: #4a5568;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.time-period-option:hover {
+  background: white;
+}
+
+.time-period-option input[type="checkbox"] {
+  accent-color: #f5576c;
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+.time-period-option input[type="checkbox"]:checked {
+  accent-color: #f093fb;
 }
 
 /* 详情区域 */

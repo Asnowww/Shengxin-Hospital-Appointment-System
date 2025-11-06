@@ -14,7 +14,7 @@ import java.util.List;
  * 患者查看排班Controller（患者端）
  */
 @RestController
-@RequestMapping("/patient/schedules")
+@RequestMapping("/api/patient/schedules")
 @CrossOrigin
 public class PatientScheduleController {
 

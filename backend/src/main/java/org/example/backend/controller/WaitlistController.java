@@ -19,7 +19,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@RequestMapping("/waitlist")
+@RequestMapping("/api/waitlist")
 public class WaitlistController {
 
     @Resource

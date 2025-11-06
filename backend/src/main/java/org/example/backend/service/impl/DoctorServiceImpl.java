@@ -46,6 +46,7 @@ public class DoctorServiceImpl implements DoctorService {
         return doctors.stream().map(d -> {
             DoctorVO vo = new DoctorVO();
             vo.setDoctorId(d.getDoctorId());
+            vo.setDeptId(d.getDeptId());
             vo.setDoctorName(userNameMap.get(d.getUserId()));
             vo.setDeptName(deptNameMap.get(d.getDeptId()));
             vo.setTitle(d.getTitle());

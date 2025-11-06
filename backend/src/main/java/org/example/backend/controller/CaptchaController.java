@@ -21,7 +21,7 @@ public class CaptchaController {
      * 获取图形验证码
      * 前端请求后，会返回验证码图片，同时响应头中包含 Captcha-Id
      */
-    @GetMapping("/captcha/graph")
+    @GetMapping("/api/captcha/graph")
     public void getGraphCaptcha(HttpServletResponse response) throws IOException {
         captchaService.createGraphCaptcha(response);
     }

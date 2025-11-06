@@ -21,7 +21,7 @@ import java.util.List;
  * 支持查看、创建、取消预约、改约
  */
 @RestController
-@RequestMapping("/patient/appointment")
+@RequestMapping("/api/patient/appointment")
 public class PatientAppointmentController {
 
     @Resource

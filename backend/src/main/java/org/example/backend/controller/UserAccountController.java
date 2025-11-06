@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-@RequestMapping("/user")
+@RequestMapping("/api/user")
 public class UserAccountController {
 
     @Resource

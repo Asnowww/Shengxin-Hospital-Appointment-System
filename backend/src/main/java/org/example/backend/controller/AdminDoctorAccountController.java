@@ -12,7 +12,7 @@ import java.util.List;
  * 管理员 - 医生账号管理控制器
  */
 @RestController
-@RequestMapping("/admin/doctors")
+@RequestMapping("/api/admin/doctors")
 public class AdminDoctorAccountController {
 
     @Autowired

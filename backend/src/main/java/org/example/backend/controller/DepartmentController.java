@@ -10,7 +10,7 @@ import jakarta.annotation.Resource;
 import java.util.List;
 
 @RestController
-@RequestMapping("/departments")
+@RequestMapping("/api/departments")
 @CrossOrigin
 public class DepartmentController {
 

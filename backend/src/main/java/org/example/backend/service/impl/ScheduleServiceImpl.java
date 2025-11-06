@@ -67,10 +67,10 @@ public class ScheduleServiceImpl implements ScheduleService {
             throw new RuntimeException("诊室不存在");
         }
 
-        // 验证诊室是否属于该科室
-        if (!room.getDeptId().equals(param.getDeptId())) {
-            throw new RuntimeException("诊室不属于该科室");
-        }
+//        // 验证诊室是否属于该科室
+//        if (!room.getDeptId().equals(param.getDeptId())) {
+//            throw new RuntimeException("诊室不属于该科室");
+//        }
 
         // 验证号别是否存在
         AppointmentType appointmentType = appointmentTypeMapper.selectById(param.getAppointmentTypeId());

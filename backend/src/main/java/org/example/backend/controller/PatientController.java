@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/patient")
+@RequestMapping("/api/patient")
 
 public class PatientController {
     @Resource

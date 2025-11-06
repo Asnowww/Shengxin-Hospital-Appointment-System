@@ -14,7 +14,7 @@ import java.util.List;
  * 通知记录控制器
  */
 @RestController
-@RequestMapping("/notifications")
+@RequestMapping("/api/notifications")
 public class NotificationController {
 
     @Resource

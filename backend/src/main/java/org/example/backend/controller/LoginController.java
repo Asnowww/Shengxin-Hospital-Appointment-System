@@ -22,7 +22,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Controller
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 public class LoginController {
 
     @Resource

@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class DoctorVO {
     private Long doctorId;
+    private Integer deptId;
     private String doctorName;   // 从 users 表取 username
     private String deptName;     // 从 department 表取 deptName
     private String title;
