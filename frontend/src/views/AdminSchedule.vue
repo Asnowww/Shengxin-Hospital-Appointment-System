@@ -557,14 +557,28 @@ function confirmDelete(schedule) {
 // 删除排班
 async function deleteSchedule(id) {
   try {
-    await axios.delete(`/api/admin/schedules/${id}`)
+    // 弹窗确认并输入删除原因
+    const reason = prompt('请输入取消排班的原因：')
+    if (!reason) {
+      alert('已取消操作')
+      return
+    }
+    const operatorId = localStorage.getItem('userId') 
+    console.log('操作员ID:', operatorId)
+
+    // 发起 DELETE 请求，带上 reason 和 operatorId
+    await axios.delete(`/api/admin/schedules/${id}`, {
+      params: { reason, operatorId }
+    })
+
     alert('删除成功')
     fetchSchedules()
   } catch (err) {
     console.error('删除失败', err)
-    alert('删除失败')
+    alert('删除失败：' + (err.response?.data?.message || err.message))
   }
 }
+
 
 // 工具函数
 function formatDate(dateStr) {
@@ -582,7 +596,7 @@ function getStatusText(status) {
   const map = {
     'open': '可预约',
     'full': '已满',
-    'cancelled': '已停诊'
+    'cancelled': '已取消'
   }
   return map[status] || '未知'
 }

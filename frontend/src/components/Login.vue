@@ -118,6 +118,7 @@ async function handleLogin() {
       // 登录成功：保存 token 和用户信息
       localStorage.setItem('token', res.data.token)
       localStorage.setItem('role', res.data.roleType)
+      localStorage.setItem('userId', res.data.account)
 
       alert('登录成功！')
 
