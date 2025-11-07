@@ -186,13 +186,13 @@
                   <div class="patient-count">
                     <span class="count-current">{{ schedule.appointedCount }}</span>
                     <span class="count-separator">/</span>
-                    <span class="count-max">{{ schedule.maxPatients }}</span>
+                    <span class="count-max">{{ schedule.maxSlots }}</span>
                   </div>
                   <div class="patient-bar">
                     <div
                       class="patient-bar-fill"
                       :style="{ width: getPatientPercentage(schedule) + '%' }"
-                      :class="{ full: schedule.appointedCount >= schedule.maxPatients }">
+                      :class="{ full: schedule.appointedCount >= schedule.maxSlots }">
                     </div>
                   </div>
                 </div>
@@ -297,7 +297,7 @@
               </div>
               <div class="detail-item full-width">
                 <span class="item-label">预约情况：</span>
-                <span class="item-value">{{ selectedSchedule.appointedCount }} / {{ selectedSchedule.maxPatients }} 人</span>
+                <span class="item-value">{{ selectedSchedule.appointedCount }} / {{ selectedSchedule.maxSlots }} 人</span>
               </div>
               <div v-if="selectedSchedule.notes" class="detail-item full-width">
                 <span class="item-label">备注：</span>
@@ -418,7 +418,7 @@ async function fetchSchedules() {
       endTime: getTimeSlotEnd(schedule.timeSlot),
       // 映射预约数量
       appointedCount: schedule.bookedSlots || 0,
-      maxPatients: schedule.maxSlots || 0
+      maxSlots: schedule.maxSlots || 0
     }))
   } catch (err) {
     console.error('获取排班数据失败', err)
@@ -602,7 +602,7 @@ function getStatusText(status) {
 }
 
 function getPatientPercentage(schedule) {
-  return Math.min((schedule.appointedCount / schedule.maxPatients) * 100, 100)
+  return Math.min((schedule.appointedCount / schedule.maxSlots) * 100, 100)
 }
 
 // 导航栏高度管理
@@ -642,7 +642,6 @@ onUnmounted(() => {
 <style scoped>
 .page-container {
   min-height: 100vh;
-  background: #f7fafc;
 }
 
 .profile-layout {

@@ -239,15 +239,32 @@ function handleSearch() {
 async function fetchDepartments() {
   try {
     const res = await axios.get('/api/departments/all')
-    const depts = res.data?.data || []
-    departments.value = depts.map(d => ({
-      ...d,
-      subDepartments: d.subDepartments || []
-    }))
+    const list = res.data?.data || []
+
+    // 过滤掉没有子科室的顶层部门
+    departments.value = list
+      .filter(dept => Array.isArray(dept.children) && dept.children.length > 0)
+      .map(dept => ({
+        id: dept.deptId,
+        name: dept.deptName,
+        description: dept.description,
+        building: dept.building,
+        floor: dept.floor,
+        subDepartments: dept.children.map(sub => ({
+          id: sub.deptId,
+          name: sub.deptName,
+          description: sub.description,
+          building: sub.building,
+          floor: sub.floor,
+        }))
+      }))
+
+    console.log('部门层级数据', departments.value)
   } catch (err) {
-    console.error('获取科室列表失败', err)
+    console.error('获取科室失败', err)
   }
 }
+
 
 // 处理医生点击
 function handleDoctorClick(doctor) {

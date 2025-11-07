@@ -671,7 +671,6 @@ onUnmounted(() => {
 <style scoped>
 .page-container {
   min-height: 100vh;
-  background: #f8f9fa;
 }
 
 .leave-layout {
