@@ -88,9 +88,8 @@ async function fetchDepartments() {
       const walk = (nodes) => {
         if (!Array.isArray(nodes)) return
         nodes.forEach(n => {
-          // DepartmentTreeVO: id, name, subDepartments
-          if (n?.id && n?.name) flat.push({ deptId: n.id, deptName: n.name })
-          if (n.subDepartments && n.subDepartments.length) walk(n.subDepartments)
+          if (n?.deptId && n?.deptName) flat.push({ deptId: n.deptId, deptName: n.deptName })
+          if (n.children && n.children.length) walk(n.children)
         })
       }
       walk(data.data)
