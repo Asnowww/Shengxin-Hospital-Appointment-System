@@ -18,8 +18,8 @@
             <img :src="item.docUrl" alt="ID photo" class="id-photo" />
           </td>
           <td>
-            <button @click="review(item.id, 'approved')" class="approve-btn">通过</button>
-            <button @click="review(item.id, 'rejected')" class="reject-btn">拒绝</button>
+            <button @click="review(item.verificationId, 'approved')" class="approve-btn">通过</button>
+            <button @click="review(item.verificationId, 'rejected')" class="reject-btn">拒绝</button>
           </td>
         </tr>
         <tr v-if="verifications.length === 0">
@@ -41,7 +41,7 @@ async function fetchPending() {
   try {
     const res = await axios.get('/api/verifications/pending') // 后端新增接口
     verifications.value = res.data.data.map(item => ({
-      id: item.id,
+      verificationId: item.verificationId,
       username: item.userName || item.username, // 后端字段可能是 username
       userAccount: item.userAccount || item.userId,
       docUrl: item.docUrl
@@ -55,21 +55,41 @@ async function fetchPending() {
 async function review(verificationId, status) {
   const reason = status === 'rejected' ? prompt('请输入拒绝理由') : null
   try {
-    await axios.post('/api/verifications/review', null, {
-      params: {
-        verificationId,
-        status,
-        reason
+    const token = localStorage.getItem('token')
+    if (!verificationId) {
+      alert('缺少审核记录ID')
+      return
+    }
+    // await axios.post('/api/verifications/review', null, {
+    //   params: {
+    //     verificationId,
+    //     result: status,  // ✅ 拼写正确
+    //     reason
+    //   },
+    //   headers: {         // ✅ 小写
+    //     'Authorization': `Bearer ${token}`
+    //   }
+    // })
+    const formData = new URLSearchParams()
+    formData.append('verificationId', verificationId)
+    formData.append('result', status)
+    if (reason) formData.append('reason', reason)
+
+    await axios.post('/api/verifications/review', formData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     })
+
     alert('操作成功')
-    // 刷新列表
     fetchPending()
   } catch (err) {
     console.error('审核失败', err)
     alert('审核失败')
   }
 }
+
 
 onMounted(() => {
   fetchPending()
