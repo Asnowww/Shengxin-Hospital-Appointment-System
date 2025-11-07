@@ -295,7 +295,7 @@ async function resetPassword(doc) {
 
 async function toggleStatus(doctor) {
   const token = localStorage.getItem('token')
-  const newStatus = doctor.enabled ? 'disabled' : 'verified'
+  const newStatus = doctor.enabled ? 'rejected' : 'verified'
 
   try {
     const { data } = await axios.put(
