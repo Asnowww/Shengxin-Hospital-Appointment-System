@@ -48,8 +48,8 @@
         </div>
       </div>
 
-      <!-- 普通门诊 -->
-      <div v-if="activeTab === 'general'" class="content-section">
+      <!-- 内容区域 -->
+      <div class="content-section">
         <!-- 时间段筛选 -->
         <div class="time-filter">
           <button 
@@ -61,10 +61,10 @@
           </button>
         </div>
 
-        <!-- 普通门诊排班卡片 -->
+        <!-- 排班卡片 -->
         <div class="schedules-grid">
           <div 
-            v-for="schedule in filteredGeneralSchedules" 
+            v-for="schedule in filteredSchedules" 
             :key="schedule.scheduleId"
             class="schedule-card">
             
@@ -125,86 +125,12 @@
         </div>
 
         <!-- 空状态 -->
-        <div v-if="filteredGeneralSchedules.length === 0" class="empty-state">
+        <div v-if="filteredSchedules.length === 0" class="empty-state">
           <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
           </svg>
           <p>暂无排班信息</p>
-        </div>
-      </div>
-
-      <!-- 专家门诊 -->
-      <div v-else class="content-section">
-        <div class="expert-list">
-          <div 
-            v-for="doctor in filteredExpertDoctors" 
-            :key="doctor.id"
-            class="doctor-card">
-            
-            <!-- 医生头部 -->
-            <div class="doctor-header">
-              <div class="doctor-avatar-large">{{ doctor.name.charAt(0) }}</div>
-              <div class="doctor-header-info">
-                <h2>{{ doctor.name }}</h2>
-                <p class="title">{{ doctor.title }}</p>
-                <p class="specialty">{{ doctor.specialty || '医疗专长待补充' }}</p>
-              </div>
-            </div>
-
-            <!-- 医生排班信息 -->
-            <div class="doctor-schedules">
-              <div class="schedules-title">出诊时间安排</div>
-              
-              <div class="schedule-items">
-                <div 
-                  v-for="schedule in getExpertSchedules(doctor.id)" 
-                  :key="schedule.scheduleId"
-                  class="schedule-item">
-                  
-                  <div class="schedule-time">
-                    <span class="date">{{ formatDate(schedule.workDate) }}</span>
-                    <span class="time-slot">{{ schedule.timeSlotName }}</span>
-                  </div>
-
-                  <div class="schedule-details">
-                    <span class="room">{{ schedule.roomName }}</span>
-                    <span :class="['slots', getSlotStatusClass(schedule)]">
-                      {{ schedule.availableSlots > 0 ? `${schedule.availableSlots}个号` : '可候补' }}
-                    </span>
-                  </div>
-
-                  <button 
-                    :class="['quick-appoint', { disabled: false }]"
-                    @click="handleAppointment(schedule)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="12 5 19 12 12 19"></polyline>
-                      <path d="M19 12H5"></path>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <!-- 专家门诊说明 -->
-              <div class="expert-note">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="16" x2="12" y2="12"></line>
-                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                </svg>
-                专家门诊需提前48小时预约
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 空状态 -->
-        <div v-if="filteredExpertDoctors.length === 0" class="empty-state">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
-          <p>暂无专家挂号</p>
         </div>
       </div>
     </div>
@@ -296,9 +222,9 @@ const showAppointModal = ref(false)
 const selectedSchedule = ref(null)
 
 const appointmentTabs = [
-  { id: 'general', label: '普通门诊' },
-  { id: 'special', label: '特需门诊' },
-  { id: 'expert', label: '专家门诊' }
+  { id: 'general', label: '普通门诊', typeId: 1 },
+  { id: 'special', label: '特需门诊', typeId: 3 },
+  { id: 'expert', label: '专家门诊', typeId: 2 }
 ]
 
 const timeSlots = [
@@ -380,9 +306,18 @@ function getSlotStatusClass(schedule) {
   return 'waitlist'
 }
 
-// 普通门诊过滤
-const filteredGeneralSchedules = computed(() => {
+// 获取当前标签的typeId
+function getCurrentTypeId() {
+  const currentTab = appointmentTabs.find(tab => tab.id === activeTab.value)
+  return currentTab?.typeId
+}
+
+// 过滤排班
+const filteredSchedules = computed(() => {
+  const typeId = getCurrentTypeId()
+  
   return schedules.value.filter(s => {
+    const typeMatch = s.appointmentTypeId === typeId
     const dateMatch = selectedDate.value === '' || s.workDate === selectedDate.value
     
     let timeMatch = true
@@ -392,29 +327,9 @@ const filteredGeneralSchedules = computed(() => {
       timeMatch = s.timeSlotName.includes('下午') || s.timeSlot === 1
     }
     
-    return dateMatch && timeMatch && s.appointmentTypeId === 1
+    return typeMatch && dateMatch && timeMatch
   })
 })
-
-// 专家门诊过滤
-const filteredExpertDoctors = computed(() => {
-  const expertSchedules = schedules.value.filter(s => s.appointmentTypeId === 2)
-  const uniqueDoctors = [...new Set(expertSchedules.map(s => s.doctorId))]
-  
-  return uniqueDoctors.map(docId => {
-    const doc = doctors.value.find(d => d.id === docId)
-    return doc || { id: docId, name: '待加载', title: '' }
-  }).filter(doc => doc)
-})
-
-// 获取医生的专家排班
-function getExpertSchedules(doctorId) {
-  return schedules.value.filter(s => 
-    s.doctorId === doctorId && 
-    s.appointmentTypeId === 2 &&
-    (selectedDate.value === '' || s.workDate === selectedDate.value)
-  )
-}
 
 // 加载排班信息
 async function fetchSchedules() {
@@ -533,7 +448,7 @@ onMounted(async () => {
   initializeDate()
   selectedTimeSlot.value = 'all'
   
-  await Promise.all([fetchSchedules()])
+  await fetchSchedules()
 })
 
 onUnmounted(() => {
@@ -824,6 +739,11 @@ h1 {
   color: #0056b3;
 }
 
+.appointment-type.type-3 {
+  background: #fff3cd;
+  color: #856404;
+}
+
 /* 卡片主体 */
 .card-body {
   padding: 1rem;
@@ -947,201 +867,6 @@ h1 {
   background: #cbd5e0;
   cursor: not-allowed;
   opacity: 0.6;
-}
-
-/* 专家门诊 */
-.expert-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.doctor-card {
-  background: white;
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.doctor-card:hover {
-  border-color: #667eea;
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
-}
-
-.doctor-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1.5rem;
-  display: flex;
-  gap: 1.5rem;
-  align-items: flex-start;
-}
-
-.doctor-avatar-large {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 2rem;
-  flex-shrink: 0;
-  border: 3px solid rgba(255, 255, 255, 0.4);
-}
-
-.doctor-header-info {
-  flex: 1;
-}
-
-.doctor-header-info h2 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.doctor-header-info .title {
-  margin: 0 0 0.5rem 0;
-  font-size: 1rem;
-  opacity: 0.95;
-}
-
-.doctor-header-info .specialty {
-  margin: 0;
-  font-size: 0.9rem;
-  opacity: 0.85;
-}
-
-/* 医生排班 */
-.doctor-schedules {
-  padding: 1.5rem;
-}
-
-.schedules-title {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #2d3748;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 2px solid #e2e8f0;
-}
-
-.schedule-items {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.schedule-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.875rem;
-  background: #f7fafc;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.schedule-item:hover {
-  background: #f0f4ff;
-  border-left: 4px solid #667eea;
-  padding-left: calc(0.875rem - 4px);
-}
-
-.schedule-time {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  min-width: 70px;
-}
-
-.schedule-time .date {
-  font-size: 0.85rem;
-  color: #718096;
-  font-weight: 600;
-}
-
-.schedule-time .time-slot {
-  font-size: 0.9rem;
-  color: #2d3748;
-  font-weight: 700;
-}
-
-.schedule-details {
-  flex: 1;
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  min-width: 0;
-}
-
-.schedule-details .room {
-  flex: 1;
-  font-size: 0.9rem;
-  color: #4a5568;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.schedule-details .slots {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #718096;
-  padding: 0.375rem 0.75rem;
-  background: white;
-  border-radius: 6px;
-  white-space: nowrap;
-}
-
-.schedule-details .slots.available {
-  color: #28a745;
-  background: #d4edda;
-}
-
-.schedule-details .slots.waitlist {
-  color: #0056b3;
-  background: #cce5ff;
-}
-
-.quick-appoint {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  flex-shrink: 0;
-}
-
-.quick-appoint:hover:not(.disabled) {
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.quick-appoint.disabled {
-  background: #cbd5e0;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.expert-note {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: #cce5ff;
-  color: #0056b3;
-  border-radius: 6px;
-  font-size: 0.85rem;
 }
 
 /* 空状态 */
@@ -1351,16 +1076,6 @@ h1 {
   .date-btn {
     flex: 1;
     min-width: 80px;
-  }
-
-  .doctor-header {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-
-  .doctor-header-info {
-    width: 100%;
   }
 
   .schedule-item {
