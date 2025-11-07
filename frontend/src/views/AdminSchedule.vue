@@ -79,30 +79,46 @@
               </div>
             </div>
 
-            <div class="filter-group">
-              <label class="filter-label">科室</label>
-              <select v-model="filters.department" @change="fetchSchedules" class="filter-select">
-                <option value="">全部科室</option>
-                <option value="CARDIO">心内科</option>
-                <option value="GASTRO">消化内科</option>
-                <option value="RESPIR">呼吸内科</option>
-                <option value="ORTHO">骨科</option>
-                <option value="NEURO">神经外科</option>
-                <option value="GYNEC">妇科</option>
-                <option value="PEDIM">小儿内科</option>
-              </select>
-            </div>
+        <div class="filter-group">
+    <label class="filter-label">科室</label>
 
-            <div class="filter-group">
-              <label class="filter-label">医生</label>
-              <select v-model="filters.doctorId" @change="fetchSchedules" class="filter-select">
-                <option value="">全部医生</option>
-                <option v-for="doctor in doctors" :key="doctor.doctorId" :value="doctor.doctorId">
-                  {{ doctor.doctorName }} - {{ doctor.title }}
-                </option>
-              </select>
-            </div>
+    <!-- 顶层科室选择 -->
+    <select v-model="selectedParent" @change="handleParentChange" class="filter-select">
+      <option disabled value="">请选择科室类别</option>
+      <option 
+        v-for="dept in topDepartments" 
+        :key="dept.deptId" 
+        :value="dept.deptId">
+        {{ dept.deptName }}
+      </option>
+    </select>
 
+    <!-- 子科室选择（必须选择） -->
+    <select 
+      v-model="filters.department" 
+      @change="fetchSchedules"
+      class="filter-select"
+      :disabled="!childDepartments.length"
+    >
+      <option disabled value="">请选择子科室</option>
+      <option 
+        v-for="child in childDepartments" 
+        :key="child.deptId" 
+        :value="child.deptId">
+        {{ child.deptName }}
+      </option>
+    </select>
+  </div>
+
+   <div class="filter-group">
+  <label class="filter-label">医生</label>
+  <SearchableSelect
+    v-model="filters.doctorId"
+    :options="doctors"
+    placeholder="搜索医生姓名"
+    @change="fetchSchedules"
+  />
+</div>
             <button @click="resetFilters" class="reset-btn">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="1 4 1 10 7 10"></polyline>
@@ -316,7 +332,7 @@ import { reactive, ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import Navigation from '@/components/Navigation.vue'
 import AdminCreateSchedule from '@/components/AdminCreateSchedule.vue'
 import axios from 'axios'
-
+import SearchableSelect from '@/components/SearchableSelect.vue'
 const navRef = ref(null)
 const navHeight = ref(110)
 const loading = ref(false)
@@ -324,6 +340,7 @@ const showScheduleModal = ref(false)
 const showDetailModal = ref(false)
 const isEditing = ref(false)
 const selectedScheduleData = ref(null)
+
 
 // 筛选条件
 const filters = reactive({
@@ -335,6 +352,12 @@ const filters = reactive({
 
 // 医生列表
 const doctors = ref([])
+
+// 科室列表
+const departments = ref([])
+const topDepartments = ref([])
+const childDepartments = ref([])
+const selectedParent = ref('')
 
 // 诊室列表
 const rooms = ref([])
@@ -349,6 +372,29 @@ const selectedSchedule = ref(null)
 const minDate = computed(() => {
   return new Date().toISOString().split('T')[0]
 })
+
+//获取科室数据
+const fetchDepartments = async () => {
+  try {
+    const res = await axios.get('/api/departments/all')
+    if (res.data.code === 200) {
+      departments.value = res.data.data
+      topDepartments.value = departments.value.filter(d => !d.parentDeptId)
+    }
+  } catch (e) {
+    console.error('加载科室失败', e)
+  }
+}
+
+// 顶级选择变化时更新子科室
+const handleParentChange = () => {
+  const parent = topDepartments.value.find(d => d.deptId === Number(selectedParent.value))
+  childDepartments.value = parent?.children || []
+  // 清空之前选择的子科室
+  filters.department = ''
+}
+
+
 
 // 获取排班数据
 async function fetchSchedules() {
@@ -440,12 +486,20 @@ async function getAllRooms() {
 
 // 重置筛选
 function resetFilters() {
+  // 清空筛选条件
   filters.startDate = ''
   filters.endDate = ''
   filters.department = ''
   filters.doctorId = ''
+
+  // 清空科室选择状态
+  selectedParent.value = ''
+  childDepartments.value = []
+
+  // 重新加载排班列表
   fetchSchedules()
 }
+
 
 // 打开创建对话框
 function openCreateDialog() {
@@ -526,9 +580,9 @@ function getWeekday(dateStr) {
 
 function getStatusText(status) {
   const map = {
-    'active': '正常',
-    'pending': '待确认',
-    'cancelled': '已取消'
+    'open': '可预约',
+    'full': '已满',
+    'cancelled': '已停诊'
   }
   return map[status] || '未知'
 }
@@ -561,6 +615,7 @@ onMounted(async () => {
   filters.endDate = nextWeek.toISOString().split('T')[0]
 
   fetchDoctors()
+  fetchDepartments()
   fetchSchedules()
   getAllRooms()
 })
