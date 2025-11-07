@@ -114,7 +114,7 @@
           <div v-else class="doctor-table">
             <div class="table-header">
               <div class="th-name">姓名</div>
-              <div class="th-job">工号</div>
+              <div class="th-doctorId">工号</div>
               <div class="th-dept">科室</div>
               <div class="th-title">职称</div>
               <div class="th-status">状态</div>
@@ -135,7 +135,7 @@
                 <div class="td-name">
                   <div class="doctor-name">{{ doc.name }}</div>
                 </div>
-                <div class="td-job">{{ doc.jobNumber }}</div>
+                <div class="td-doctorId">{{ doc.id}}</div>
                 <div class="td-dept"><span class="department-badge">{{ doc.departmentName || getDepartmentName(doc.department) }}</span></div>
                 <div class="td-title">{{ doc.title || '-' }}</div>
                 <div class="td-status">
@@ -221,12 +221,9 @@ async function fetchDoctors() {
   try {
     const token = localStorage.getItem('token')
     const params = {}
-    // 后端期望的筛选参数：DoctorQueryDTO -> deptId, username, status, doctorStatus
-    // 目前仅对接用户名关键字，科室需有 deptId 映射后再传
     if ((filters.keyword || '').trim()) {
       params.username = filters.keyword.trim()
     }
-    // if (filters.department) params.deptId = mapDeptCodeToId(filters.department)
 
     const { data } = await axios.get('/api/admin/doctors/list', {
       params,
@@ -238,7 +235,6 @@ async function fetchDoctors() {
       doctors.value = (data.data || []).map(d => ({
         id: d.doctorId,
         name: d.username,
-        jobNumber: '-',
         departmentName: d.deptName,
         deptId: d.deptId,
         title: d.title,
@@ -295,7 +291,7 @@ async function resetPassword(doc) {
 
 async function toggleStatus(doctor) {
   const token = localStorage.getItem('token')
-  const newStatus = doctor.enabled ? 'disabled' : 'verified'
+  const newStatus = doctor.enabled ? 'rejected' : 'verified'
 
   try {
     const { data } = await axios.put(
