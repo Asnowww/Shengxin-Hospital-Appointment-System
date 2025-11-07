@@ -10,13 +10,13 @@
       </router-link>
 
       <!-- 患者端：我的候补 -->
-      <router-link
+      <!-- <router-link
         v-if="isLoggedIn && currentRole === 'patient'"
         to="/waitlist/my"
         class="nav-item"
         :class="{ active: isActive('/waitlist/my') }">
         我的候补
-      </router-link>
+      </router-link> -->
 
       <!-- 医生端：仅医生登录后显示 -->
       <router-link
