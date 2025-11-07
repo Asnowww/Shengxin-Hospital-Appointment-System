@@ -94,7 +94,7 @@
               </label>
               <select
                 v-model="scheduleForm.roomId"
-                :disabled="isEditing"
+                :disabled="false"
                 :class="['form-control', { error: errors.roomId }]"
                 required
               >
@@ -127,14 +127,14 @@
             <div class="form-group">
               <label class="form-label">最大接诊人数 <span class="required">*</span></label>
               <input
-                v-model.number="scheduleForm.maxPatients"
+                v-model.number="scheduleForm.maxSlots"
                 type="number"
                 min="1"
                 max="100"
-                :class="['form-control', { error: errors.maxPatients }]"
+                :class="['form-control', { error: errors.maxSlots }]"
                 required
               />
-              <span v-if="errors.maxPatients" class="error-text">{{ errors.maxPatients }}</span>
+              <span v-if="errors.maxSlots" class="error-text">{{ errors.maxSlots }}</span>
             </div>
 
             <!-- 批量：工作日 -->
@@ -247,7 +247,7 @@ const scheduleForm = reactive({
   roomId: null,
   appointmentTypeId: '',
   timeSlots: [],
-  maxPatients: 30,
+  maxSlots: 10,
   notes: '',
   isBatch: false,
   weekdays: []
@@ -257,7 +257,7 @@ const errors = reactive({
   doctorId: '',
   date: '',
   roomId: '',
-  maxPatients: ''
+  maxSlots: ''
 })
 
 // Computed
@@ -283,9 +283,17 @@ watch(() => props.initialData, (newVal) => {
   if (newVal && props.isEditing) {
     scheduleForm.id = newVal.scheduleId
     scheduleForm.doctorId = newVal.doctorId
+    scheduleForm.deptId = newVal.deptId || ''
     scheduleForm.date = newVal.date
-    scheduleForm.maxPatients = newVal.maxPatients
-    scheduleForm.notes = newVal.notes
+    scheduleForm.roomId = newVal.roomId
+    scheduleForm.appointmentTypeId = newVal.appointmentTypeId
+    scheduleForm.maxSlots = newVal.maxSlots
+    scheduleForm.notes = newVal.notes || ''
+    scheduleForm.timeSlots = Array.isArray(newVal.timeSlots)
+      ? [...newVal.timeSlots]
+      : (typeof newVal.timeSlots === 'string'
+          ? JSON.parse(newVal.timeSlots)
+          : [])
     scheduleForm.isBatch = false
     scheduleForm.weekdays = []
   }
@@ -306,7 +314,7 @@ function resetForm() {
   scheduleForm.endDate = ''
   scheduleForm.roomId = null
   scheduleForm.appointmentTypeId = ''
-  scheduleForm.maxPatients = 30
+  scheduleForm.maxSlots = 10
   scheduleForm.notes = ''
   scheduleForm.isBatch = false
   scheduleForm.timeSlots = []
@@ -319,7 +327,7 @@ function clearErrors() {
   errors.doctorId = ''
   errors.date = ''
   errors.roomId = ''
-  errors.maxPatients = ''
+  errors.maxSlots = ''
 }
 
 function validateForm() {
@@ -342,8 +350,8 @@ function validateForm() {
     isValid = false
   }
 
-  if (!scheduleForm.maxPatients || scheduleForm.maxPatients < 1) {
-    errors.maxPatients = '请输入有效的接诊人数'
+  if (!scheduleForm.maxSlots || scheduleForm.maxSlots < 1) {
+    errors.maxSlots = '请输入有效的接诊人数'
     isValid = false
   }
 

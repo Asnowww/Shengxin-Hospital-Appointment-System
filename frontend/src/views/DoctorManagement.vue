@@ -349,7 +349,6 @@ onUnmounted(() => {
 <style scoped>
 .page-container {
   min-height: 100vh;
-  background: #f7fafc;
 }
 
 .profile-layout {

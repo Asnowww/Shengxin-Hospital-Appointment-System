@@ -32,13 +32,13 @@
             <span>排班管理</span>
           </router-link>
 
-          <router-link to="/admin/fees" class="nav-item" :class="{ active: $route.path === '/admin/fees' }">
+          <!-- <router-link to="/admin/fees" class="nav-item" :class="{ active: $route.path === '/admin/fees' }">
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 1v22M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"></path>
       <circle cx="12" cy="12" r="3"></circle>
     </svg>
     <span>号别及费用设置</span>
-  </router-link>
+  </router-link> -->
 
           <router-link to="/admin/leaves" class="nav-item" :class="{ active: $route.path === '/admin/leaves' }">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
