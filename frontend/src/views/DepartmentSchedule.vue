@@ -77,9 +77,15 @@
                   <p class="doctor-title">{{ schedule.doctorTitle }}</p>
                 </div>
               </div>
-              <span :class="['appointment-type', `type-${schedule.appointmentTypeId}`]">
-                {{ schedule.appointmentTypeName }}
-              </span>
+               <div class="appointment-type-wrapper">
+    <span :class="['appointment-type', `type-${schedule.appointmentTypeId}`]">
+      {{ schedule.appointmentTypeName }}
+    </span>
+    <!-- 新增费用显示 -->
+    <div class="appointment-fee">
+      ¥{{ schedule.fee ? schedule.fee.toFixed(2) : '—' }}
+    </div>
+  </div>
             </div>
 
             <!-- 卡片内容 -->
@@ -182,6 +188,10 @@
               <span class="label">预约类型：</span>
               <span class="value">{{ selectedSchedule?.appointmentTypeName }}</span>
             </div>
+            <div class="info-group">
+              <span class="label">费用：</span>
+              <span class="value">¥{{ selectedSchedule?.fee }}</span>
+              </div>
           </div>
 
           <div class="modal-footer">
@@ -331,24 +341,43 @@ const filteredSchedules = computed(() => {
   })
 })
 
+const feeMap = ref(new Map())
+
+
 // 加载排班信息
 async function fetchSchedules() {
   loading.value = true
   try {
-    const { data } = await axios.get('/api/patient/schedules/all', {
-      params: {
-        deptId: departmentId.value,         
-        startDate: dateOptions.value[0].value,
-        endDate: dateOptions.value[6].value
-      }
-    })
-    schedules.value = data.data || []
+    // 同时请求排班和费用
+    const [scheduleRes, feeRes] = await Promise.all([
+      axios.get('/api/patient/schedules/all', {
+        params: {
+          deptId: departmentId.value,
+          startDate: dateOptions.value[0].value,
+          endDate: dateOptions.value[6].value
+        }
+      }),
+      axios.get('/api/fee/type_amount')
+    ])
+
+    const schedulesData = scheduleRes.data.data || []
+    const feeList = feeRes.data.data || []
+
+    // 构建费用映射
+    const feeMapLocal = new Map(feeList.map(item => [item.appointmentTypeId, item.fee]))
+
+    // 合并
+    schedules.value = schedulesData.map(s => ({
+      ...s,
+      fee: feeMapLocal.get(s.appointmentTypeId) || 0
+    }))
   } catch (err) {
     console.error('加载排班失败', err)
   } finally {
     loading.value = false
   }
 }
+
 
 // 处理预约/候补
 function handleAppointment(schedule) {
@@ -457,6 +486,27 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.appointment-type-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.appointment-type {
+  font-weight: 600;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background-color: #eef2ff;
+  color: #334155;
+}
+
+.appointment-fee {
+  font-size: 15px;
+  color: #64748b;
+}
+
 .page-container {
   min-height: 100vh;
 }

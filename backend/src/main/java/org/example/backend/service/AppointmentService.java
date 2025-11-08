@@ -3,6 +3,7 @@ package org.example.backend.service;
 import org.example.backend.dto.AppointmentCreateParam;
 import org.example.backend.dto.AppointmentUpdateParam;
 import org.example.backend.pojo.Appointment;
+import org.example.backend.pojo.AppointmentType;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.example.backend.dto.AppointmentInfoDTO;
@@ -96,4 +97,10 @@ public interface AppointmentService {
      * @return 是否可修改
      */
     boolean canUpdateAppointment(Long appointmentId, Long patientId);
+
+
+    /**
+     * 返回给前端费用相关数据
+     */
+    List<AppointmentType> getAllAppointmentTypes();
 }

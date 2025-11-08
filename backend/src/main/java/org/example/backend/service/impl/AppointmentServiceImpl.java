@@ -449,4 +449,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         type.setFeeAmount(java.math.BigDecimal.valueOf(fee));
         return appointmentTypeMapper.updateById(type) > 0;
     }
+
+    @Override
+    public List<AppointmentType> getAllAppointmentTypes() {
+        return appointmentTypeMapper.selectList(null);
+    }
 }
