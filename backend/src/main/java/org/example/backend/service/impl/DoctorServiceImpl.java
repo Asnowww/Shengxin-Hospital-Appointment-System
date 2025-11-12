@@ -3,9 +3,12 @@ package org.example.backend.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
+import org.example.backend.dto.DoctorAttendanceStats;
 import org.example.backend.dto.DoctorVO;
+import org.example.backend.dto.DoctorWorkloadStats;
 import org.example.backend.mapper.DepartmentMapper;
 import org.example.backend.mapper.DoctorMapper;
+import org.example.backend.mapper.ScheduleMapper;
 import org.example.backend.mapper.UserMapper;
 import org.example.backend.pojo.Department;
 import org.example.backend.pojo.Doctor;
@@ -13,6 +16,7 @@ import org.example.backend.pojo.User;
 import org.example.backend.service.DoctorService;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +34,9 @@ public class DoctorServiceImpl extends ServiceImpl<DoctorMapper, Doctor> impleme
 
     @Resource
     private DepartmentMapper departmentMapper;
+
+    @Resource
+    private ScheduleMapper scheduleMapper;
 
     @Override
     public List<DoctorVO> getAllDoctorsWithNameAndDept() {
@@ -118,4 +125,22 @@ public class DoctorServiceImpl extends ServiceImpl<DoctorMapper, Doctor> impleme
         doctor.setUpdatedAt(LocalDateTime.now());
         this.updateById(doctor);
     }
+
+
+    /**
+     * 统计每个医生的工作量（排班数、预约数、空余号源数）
+     */
+    @Override
+    public List<DoctorWorkloadStats> getDoctorWorkloadStats(LocalDate startDate, LocalDate endDate) {
+        return scheduleMapper.selectDoctorWorkloadStats(startDate, endDate);
+    }
+
+    /**
+     * 统计医生的出诊率（实际出诊次数/计划排班次数）
+     */
+    @Override
+    public List<DoctorAttendanceStats> getDoctorAttendanceStats(LocalDate startDate, LocalDate endDate) {
+        return scheduleMapper.selectDoctorAttendanceStats(startDate, endDate);
+    }
+
 }

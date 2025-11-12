@@ -1,9 +1,13 @@
 package org.example.backend.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import org.example.backend.dto.DailyNewPatientStats;
 import org.example.backend.dto.PatientUpdateParam;
 import org.example.backend.dto.Result;
 import org.example.backend.pojo.Patient;
+
+import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 患者业务逻辑接口
@@ -27,4 +31,7 @@ public interface PatientService extends IService<Patient> {
      */
     Result<Void> updatePatientInfo(Long userId, PatientUpdateParam param);
     Long getPatientIdByUserId(Long userId);
+
+    List<DailyNewPatientStats> getDailyNewPatientStats(LocalDate startDate, LocalDate endDate);
+
 }
