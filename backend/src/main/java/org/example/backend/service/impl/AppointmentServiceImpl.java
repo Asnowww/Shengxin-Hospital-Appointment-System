@@ -193,54 +193,36 @@ public class AppointmentServiceImpl implements AppointmentService {
                     throw new RuntimeException("退款状态更新失败");
                 }
 
-                // === 更新预约支付状态 ===
-                appointment.setPaymentStatus("refunded");
+                // === 重新查询预约获取最新状态（关键修复点）===
+                appointment = appointmentMapper.selectById(appointmentId);
+                if (appointment == null) {
+                    throw new RuntimeException("预约记录丢失");
+                }
 
                 // === 邮件通知（事务提交后执行）===
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
                     @Override
                     public void afterCommit() {
-                        notificationEmailService.sendRefundSuccessNotification(appointment.getAppointmentId());
+                        notificationEmailService.sendRefundSuccessNotification(appointmentId);
                     }
                 });
 
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                System.err.println("退款过程被中断：" + e.getMessage());
+                throw new RuntimeException("退款失败，请稍后重试");
             } catch (Exception e) {
                 System.err.println("退款失败：" + e.getMessage());
                 throw new RuntimeException("退款失败，请稍后重试");
             }
+        } else {
+            // 5. 如果未支付，直接取消预约
+            appointment.setAppointmentStatus("cancelled");
+            appointment.setPaymentStatus("unpaid");
+            appointmentMapper.updateById(appointment);
         }
 
-        // 5. 更新预约状态为已取消
-        appointment.setAppointmentStatus("cancelled");
-        appointment.setUpdatedAt(LocalDateTime.now());
-        boolean updated = appointmentMapper.updateById(appointment) > 0;
-
-        // 6. 更新排班剩余号源
-        if (updated) {
-            Integer scheduleId = appointment.getScheduleId();
-            Schedule schedule = scheduleMapper.selectById(scheduleId);
-            if (schedule != null) {
-                schedule.setAvailableSlots(schedule.getAvailableSlots() + 1);
-                scheduleMapper.updateById(schedule);
-
-                // 7. 处理候补队列
-                try {
-                    waitlistService.processWaitlistConversion(scheduleId);
-                } catch (Exception e) {
-                    System.err.println("处理候补队列失败: " + e.getMessage());
-                }
-            }
-
-            // 8. 发送取消通知（事务提交后）
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
-                @Override
-                public void afterCommit() {
-                    notificationEmailService.sendAppointmentCancelledNotification(appointment.getAppointmentId());
-                }
-            });
-        }
-
-        return updated;
+        return true;
     }
 
     @Transactional
