@@ -19,6 +19,9 @@ public class AppointmentType {
     @TableField("type_name")
     private String typeName;
 
+    @TableField("max_slots")
+    private Integer maxSlots;
+
     @TableField("fee_amount")
     private BigDecimal feeAmount;
 

@@ -98,6 +98,7 @@ CREATE TABLE appointment_types (
                                    appointment_type_id INT AUTO_INCREMENT PRIMARY KEY,
                                    type_key VARCHAR(50) NOT NULL UNIQUE COMMENT '系统内部标识（普通、专家、特需）',
                                    type_name VARCHAR(50) NOT NULL COMMENT '用户界面显示号别',
+                                   max_slots INT NOT NULL DEFAULT 10 COMMENT '该号别最大号源数',
                                    fee_amount DECIMAL(8,2) NOT NULL COMMENT '挂号费',
                                    description VARCHAR(255),
                                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

@@ -35,6 +35,7 @@ GET /api/admin/appointment-types/list?page=1&size=5&keyword=专家
       "typeKey": "专家",
       "typeName": "专家号",
       "feeAmount": 300,
+      "maxSlots": 10,
       "description": "资深医生号",
       "createdAt": "2025-11-13T10:00:00",
       "updatedAt": "2025-11-13T10:00:00"
@@ -77,6 +78,7 @@ GET /api/admin/appointment-types/1
     "typeKey": "专家",
     "typeName": "专家号",
     "feeAmount": 300,
+    "maxSlots": 10,
     "description": "资深医生号",
     "createdAt": "2025-11-13T10:00:00",
     "updatedAt": "2025-11-13T10:00:00"
@@ -98,6 +100,7 @@ GET /api/admin/appointment-types/1
   "typeKey": "专家",
   "typeName": "专家号",
   "feeAmount": 300,
+  "maxSlots": 5,
   "description": "资深医生号"
 }
 ```
@@ -115,6 +118,7 @@ GET /api/admin/appointment-types/1
     "typeKey": "专家",
     "typeName": "专家号",
     "feeAmount": 300,
+    "maxSlots": 5,
     "description": "资深医生号",
     "createdAt": "2025-11-13T10:00:00",
     "updatedAt": "2025-11-13T10:00:00"
@@ -162,6 +166,7 @@ GET /api/admin/appointment-types/1
   "typeKey": "专家",
   "typeName": "专家号",
   "feeAmount": 300,
+  "maxSlots": 20,
   "description": "资深医生号"
 }
 ```
@@ -179,6 +184,7 @@ GET /api/admin/appointment-types/1
     "typeKey": "专家",
     "typeName": "专家号",
     "feeAmount": 300,
+    "maxSlots": 20,
     "description": "资深医生号",
     "createdAt": "2025-11-13T10:00:00",
     "updatedAt": "2025-11-13T10:05:00"
@@ -197,6 +203,7 @@ GET /api/admin/appointment-types/1
     "typeKey": "专家",
     "typeName": "专家号",
     "feeAmount": 300,
+    "maxSlots": 10,
     "description": "资深医生号",
     "createdAt": "2025-11-13T10:00:00",
     "updatedAt": "2025-11-13T10:05:00"

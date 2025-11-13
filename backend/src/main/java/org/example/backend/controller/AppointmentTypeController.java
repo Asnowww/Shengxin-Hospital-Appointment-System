@@ -56,6 +56,9 @@ public class AppointmentTypeController {
         if (appointmentType.getTypeName() == null || appointmentType.getTypeName().isEmpty()) {
             return Result.error(400, "typeName 不能为空");
         }
+        if (appointmentType.getMaxSlots() == null || appointmentType.getMaxSlots() <= 0) {
+            appointmentType.setMaxSlots(10); // 默认值
+        }
 
         try {
             boolean saved = appointmentTypeService.save(appointmentType);
@@ -74,7 +77,6 @@ public class AppointmentTypeController {
             return Result.error(500, "服务器异常: " + e.getMessage());
         }
     }
-
 
 
     /**
@@ -103,7 +105,8 @@ public class AppointmentTypeController {
                         Objects.equals(
                                 exist.getDescription() == null ? "" : exist.getDescription(),
                                 appointmentType.getDescription() == null ? "" : appointmentType.getDescription()
-                        );
+                        )&&
+                        Objects.equals(exist.getMaxSlots(), appointmentType.getMaxSlots());
 
         if (same) {
             return Result.error("数据未改变");
