@@ -1,110 +1,78 @@
 <template>
-  <div class="payment-container">
-    <!-- 按钮触发弹窗 -->
-    <button @click="showPopup = true" class="pay-btn" :disabled="loading">
-      {{ loading ? '处理中...' : '去支付' }}
-    </button>
+  <div v-if="visible" class="overlay" @click.self="handleOverlayClick">
+    <div class="popup" @click.stop>
+      <h2>确认支付</h2>
+      <p>请确认是否支付 <strong>￥{{ displayAmount }}</strong></p>
 
-    <!-- 遮罩层 -->
-    <div v-if="showPopup" class="overlay" @click.self="closePopup">
-      <div class="popup">
-        <h2>确认支付</h2>
-        <p>请确认是否支付 <strong>￥{{ amount?.toFixed(2) || '0.00' }}</strong></p>
+      <div class="payment-methods">
+        <label v-for="method in paymentMethods" :key="method.value" class="method-item">
+          <input
+            type="radio"
+            v-model="selectedMethod"
+            :value="method.value"
+            :disabled="loading"
+          />
+          <span class="method-name">{{ method.label }}</span>
+        </label>
+      </div>
 
-        <!-- 支付方式选择 -->
-        <div class="payment-methods">
-          <label v-for="method in paymentMethods" :key="method.value" class="method-item">
-            <input 
-              type="radio" 
-              v-model="selectedMethod" 
-              :value="method.value"
-              :disabled="loading"
-            />
-            <span class="method-name">{{ method.label }}</span>
-          </label>
-        </div>
+      <div v-if="errorMsg" class="error-message">{{ errorMsg }}</div>
 
-        <!-- 错误提示 -->
-        <div v-if="errorMsg" class="error-message">
-          {{ errorMsg }}
-        </div>
-
-        <div class="button-group">
-          <button class="cancel" @click="closePopup" :disabled="loading">取消</button>
-          <button class="confirm" @click="handlePay" :disabled="loading || !selectedMethod">
-            {{ loading ? '支付中...' : '确认支付' }}
-          </button>
-        </div>
+      <div class="button-group">
+        <button class="cancel" @click="onCancel" :disabled="loading">取消</button>
+        <button class="confirm" @click="handlePay" :disabled="loading || !selectedMethod">
+          {{ loading ? '支付中...' : '确认支付' }}
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import axios from 'axios'
 
-// Props 接收
 const props = defineProps({
-  appointmentId: {
-    type: Number,
-    required: true
-  },
-  amount: {
-    type: Number,
-    required: true
-  }
+  appointmentId: { type: [Number, String, null], default: null },
+  amount: { type: [Number, String, null], default: 0 },
+  visible: { type: Boolean, default: false }
 })
 
-// Emits
-const emit = defineEmits(['payment-success', 'payment-error'])
+const emit = defineEmits(['close', 'payment-success', 'payment-error'])
 
-// 状态
-const showPopup = ref(false)
 const loading = ref(false)
 const errorMsg = ref('')
 const selectedMethod = ref('alipay')
 
-// 支付方式列表
-const paymentMethods = ref([
+const paymentMethods = [
   { label: '支付宝', value: 'alipay' },
   { label: '微信支付', value: 'wechat' },
   { label: '银行卡', value: 'card' }
-])
+]
 
-// 获取 token
-function getToken() {
-  // 从 localStorage 获取 token
-  let token = localStorage.getItem('token')
-  
-  // 如果 localStorage 没有，尝试从 sessionStorage 获取
-  if (!token) {
-    token = sessionStorage.getItem('token')
+// 安全格式化金额：当不是合法数字时显示 0.00
+const displayAmount = computed(() => {
+  const n = Number(props.amount)
+  return Number.isFinite(n) ? n.toFixed(2) : '0.00'
+})
+
+// 当父传入 visible=false 时，清除本地错误/loading 状态（防止残留）
+watch(() => props.visible, (v) => {
+  if (!v) {
+    loading.value = false
+    errorMsg.value = ''
+    selectedMethod.value = 'alipay'
   }
-  
-  // 如果都没有，尝试从 cookie 获取（可选）
-  if (!token) {
-    token = getCookieValue('Authorization')
-  }
-  
-  return token
+})
+
+function handleOverlayClick() {
+  // 点击遮罩视为取消
+  onCancel()
 }
 
-// 从 cookie 获取值
-function getCookieValue(name) {
-  const cookies = document.cookie.split(';')
-  for (let cookie of cookies) {
-    const [key, value] = cookie.trim().split('=')
-    if (key === name) {
-      return decodeURIComponent(value)
-    }
-  }
-  return null
-}
-
-function closePopup() {
-  showPopup.value = false
-  errorMsg.value = ''
+function onCancel() {
+  // 发出 close 事件，由父去彻底清理 payInfo
+  emit('close')
 }
 
 async function handlePay() {
@@ -113,21 +81,21 @@ async function handlePay() {
     return
   }
 
+  // 额外校验 appointmentId
+  if (props.appointmentId === null || props.appointmentId === undefined) {
+    errorMsg.value = '预约信息不完整，无法支付'
+    emit('payment-error', errorMsg.value)
+    return
+  }
+
   loading.value = true
   errorMsg.value = ''
 
   try {
-    const token = getToken()
-    
-    if (!token) {
-      errorMsg.value = '未找到认证信息，请重新登录'
-      loading.value = false
-      return
-    }
+    const token = localStorage.getItem('token') || ''
 
-    // 调用后端支付接口
     const response = await axios.put(
-      '/pay',
+      '/api/patient/appointment/pay',
       null,
       {
         params: {
@@ -135,24 +103,20 @@ async function handlePay() {
           paymentMethod: selectedMethod.value
         },
         headers: {
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         }
       }
     )
 
-    // 处理响应
-    if (response.data.code === 200 || response.data.success) {
-      showPopup.value = false
+    if (response?.data?.code === 200 || response?.data?.success) {
       emit('payment-success', response.data.data)
-      // 可选：显示成功提示
-      console.log('支付成功:', response.data.data)
+      // 不直接 emit close：让父决定是否关闭（父通常会在 success 回调中 close）
     } else {
-      errorMsg.value = response.data.msg || response.data.message || '支付失败，请重试'
+      errorMsg.value = response.data?.msg || response.data?.message || '支付失败，请重试'
       emit('payment-error', errorMsg.value)
     }
   } catch (error) {
     console.error('支付请求错误:', error)
-    
     if (error.response) {
       errorMsg.value = error.response.data?.msg || error.response.data?.message || '支付失败'
     } else if (error.request) {
@@ -160,17 +124,13 @@ async function handlePay() {
     } else {
       errorMsg.value = error.message || '发生未知错误'
     }
-    
     emit('payment-error', errorMsg.value)
   } finally {
     loading.value = false
   }
 }
-
-onMounted(() => {
-  // 组件挂载时的初始化逻辑
-})
 </script>
+
 
 <style scoped>
 .payment-container {

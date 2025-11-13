@@ -2,6 +2,7 @@ package org.example.backend.service;
 
 import org.example.backend.dto.*;
 import org.example.backend.pojo.Appointment;
+import org.example.backend.pojo.AppointmentType;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.example.backend.dto.AppointmentInfoDTO;

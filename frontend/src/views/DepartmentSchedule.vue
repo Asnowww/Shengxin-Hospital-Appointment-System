@@ -203,6 +203,18 @@
         </div>
       </div>
     </transition>
+
+    <!-- 支付组件 -->
+ <Payment
+  :visible="showPaymentModal"
+  :appointment-id="paymentData.appointmentId"
+  :amount="paymentData.amount"
+  @close="showPaymentModal = false"
+  @payment-success="handlePaymentSuccess"
+  @payment-error="handlePaymentError"
+/>
+
+
   </div>
 </template>
 
@@ -211,6 +223,13 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import Navigation from '@/components/Navigation.vue'
+import Payment from '@/components/Payment.vue'
+
+const showPaymentModal = ref(false)
+const paymentData = ref({
+  appointmentId: null,
+  amount: 0
+})
 
 const route = useRoute()
 const router = useRouter()
@@ -242,6 +261,21 @@ const timeSlots = [
   { id: 'morning', name: '上午' },
   { id: 'afternoon', name: '下午' }
 ]
+
+function handlePaymentSuccess(data) {
+  alert('支付成功！您的预约已完成。')
+  setTimeout(() => {
+    showPaymentModal.value = false
+    fetchSchedules()
+  }, 300)
+}
+
+
+function handlePaymentError(errorMsg) {
+  console.error('支付失败：', errorMsg)
+  alert('支付失败：' + errorMsg)
+}
+
 
 // 日期选项
 const dateOptions = computed(() => {
@@ -341,7 +375,7 @@ const filteredSchedules = computed(() => {
   })
 })
 
-const feeMap = ref(new Map())
+
 
 
 // 加载排班信息
@@ -440,13 +474,23 @@ async function confirmAppointment() {
       )
 
       const resData = response.data
-      if (resData.code !== 200) {
-        alert('预约失败：' + resData.message)
-        return
-      }
+     if (resData.code !== 200) {
+  alert('预约失败：' + resData.message)
+  return
+}
 
-      showAppointModal.value = false
-      alert('预约成功！')
+// 从后端返回中拿到 appointmentId（如果接口返回有）
+const appointmentId = resData.data?.appointmentId || null
+
+showAppointModal.value = false
+
+// 弹出支付弹窗
+paymentData.value = {
+  appointmentId,
+  amount: selectedSchedule.value.fee
+}
+showPaymentModal.value = true
+
     }
 
     await fetchSchedules()
