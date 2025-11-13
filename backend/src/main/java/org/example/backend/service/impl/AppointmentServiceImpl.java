@@ -2,8 +2,7 @@ package org.example.backend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
-import org.example.backend.dto.AppointmentCreateParam;
-import org.example.backend.dto.AppointmentUpdateParam;
+import org.example.backend.dto.*;
 import org.example.backend.mapper.AppointmentMapper;
 import org.example.backend.mapper.AppointmentTypeMapper;
 import org.example.backend.mapper.ScheduleMapper;
@@ -454,4 +453,23 @@ public class AppointmentServiceImpl implements AppointmentService {
     public List<AppointmentType> getAllAppointmentTypes() {
         return appointmentTypeMapper.selectList(null);
     }
+
+    // ========== 统计功能方法 ==========
+
+    /**
+     * 统计每个医生在一段时间内的挂号数量
+     */
+    @Override
+    public List<DoctorAppointmentStats> getDoctorAppointmentStats(LocalDate startDate, LocalDate endDate) {
+        return appointmentMapper.selectDoctorAppointmentStats(startDate, endDate);
+    }
+
+    /**
+     * 统计每个科室在一段时间内的挂号数量
+     */
+    @Override
+    public List<DepartmentAppointmentStats> getDepartmentAppointmentStats(LocalDate startDate, LocalDate endDate) {
+        return appointmentMapper.selectDepartmentAppointmentStats(startDate, endDate);
+    }
+
 }

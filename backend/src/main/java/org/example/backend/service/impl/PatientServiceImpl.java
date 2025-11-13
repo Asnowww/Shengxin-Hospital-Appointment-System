@@ -3,8 +3,10 @@ package org.example.backend.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
+import org.example.backend.dto.DailyNewPatientStats;
 import org.example.backend.dto.PatientUpdateParam;
 import org.example.backend.dto.Result;
+import org.example.backend.mapper.AppointmentMapper;
 import org.example.backend.service.UserService;
 import org.example.backend.mapper.PatientMapper;
 import org.example.backend.pojo.Patient;
@@ -14,6 +16,9 @@ import org.springframework.stereotype.Service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.util.List;
+
 /**
  * 患者业务逻辑实现类
  */
@@ -22,6 +27,9 @@ public class PatientServiceImpl extends ServiceImpl<PatientMapper, Patient> impl
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private AppointmentMapper appointmentMapper;
 
     @Override
     public Patient getPatientByUserId(Long userId) {
@@ -111,4 +119,13 @@ public class PatientServiceImpl extends ServiceImpl<PatientMapper, Patient> impl
             return null;
         }
     }
+
+    /**
+     * 统计每日新增患者数
+     */
+    @Override
+    public List<DailyNewPatientStats> getDailyNewPatientStats(LocalDate startDate, LocalDate endDate) {
+        return appointmentMapper.selectDailyNewPatientStats(startDate, endDate);
+    }
+
 }
