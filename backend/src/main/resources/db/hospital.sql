@@ -100,7 +100,8 @@ CREATE TABLE appointment_types (
                                    type_name VARCHAR(50) NOT NULL COMMENT '用户界面显示号别',
                                    fee_amount DECIMAL(8,2) NOT NULL COMMENT '挂号费',
                                    description VARCHAR(255),
-                                   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                                   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='挂号类型表（支持管理端修改）';
 
 -- 医生排班表
