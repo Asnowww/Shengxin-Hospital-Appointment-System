@@ -1,9 +1,6 @@
 package org.example.backend.pojo;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -22,13 +19,19 @@ public class AppointmentType {
     @TableField("type_name")
     private String typeName;
 
+    @TableField("max_slots")
+    private Integer maxSlots;
+
     @TableField("fee_amount")
     private BigDecimal feeAmount;
 
     private String description;
 
-    @TableField("created_at")
+    @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updatedAt;
 
     public BigDecimal getFee() {
         return feeAmount;

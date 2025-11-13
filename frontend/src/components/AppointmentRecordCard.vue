@@ -47,6 +47,7 @@
       <span class="remark-text">{{ record.remarks }}</span>
     </div>
   </div>
+  
 </template>
 
 <script setup>

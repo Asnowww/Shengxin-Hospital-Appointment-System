@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.example.backend.dto.AppointmentInfoDTO;
 import org.springframework.transaction.support.TransactionSynchronizationAdapter;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -428,6 +429,11 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (type == null) return false;
         type.setFeeAmount(java.math.BigDecimal.valueOf(fee));
         return appointmentTypeMapper.updateById(type) > 0;
+    }
+
+    @Override
+    public List<AppointmentType> getAllAppointmentTypes() {
+        return appointmentTypeMapper.selectList(null);
     }
 
     // ========== 统计功能方法 ==========

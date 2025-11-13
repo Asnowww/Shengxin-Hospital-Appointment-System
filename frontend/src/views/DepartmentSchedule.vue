@@ -77,9 +77,15 @@
                   <p class="doctor-title">{{ schedule.doctorTitle }}</p>
                 </div>
               </div>
-              <span :class="['appointment-type', `type-${schedule.appointmentTypeId}`]">
-                {{ schedule.appointmentTypeName }}
-              </span>
+               <div class="appointment-type-wrapper">
+    <span :class="['appointment-type', `type-${schedule.appointmentTypeId}`]">
+      {{ schedule.appointmentTypeName }}
+    </span>
+    <!-- 新增费用显示 -->
+    <div class="appointment-fee">
+      ¥{{ schedule.fee ? schedule.fee.toFixed(2) : '—' }}
+    </div>
+  </div>
             </div>
 
             <!-- 卡片内容 -->
@@ -182,6 +188,10 @@
               <span class="label">预约类型：</span>
               <span class="value">{{ selectedSchedule?.appointmentTypeName }}</span>
             </div>
+            <div class="info-group">
+              <span class="label">费用：</span>
+              <span class="value">¥{{ selectedSchedule?.fee }}</span>
+              </div>
           </div>
 
           <div class="modal-footer">
@@ -193,6 +203,18 @@
         </div>
       </div>
     </transition>
+
+    <!-- 支付组件 -->
+ <Payment
+  :visible="showPaymentModal"
+  :appointment-id="paymentData.appointmentId"
+  :amount="paymentData.amount"
+  @close="showPaymentModal = false"
+  @payment-success="handlePaymentSuccess"
+  @payment-error="handlePaymentError"
+/>
+
+
   </div>
 </template>
 
@@ -201,6 +223,13 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import Navigation from '@/components/Navigation.vue'
+import Payment from '@/components/Payment.vue'
+
+const showPaymentModal = ref(false)
+const paymentData = ref({
+  appointmentId: null,
+  amount: 0
+})
 
 const route = useRoute()
 const router = useRouter()
@@ -232,6 +261,21 @@ const timeSlots = [
   { id: 'morning', name: '上午' },
   { id: 'afternoon', name: '下午' }
 ]
+
+function handlePaymentSuccess(data) {
+  alert('支付成功！您的预约已完成。')
+  setTimeout(() => {
+    showPaymentModal.value = false
+    fetchSchedules()
+  }, 300)
+}
+
+
+function handlePaymentError(errorMsg) {
+  console.error('支付失败：', errorMsg)
+  alert('支付失败：' + errorMsg)
+}
+
 
 // 日期选项
 const dateOptions = computed(() => {
@@ -331,24 +375,43 @@ const filteredSchedules = computed(() => {
   })
 })
 
+
+
+
 // 加载排班信息
 async function fetchSchedules() {
   loading.value = true
   try {
-    const { data } = await axios.get('/api/patient/schedules/all', {
-      params: {
-        deptId: departmentId.value,         
-        startDate: dateOptions.value[0].value,
-        endDate: dateOptions.value[6].value
-      }
-    })
-    schedules.value = data.data || []
+    // 同时请求排班和费用
+    const [scheduleRes, feeRes] = await Promise.all([
+      axios.get('/api/patient/schedules/all', {
+        params: {
+          deptId: departmentId.value,
+          startDate: dateOptions.value[0].value,
+          endDate: dateOptions.value[6].value
+        }
+      }),
+      axios.get('/api/fee/type_amount')
+    ])
+
+    const schedulesData = scheduleRes.data.data || []
+    const feeList = feeRes.data.data || []
+
+    // 构建费用映射
+    const feeMapLocal = new Map(feeList.map(item => [item.appointmentTypeId, item.fee]))
+
+    // 合并
+    schedules.value = schedulesData.map(s => ({
+      ...s,
+      fee: feeMapLocal.get(s.appointmentTypeId) || 0
+    }))
   } catch (err) {
     console.error('加载排班失败', err)
   } finally {
     loading.value = false
   }
 }
+
 
 // 处理预约/候补
 function handleAppointment(schedule) {
@@ -411,13 +474,23 @@ async function confirmAppointment() {
       )
 
       const resData = response.data
-      if (resData.code !== 200) {
-        alert('预约失败：' + resData.message)
-        return
-      }
+     if (resData.code !== 200) {
+  alert('预约失败：' + resData.message)
+  return
+}
 
-      showAppointModal.value = false
-      alert('预约成功！')
+// 从后端返回中拿到 appointmentId（如果接口返回有）
+const appointmentId = resData.data?.appointmentId || null
+
+showAppointModal.value = false
+
+// 弹出支付弹窗
+paymentData.value = {
+  appointmentId,
+  amount: selectedSchedule.value.fee
+}
+showPaymentModal.value = true
+
     }
 
     await fetchSchedules()
@@ -457,6 +530,27 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.appointment-type-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.appointment-type {
+  font-weight: 600;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background-color: #eef2ff;
+  color: #334155;
+}
+
+.appointment-fee {
+  font-size: 15px;
+  color: #64748b;
+}
+
 .page-container {
   min-height: 100vh;
 }

@@ -2,7 +2,10 @@ package org.example.backend.service;
 
 import org.example.backend.dto.*;
 import org.example.backend.pojo.Appointment;
+import org.example.backend.pojo.AppointmentType;
 import org.springframework.transaction.annotation.Transactional;
+
+import org.example.backend.dto.AppointmentInfoDTO;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -97,4 +100,10 @@ public interface AppointmentService {
     List<DoctorAppointmentStats> getDoctorAppointmentStats(LocalDate startDate, LocalDate endDate);
 
     List<DepartmentAppointmentStats> getDepartmentAppointmentStats(LocalDate startDate, LocalDate endDate);
+
+
+    /**
+     * 返回给前端费用相关数据
+     */
+    List<AppointmentType> getAllAppointmentTypes();
 }
