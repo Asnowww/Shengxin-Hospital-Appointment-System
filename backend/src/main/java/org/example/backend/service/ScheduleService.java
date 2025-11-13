@@ -67,4 +67,8 @@ public interface ScheduleService {
      * 推荐替代排班（同科室其他医生）
      */
     List<AlternativeScheduleVO> recommendAlternativeSchedules(Integer scheduleId, int limit);
+
+    List<ScheduleUtilizationStats> getScheduleUtilizationStats(LocalDate startDate, LocalDate endDate);
+
+    List<ScheduleCoverageStats> getDepartmentScheduleCoverageStats(LocalDate startDate, LocalDate endDate);
 }

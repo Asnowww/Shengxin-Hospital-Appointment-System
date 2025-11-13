@@ -9,9 +9,7 @@ import org.example.backend.service.WaitlistService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -539,4 +537,21 @@ public class ScheduleServiceImpl implements ScheduleService {
                 return "未知";
         }
     }
+
+    /**
+     * 统计排班利用率（已预约/总号源）
+     */
+    @Override
+    public List<ScheduleUtilizationStats> getScheduleUtilizationStats(LocalDate startDate, LocalDate endDate) {
+        return scheduleMapper.selectScheduleUtilizationStats(startDate, endDate);
+    }
+
+    /**
+     * 统计排班覆盖率（有排班的天数/总天数）
+     */
+    @Override
+    public List<ScheduleCoverageStats> getDepartmentScheduleCoverageStats(LocalDate startDate, LocalDate endDate) {
+        return scheduleMapper.selectScheduleCoverageStats(startDate, endDate);
+    }
+
 }

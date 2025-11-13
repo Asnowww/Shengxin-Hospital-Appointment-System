@@ -420,8 +420,8 @@ public class PatientAppointmentController {
             Long patientId = patient.getPatientId();
 
             // 验证支付方式
-            if (!paymentMethod.matches("alipay|wechat|card|cash")) {
-                return Result.error("不支持的支付方式，请选择: alipay, wechat, card, cash");
+            if (!paymentMethod.matches("alipay|wechat|card")) {
+                return Result.error("不支持的支付方式，请选择: alipay, wechat, card ");
             }
 
             // 调用支付服务

@@ -102,6 +102,7 @@
         </div>
 
         <div class="drawer-footer">
+ 
           <button 
             v-if="activeStatus === 'current' && selectedRecord.status !== 'cancelled'"
             @click="handleCancelAppointment(selectedRecord)"
@@ -114,16 +115,78 @@
             class="cancel-btn secondary">
             改约
           </button>
+                     <button 
+    v-if="activeStatus === 'current' && selectedRecord.status === 'pending'"
+    @click="handlePay(selectedRecord)"
+    class="cancel-btn third">
+    去支付
+  </button>
         </div>
       </div>
     </div>
   </div>
+
+<Payment
+  v-if="payDialogVisible"
+  :key="payInfo.appointmentId ?? 'none'"
+  :visible="payDialogVisible"
+  :appointment-id="payInfo.appointmentId"
+  :amount="payInfo.amount"
+  @close="closePayDialog"
+  @payment-success="handlePaymentSuccess"
+  @payment-error="handlePaymentError"
+/>
+
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import AppointmentRecordCard from './AppointmentRecordCard.vue'
+import Payment from './Payment.vue'
+
+const payDialogVisible = ref(false)
+const payInfo = ref({ appointmentId: null, amount: 0 })
+
+function handlePay(record) {
+  if (!record || !record.appointmentId) {
+    console.error('handlePay: appointmentId 不存在', record)
+    return
+  }
+
+  // 确保 amount 是一个数值
+  const amountNum = Number(record.feeFinal)
+  payInfo.value = {
+    appointmentId: record.appointmentId,
+    amount: Number.isFinite(amountNum) ? amountNum : 0
+  }
+
+  // 先设置 payInfo，再打开 dialog
+  payDialogVisible.value = true
+
+  console.log('打开支付窗口，payInfo：', payInfo.value)
+}
+
+function closePayDialog() {
+  // 关闭对话框并清理信息（防止下一次残留）
+  payDialogVisible.value = false
+  payInfo.value = { appointmentId: null, amount: 0 }
+}
+
+function handlePaymentSuccess(data) {
+  // data: 可由后端返回的支付结果
+  alert('支付成功')
+  closePayDialog()
+  closeDetailDrawer() // 如果需要同时关闭详情抽屉
+  fetchAppointments() // 刷新预约列表
+}
+
+function handlePaymentError(err) {
+  console.warn('支付错误：', err)
+  // 这里一般不自动关闭支付框，让用户重试或取消
+}
+
+
 
 const activeStatus = ref('current')
 const loading = ref(false)
@@ -593,6 +656,15 @@ h2 {
 }
 .cancel-btn.secondary:hover {
   background: #e2e8f0;
+}
+.cancel-btn.third {
+  background: #fcecd1;
+  color: #b9562b;
+  border: 1px solid #d3b81e;
+}
+.cancel-btn.third:hover {
+  background: #ecc896;
+  border-color: #d1724f;
 }
 
 
