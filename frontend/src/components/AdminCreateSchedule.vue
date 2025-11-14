@@ -118,8 +118,8 @@
               >
                 <option value="">请选择号别类型</option>
                 <option value="1">普通号</option>
-                <option value="2">特需号</option>
-                <option value="3">专家号</option>
+                <option value="2">专家号</option>
+                <option value="3">特需号</option>
               </select>
             </div>
 
