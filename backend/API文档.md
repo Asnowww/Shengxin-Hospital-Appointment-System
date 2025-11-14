@@ -6,7 +6,7 @@ Base URL: `/api/admin/appointment-types`
 
 ---
 
-## 1️⃣ 获取号别列表（分页 + 模糊搜索）
+## 1️⃣ 获取号别列表（支持模糊搜索）
 
 **URL:** `/list`
 **Method:** `GET`
@@ -15,14 +15,12 @@ Base URL: `/api/admin/appointment-types`
 
 | 参数      | 类型      | 必填 | 说明                          |
 | ------- | ------- | -- | --------------------------- |
-| page    | Integer | 否  | 当前页，默认 1                    |
-| size    | Integer | 否  | 每页数量，默认 10                  |
 | keyword | String  | 否  | 模糊搜索关键字（typeName 或 typeKey） |
 
 **示例请求:**
 
 ```
-GET /api/admin/appointment-types/list?page=1&size=5&keyword=专家
+GET /api/admin/appointment-types/list?keyword=专家
 ```
 
 **示例响应:**
@@ -40,11 +38,7 @@ GET /api/admin/appointment-types/list?page=1&size=5&keyword=专家
       "createdAt": "2025-11-13T10:00:00",
       "updatedAt": "2025-11-13T10:00:00"
     }
-  ],
-  "total": 1,
-  "size": 5,
-  "current": 1,
-  "pages": 1
+  ]
 }
 ```
 

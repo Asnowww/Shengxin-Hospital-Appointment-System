@@ -22,9 +22,8 @@ public class AppointmentTypeController {
      * 获取全部号别（支持分页 + 模糊搜索）
      */
     @GetMapping("/list")
-    public Page<AppointmentType> list(
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "10") Integer size,
+    public
+    Result<List<AppointmentType>> list(
             @RequestParam(required = false) String keyword
     ) {
         LambdaQueryWrapper<AppointmentType> wrapper = new LambdaQueryWrapper<>();
@@ -33,7 +32,8 @@ public class AppointmentTypeController {
                     .or()
                     .like(AppointmentType::getTypeKey, keyword);
         }
-        return appointmentTypeService.page(new Page<>(page, size), wrapper);
+        List<AppointmentType> list = appointmentTypeService.list(wrapper);
+        return Result.success(list);
     }
 
     /**
