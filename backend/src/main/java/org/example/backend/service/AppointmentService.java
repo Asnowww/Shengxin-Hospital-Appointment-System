@@ -106,4 +106,11 @@ public interface AppointmentService {
      * 返回给前端费用相关数据
      */
     List<AppointmentType> getAllAppointmentTypes();
+
+    /**
+     * 通过返回的appointmentId，计算对应号别和患者的报销比例
+     * @param appointmentId 挂号id
+     * @return 实际支付费用
+     */
+    Result<Object> calculateFee(Long appointmentId);
 }

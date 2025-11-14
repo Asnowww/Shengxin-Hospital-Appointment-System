@@ -4,9 +4,7 @@ import jakarta.annotation.Resource;
 import org.example.backend.dto.Result;
 import org.example.backend.pojo.AppointmentType;
 import org.example.backend.service.AppointmentService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +16,17 @@ import java.util.stream.Collectors;
 public class FeeController {
     @Resource
     private AppointmentService appointmentTypeService;
+
+    @Resource
+    private AppointmentService appointmentService;
+
+    /**
+     * 根据挂号ID计算费用并写回数据库
+     */
+    @PostMapping("/{appointmentId}")
+    public Result<Object> calculateFee(@PathVariable Long appointmentId) {
+        return appointmentService.calculateFee(appointmentId);
+    }
 
     /**
      * 获取相关费用
