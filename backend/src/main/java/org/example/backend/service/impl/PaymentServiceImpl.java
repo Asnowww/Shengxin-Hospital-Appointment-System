@@ -144,13 +144,6 @@ public class PaymentServiceImpl implements PaymentService {
         refund.setProcessedAt(LocalDateTime.now());
         refundMapper.updateById(refund);
 
-        // 更新支付状态
-        Payments payment = paymentMapper.selectById(refund.getPaymentId());
-        if (payment != null) {
-            payment.setStatus("refunded");
-            paymentMapper.updateById(payment);
-        }
-
         // 更新挂号状态
         Appointment appointment = appointmentMapper.selectById(refund.getAppointmentId());
         if (appointment != null) {
