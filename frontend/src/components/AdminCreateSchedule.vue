@@ -203,8 +203,13 @@ const props = defineProps({
   initialData: {
     type: Object,
     default: null
+  },
+  deptId: {
+    type: Number,
+    default: null
   }
 })
+
 
 // Emits
 const emit = defineEmits(['close', 'submit'])
@@ -254,24 +259,26 @@ const minDate = computed(() =>
 // 加载诊室
 async function loadRooms() {
   try {
-    const res = await axios.get('/api/rooms/list')
-    rooms.value = res.data
+    const { data } = await axios.get(`/api/rooms/dept/${props.deptId}`)
+console.log('接口返回:', data)
+const roomList = data?.data || data || []
+rooms.value = [...roomList.sort((a, b) => a.roomId - b.roomId)]
+console.log('✓ 诊室数据:', rooms.value)
+
   } catch (err) {
-    console.error('请求诊室接口失败：', err)
+    console.error('✗ 获取诊室列表失败', err)
   }
 }
 
 // 加载医生
 async function loadDoctors() {
   try {
-    const res = await axios.get('/api/doctor/list')
-    if (res.data.code === 200) {
-      doctors.value = res.data.data
-    } else {
-      console.error('获取医生失败：', res.data.message)
-    }
+    const { data } = await axios.get(`/api/doctor/dept/${props.deptId}`)
+    const doctorList = Array.isArray(data) ? data : (data.data || [])
+    doctors.value = doctorList
+    console.log('✓ 医生数据加载:', doctors.value.length, '条')
   } catch (err) {
-    console.error('请求医生接口失败：', err)
+    console.error('✗ 获取医生列表失败', err)
   }
 }
 
@@ -284,6 +291,9 @@ watch(
       loadRooms()
       loadDoctors()
     }
+     if (!props.isEditing && props.deptId) {
+        scheduleForm.deptId = props.deptId
+      }
   }
 )
 

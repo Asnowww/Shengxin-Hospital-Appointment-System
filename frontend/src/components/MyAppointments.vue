@@ -282,6 +282,7 @@ function mapStatus(apiStatus) {
     'booked': 'booked',
     'completed': 'completed',
     'cancelled': 'cancelled',
+    'refunded': 'cancelled',
     'no_show': 'no-show'
   }
   return statusMap[apiStatus] || 'pending'

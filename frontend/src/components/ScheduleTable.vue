@@ -483,7 +483,7 @@ watch(currentDate, () => {
 }
 
 .btn-nav {
-  background: #3b82f6;
+  background: #f093fb;
   color: white;
 }
 
@@ -492,8 +492,8 @@ watch(currentDate, () => {
 }
 
 .btn-reset {
-  background: #10b981;
-  color: white;
+  background: #f5e057;
+  color: rgb(3, 3, 3);
 }
 
 .btn-reset:hover {
