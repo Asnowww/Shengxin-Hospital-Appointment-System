@@ -5,6 +5,7 @@ import jakarta.annotation.Resource;
 import org.example.backend.dto.*;
 import org.example.backend.mapper.AppointmentMapper;
 import org.example.backend.mapper.AppointmentTypeMapper;
+import org.example.backend.mapper.PatientMapper;
 import org.example.backend.mapper.ScheduleMapper;
 import org.example.backend.pojo.*;
 import org.example.backend.service.AppointmentService;
@@ -19,6 +20,7 @@ import org.example.backend.dto.AppointmentInfoDTO;
 import org.springframework.transaction.support.TransactionSynchronizationAdapter;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -44,6 +46,9 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Resource
     private PaymentService paymentService;
+
+    @Resource
+    private PatientMapper patientMapper;
 
     // === 病人端 ===
 
@@ -454,4 +459,51 @@ public class AppointmentServiceImpl implements AppointmentService {
         return appointmentMapper.selectDepartmentAppointmentStats(startDate, endDate);
     }
 
+    @Override
+    public Result<Object> calculateFee(Long appointmentId) {
+
+        // 1. 查询挂号记录
+        Appointment appointment = appointmentMapper.selectById(appointmentId);
+        if (appointment == null) {
+            return Result.error("挂号记录不存在");
+        }
+
+        // 2. 查询挂号类别费用
+        AppointmentType type = appointmentTypeMapper.selectById(appointment.getAppointmentTypeId());
+        if (type == null) {
+            return Result.error("挂号类别不存在");
+        }
+
+        // 3. 查询患者身份类型
+        Patient patient = patientMapper.selectById(appointment.getPatientId());
+        if (patient == null) {
+            return Result.error("患者信息不存在");
+        }
+
+        BigDecimal baseFee = type.getFeeAmount();
+        BigDecimal discountRate;
+
+        switch (patient.getIdentityType()) {
+            case "student":
+                discountRate = new BigDecimal("0.95");
+                break;
+            case "teacher":
+                discountRate = new BigDecimal("0.90");
+                break;
+            case "staff":
+                discountRate = new BigDecimal("0.85");
+                break;
+            default:
+                discountRate = BigDecimal.ZERO;
+        }
+
+        // 4. 计算最终费用（=基础金额 × (1-报销比例)）
+        BigDecimal finalFee = baseFee.multiply(BigDecimal.ONE.subtract(discountRate));
+
+        // 写回 appointments 表
+        appointment.setFeeFinal(finalFee);
+        appointmentMapper.updateById(appointment);
+
+        return Result.success("费用已计算", finalFee);
+    }
 }
