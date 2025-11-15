@@ -96,7 +96,7 @@
         <form @submit.prevent="saveSchedule">
           <div class="form-group">
             <label>诊室</label>
-            <select v-model="formData.roomId" :disabled="!!editingSchedule" class="form-input">
+            <select v-model="formData.roomId" :disabled="editingSchedule||creatingFromTable" class="form-input">
               <option value="">请选择诊室</option>
               <option v-for="room in rooms" :key="room.roomId" :value="room.roomId">{{ room.roomName }}</option>
             </select>
@@ -124,17 +124,29 @@
 
           <div class="form-group">
             <label>日期</label>
-            <input v-model="formData.workDate" type="date" class="form-input" :disabled="!!editingSchedule" required />
+            <input v-model="formData.workDate" type="date" class="form-input" :disabled="editingSchedule||creatingFromTable" required />
           </div>
 
-          <div class="form-group">
-            <label>时间段</label>
-            <select v-model="formData.timeSlot" :disabled="!!editingSchedule" class="form-input" required>
-              <option value="">请选择时间段</option>
-              <option value="0">上午</option>
-              <option value="1">下午</option>
-            </select>
-          </div>
+         <div class="form-group">
+  <label>时间段</label>
+  <select 
+    v-model="formData.timeSlot" 
+    :disabled="editingSchedule||creatingFromTable " 
+    class="form-input" 
+    required
+  >
+    <option value="">请选择时间段</option>
+    <option 
+      v-for="(slot, idx) in timeSlots" 
+      :key="idx" 
+      :value="idx"
+      :disabled="!canOperate(formData.workDate, idx)"
+    >
+      {{ slot }}
+    </option>
+  </select>
+</div>
+
 
           <div class="form-group">
             <label>最大预约数</label>
@@ -167,6 +179,7 @@ const schedules = ref([])
 const loading = ref(false)
 const showModal = ref(false)
 const editingSchedule = ref(null)
+const creatingFromTable = ref(false)
 
 const timeSlots = ['上午', '下午']
 
@@ -182,14 +195,16 @@ const formData = ref({
   doctorId: '',
   workDate: '',
   timeSlot: '',
-  maxSlots: 10
+  maxSlots: ''
 })
 
-// 判断一个排班格是否可操作
+// 判断日期限制
 const canOperate = (date, timeSlot) => {
   const now = new Date()
   const todayStr = formatDate(now)
-  const dateStr = formatDate(date)
+
+  // date 可能是字符串 YYYY-MM-DD
+  const dateStr = typeof date === 'string' ? date : formatDate(date)
 
   // 1) 如果日期 < 今天 → 禁止
   if (dateStr < todayStr) return false
@@ -202,15 +217,11 @@ const canOperate = (date, timeSlot) => {
 
   // 上午 slot = 0；下午 slot = 1
 
-  // 2) 上午 7 点前 → 上午 & 下午都能操作
-  if (hour < 7) return true
-
-  // 3) 中午 12 点前 → 只能操作下午 (slot=1)
-  if (hour < 12) return timeSlot === 1
-
-  // 4) 超过 12 点 → 今天全部不能操作
-  return false
+  if (hour < 7) return true       // 上午7点前，上午/下午都可操作
+  if (hour < 12) return timeSlot === 1 // 上午过了，只能操作下午
+  return false                    // 超过12点，今天不可操作
 }
+
 
 
 // 获取本周日期数组
@@ -323,6 +334,7 @@ const resetToCurrentWeek = () => {
 
 // 弹窗函数
 const addSchedule = (roomId, date, timeSlot) => {
+  creatingFromTable.value = true
   editingSchedule.value = null
   formData.value = {
     roomId,
@@ -391,7 +403,7 @@ const saveSchedule = async () => {
   }
 }
 
-const closeModal = () => { showModal.value = false; editingSchedule.value = null }
+const closeModal = () => { showModal.value = false; editingSchedule.value = null; creatingFromTable.value = false}
 
 // 初始化和监听
 onMounted(async () => {

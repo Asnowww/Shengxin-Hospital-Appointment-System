@@ -208,7 +208,6 @@
  <Payment
   :visible="showPaymentModal"
   :appointment-id="paymentData.appointmentId"
-  :amount="paymentData.amount"
   @close="showPaymentModal = false"
   @payment-success="handlePaymentSuccess"
   @payment-error="handlePaymentError"
@@ -227,8 +226,7 @@ import Payment from '@/components/Payment.vue'
 
 const showPaymentModal = ref(false)
 const paymentData = ref({
-  appointmentId: null,
-  amount: 0
+  appointmentId: null
 })
 
 const route = useRoute()
@@ -486,8 +484,7 @@ showAppointModal.value = false
 
 // 弹出支付弹窗
 paymentData.value = {
-  appointmentId,
-  amount: selectedSchedule.value.fee
+  appointmentId
 }
 showPaymentModal.value = true
 

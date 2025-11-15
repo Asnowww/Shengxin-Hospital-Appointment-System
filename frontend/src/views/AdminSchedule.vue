@@ -53,47 +53,58 @@
             </div>
           </div>
 
-          <div class="top-actions">
-  <button class="add-schedule-btn" @click="openCreateSchedule">
-    + 新增排班
-  </button>
-</div>
 
-
-          <!-- 科室选择区 -->
-          <div class="filter-section">
+         
+<!-- 科室选择区 -->
+<div class="filter-section">
   <div class="filter-group">
     <label class="filter-label">选择科室</label>
+    
+    <div class="dept-control">
+      <!-- 自定义两级下拉 -->
+      <div class="dept-dropdown" @click.stop="toggleDropdown">
+        <div class="dept-selected">
+          {{ selectedDeptName || '请选择科室' }}
+        </div>
 
-    <!-- 自定义两级下拉 -->
-    <div class="dept-dropdown" @click.stop="toggleDropdown">
-      <div class="dept-selected">
-        {{ selectedDeptName || '请选择科室' }}
-      </div>
+        <div class="dropdown-menu" v-if="dropdownVisible">
+          <!-- 一级科室 -->
+          <div
+            v-for="dept in departments"
+            :key="dept.deptId"
+            class="menu-item"
+            @mouseenter="hoverParent = dept"
+          >
+            {{ dept.deptName }}
 
-      <div class="dropdown-menu" v-if="dropdownVisible">
-        <!-- 一级科室 -->
-        <div
-          v-for="dept in departments"
-          :key="dept.deptId"
-          class="menu-item"
-          @mouseenter="hoverParent = dept"
-        >
-          {{ dept.deptName }}
-
-          <!-- 二级科室悬挂层 -->
-          <div class="submenu" v-if="hoverParent === dept">
-            <div
-              v-for="child in (dept.children || [])"
-              :key="child.deptId"
-              class="submenu-item"
-              @click.stop="selectChild(child)"
-            >
-              {{ child.deptName }}
+            <!-- 二级科室悬挂层 -->
+            <div class="submenu" v-if="hoverParent === dept">
+              <div
+                v-for="child in (dept.children || [])"
+                :key="child.deptId"
+                class="submenu-item"
+                @click.stop="selectChild(child)"
+              >
+                {{ child.deptName }}
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- 创建排班按钮 -->
+      <button 
+        class="add-schedule-btn"
+        :class="{ 'disabled': !selectedDeptId }"
+        :disabled="!selectedDeptId"
+        @click="openCreateSchedule"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        创建排班
+      </button>
     </div>
   </div>
 </div>
@@ -115,15 +126,17 @@
       </main>
     </div>
     <!-- 排班弹窗 -->
-    <AdminCreateSchedule
-      :show="showScheduleModal"
-      :isEditing="scheduleEditing"
-      :initialData="scheduleInitialData"
-      :doctors="doctors"
-      :rooms="rooms"
-      @close="handleModalClose"
-      @submit="handleScheduleSubmit"
-    />
+<AdminCreateSchedule
+  :show="showScheduleModal"
+  :isEditing="scheduleEditing"
+  :initialData="scheduleInitialData"
+  :doctors="doctors"
+  :rooms="rooms"
+  :deptId="selectedDeptId"  
+  @close="handleModalClose"
+  @submit="handleScheduleSubmit"
+/>
+
   </div>
 </template>
 
@@ -437,20 +450,150 @@ onUnmounted(() => {
   color: #4a5568;
 }
 
-.filter-select {
-  padding: 0.625rem;
+/* 科室控制容器 */
+.dept-control {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.dept-dropdown {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  cursor: pointer;
+}
+
+.dept-selected {
+  padding: 0.625rem 1rem;
   border: 2px solid #e2e8f0;
   border-radius: 8px;
-  font-size: 0.9rem;
+  background: white;
   transition: all 0.3s ease;
+  font-size: 0.95rem;
+  color: #2d3748;
 }
 
-.filter-select:focus {
-  outline: none;
-  border-color: #f5576c;
-  box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.1);
+.dept-selected:hover {
+  border-color: #cbd5e0;
 }
 
+.dropdown-menu {
+  position: absolute;
+  top: 110%;
+  left: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  width: 100%;
+  z-index: 10;
+  min-width: 200px;
+}
+
+.menu-item {
+  padding: 0.6rem 1rem;
+  position: relative;
+  background: white;
+  transition: background 0.2s ease;
+}
+
+.menu-item:hover {
+  background: #f7fafc;
+}
+
+/* 二级菜单 */
+.submenu {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  width: 200px;
+  margin-left: 0.5rem;
+}
+
+.submenu-item {
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.submenu-item:hover {
+  background: #ffe5ea;
+  color: #f5576c;
+}
+
+/* 创建排班按钮 */
+.add-schedule-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  border: none;
+  padding: 0.625rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.2);
+}
+
+.add-schedule-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(245, 87, 108, 0.3);
+}
+
+.add-schedule-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.add-schedule-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.add-schedule-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .filter-section {
+    padding: 1rem;
+  }
+
+  .dept-control {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .dept-dropdown {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .add-schedule-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .submenu {
+    position: static;
+    margin: 0;
+    box-shadow: none;
+    border: none;
+    background: #f7fafc;
+    border-radius: 0;
+  }
+}
 /* 空状态 */
 .empty-state {
   display: flex;

@@ -55,7 +55,6 @@
         <transition name="fade" mode="out-in">
           <ProfileInfo 
             v-if="activeTab === 'info'" 
-            @updated="handleProfileUpdated"
             key="info"
           />
           <ProfileAppointments 
@@ -99,9 +98,6 @@ function handleResize() {
   updateNavHeight()
 }
 
-function handleProfileUpdated() {
-  console.log('个人信息已更新')
-}
 
 onMounted(async () => {
   await nextTick()
