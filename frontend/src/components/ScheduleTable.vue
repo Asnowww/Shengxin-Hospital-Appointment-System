@@ -46,23 +46,36 @@
             <td v-for="(date, didx) in weekDates" :key="'cell-' + room.roomId + '-' + didx" class="col-schedule">
               <div class="date-group">
                 <div v-for="(slot, slotIdx) in timeSlots" :key="slotIdx" class="slot-cell">
-                  <div class="slot-container">
-                    <div
-                      v-for="schedule in getSchedules(room.roomId, date, slotIdx)"
-                      :key="schedule.scheduleId"
-                      class="schedule-item"
-                      @click="editSchedule(schedule)"
-                    >
+                  <div class="slot-container" :class="{ disabled: !canOperate(date, slotIdx) }">
+                     <div
+    v-for="schedule in getSchedules(room.roomId, date, slotIdx)"
+    :key="schedule.scheduleId"
+    class="schedule-item"
+    :class="{ disabled: !canOperate(date, slotIdx) }"
+    @click="!canOperate(date, slotIdx) || editSchedule(schedule)"
+  >
                       <div class="doctor-info">
-                        <div class="doctor-name">{{ schedule.doctorName }}</div>
-                        <div class="appointments">预约: {{ schedule.bookedSlots }}/{{ schedule.maxSlots }}</div>
-                      </div>
+  <div class="doctor-name">
+    {{ schedule.doctorName }}
+    <span class="type-tag" :class="'type-' + schedule.appointmentTypeId">
+      {{ getTypeLabel(schedule.appointmentTypeId) }}
+    </span>
+  </div>
+  <div class="appointments">
+    预约: {{ schedule.bookedSlots }}/{{ schedule.maxSlots }}
+  </div>
+</div>
+
                       <div class="actions" @click.stop>
-                        <button @click.stop="editSchedule(schedule)" class="btn-edit" title="编辑">编</button>
+                        <!-- <button @click.stop="editSchedule(schedule)" class="btn-edit" title="编辑">编</button> -->
                         <button @click.stop="deleteSchedule(schedule)" class="btn-delete" title="删除">删</button>
                       </div>
                     </div>
-                    <button @click="addSchedule(room.roomId, date, slotIdx)" class="btn-add">+</button>
+                     <button
+    class="btn-add"
+    :disabled="!canOperate(date, slotIdx)"
+    @click="canOperate(date, slotIdx) && addSchedule(room.roomId, date, slotIdx)"
+  >+</button>
                   </div>
                 </div>
               </div>
@@ -96,6 +109,16 @@
               <option v-for="doctor in doctors" :key="doctor.doctorId" :value="doctor.doctorId">
                 {{ doctor.doctorName }}
               </option>
+            </select>
+          </div>
+
+            <div class="form-group">
+            <label>号别</label>
+            <select v-model="formData.appointmentTypeId" class="form-input" required>
+              <option value="">请选择号别类型</option>
+              <option value="1">普通</option>
+              <option value="2">专家</option>
+              <option value="3">特需</option>
             </select>
           </div>
 
@@ -147,6 +170,13 @@ const editingSchedule = ref(null)
 
 const timeSlots = ['上午', '下午']
 
+const getTypeLabel = (typeId) => {
+  if (typeId === 1) return '普'
+  if (typeId === 2) return '专'
+  if (typeId === 3) return '特'
+  return ''
+}
+
 const formData = ref({
   roomId: '',
   doctorId: '',
@@ -154,6 +184,34 @@ const formData = ref({
   timeSlot: '',
   maxSlots: 10
 })
+
+// 判断一个排班格是否可操作
+const canOperate = (date, timeSlot) => {
+  const now = new Date()
+  const todayStr = formatDate(now)
+  const dateStr = formatDate(date)
+
+  // 1) 如果日期 < 今天 → 禁止
+  if (dateStr < todayStr) return false
+
+  // 2) 如果是未来日期 → 永远可操作
+  if (dateStr > todayStr) return true
+
+  // 下面是 “今天” 的逻辑
+  const hour = now.getHours()
+
+  // 上午 slot = 0；下午 slot = 1
+
+  // 2) 上午 7 点前 → 上午 & 下午都能操作
+  if (hour < 7) return true
+
+  // 3) 中午 12 点前 → 只能操作下午 (slot=1)
+  if (hour < 12) return timeSlot === 1
+
+  // 4) 超过 12 点 → 今天全部不能操作
+  return false
+}
+
 
 // 获取本周日期数组
 const getMonday = (date) => {
@@ -190,11 +248,14 @@ const getSchedules = (roomId, date, timeSlot) => {
   const dateStr = formatDate(date)
   return schedules.value.filter(s => {
     const sDate = s.workDate ? s.workDate.split(' ')[0] : ''
-    return String(s.roomId) === String(roomId) &&
+
+    return s.status !== 'cancelled' &&       
+           String(s.roomId) === String(roomId) &&
            sDate === dateStr &&
            String(s.timeSlot) === String(timeSlot)
   })
 }
+
 
 // 请求接口
 async function fetchRooms() {
@@ -287,8 +348,14 @@ const editSchedule = (schedule) => {
 
 const deleteSchedule = async (schedule) => {
   if (!confirm('确定删除该排班吗？')) return
+  const operatorId = localStorage.getItem('userId') 
   try {
-    await axios.delete(`/api/schedule/${schedule.scheduleId}`, { params: { reason: '管理员删除' } })
+   await axios.delete(`/api/admin/schedules/${schedule.scheduleId}`, {
+  params: {
+    reason: '管理员删除',
+    operatorId: operatorId
+  }
+})
     alert('删除成功')
     fetchSchedules()
   } catch (err) {
@@ -305,13 +372,16 @@ const saveSchedule = async () => {
         maxSlots: formData.value.maxSlots
       })
     } else {
-      await axios.post('/api/admin/schedules', {
-        roomId: formData.value.roomId,
-        doctorId: formData.value.doctorId,
-        workDate: formData.value.workDate,
-        timeSlot: parseInt(formData.value.timeSlot),
-        maxSlots: formData.value.maxSlots
-      })
+    await axios.post('/api/admin/schedules/create', {
+  roomId: formData.value.roomId,
+  deptId: props.deptId,
+  appointmentTypeId: 1,
+  doctorId: formData.value.doctorId,
+  startDate: formData.value.workDate,  
+  timeSlots: [parseInt(formData.value.timeSlot)],  
+  maxSlots: formData.value.maxSlots
+})
+
     }
     alert('保存成功')
     closeModal()
@@ -343,6 +413,29 @@ watch(currentDate, () => {
   padding: 0;
   box-sizing: border-box;
 }
+.slot-container.disabled,
+.schedule-item.disabled {
+  opacity: 0.75;
+  pointer-events: none; /* 避免误点 */
+}
+
+.btn-add:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.type-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 4px;
+  font-size: 12px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.type-1 { background: #4caf50; } /* 普通：绿 */
+.type-2 { background: #2196f3; } /* 专家：蓝 */
+.type-3 { background: #f44336; } /* 特需：红 */
 
 .schedule-container {
   padding: 0;

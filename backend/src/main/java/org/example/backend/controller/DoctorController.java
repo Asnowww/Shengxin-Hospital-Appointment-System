@@ -80,5 +80,17 @@ public class DoctorController {
             return Result.error("删除失败：医生不存在");
         }
     }
+
+    /**
+     * 根据所属科室id查询医生
+     */
+    @GetMapping("/dept/{deptId}")
+    public Result<List<DoctorVO>> getDoctorsByDept(@PathVariable Integer deptId) {
+        if (deptId == null) {
+            return Result.error("科室ID不能为空");
+        }
+        List<DoctorVO> doctors = doctorService.getDoctorVOByDeptId(deptId);
+        return Result.success(doctors);
+    }
 }
 
