@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class AppointmentServiceImpl implements AppointmentService {
@@ -139,7 +140,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
             @Override
             public void afterCommit() {
-                notificationEmailService.sendAppointmentCreatedNotification(appointment.getAppointmentId());
+                CompletableFuture.runAsync(() ->
+                        notificationEmailService.sendAppointmentCreatedNotification(appointment.getAppointmentId())
+                );
             }
         });
 
