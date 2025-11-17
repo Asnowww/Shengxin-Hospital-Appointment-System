@@ -52,21 +52,22 @@
 
       <!-- 右侧主内容区 -->
       <main class="main-content">
-        <transition name="fade" mode="out-in">
-          <ProfileInfo 
-            v-if="activeTab === 'info'" 
-            key="info"
-          />
-          <ProfileAppointments 
-            v-else-if="activeTab === 'appointment'"
-            key="appointment"
-          />
-          <ProfileWaitList
-            v-else-if="activeTab === 'waitlist'"
-            key="waitlist"
-          />
-        </transition>
-      </main>
+    <transition name="fade" mode="out-in">
+      <ProfileInfo 
+        v-if="activeTab === 'info'" 
+        key="info"
+      />
+      <ProfileAppointments 
+        v-else-if="activeTab === 'appointment'"
+        key="appointment"
+      />
+      <ProfileWaitList
+        v-else-if="activeTab === 'waitlist'"
+        key="waitlist"
+      />
+    </transition>
+</main>
+
     </div>
   </div>
 </template>
@@ -77,7 +78,6 @@ import Navigation from '@/components/Navigation.vue'
 import ProfileInfo from '@/components/PersonalInfo.vue'
 import ProfileAppointments from '@/components/MyAppointments.vue'
 import ProfileWaitList from '@/components/MyWaitList.vue'
-import axios from 'axios'
 
 // tab 管理
 const activeTab = ref('info')

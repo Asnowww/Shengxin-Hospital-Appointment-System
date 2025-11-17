@@ -72,16 +72,16 @@ const displayAmount = computed(() => {
   return Number.isFinite(n) ? n.toFixed(2) : '0.00'
 })
 
+import { nextTick } from 'vue'
+
+
+
 // 监听 visible 和 appointmentId，只要弹窗打开就去获取费用
-watch(
-  () => props.visible,
-  async (v) => {
-    if (v && props.appointmentId) {
-      // 使用 nextTick 确保 props 已更新
-      await new Promise(resolve => setTimeout(resolve, 0))
-      console.log('fetching fee for appointmentId:', props.appointmentId)
-      await fetchFeeInfo()
-    }
+watch(() => props.visible,async (v) => {
+     if (v && props.appointmentId) {
+    await nextTick()
+    await fetchFeeInfo()
+  }
     if (!v) {
       loading.value = false
       errorMsg.value = ''

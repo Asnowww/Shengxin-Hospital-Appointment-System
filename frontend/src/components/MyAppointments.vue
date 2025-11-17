@@ -129,15 +129,16 @@
         </div>
       </div>
     </div>
-  </div>
 
-<Payment
+    <Payment
   :visible="payDialogVisible"
   :appointment-id="payInfo.appointmentId"
   @close="closePayDialog"
   @payment-success="handlePaymentSuccess"
   @payment-error="handlePaymentError"
 />
+  </div>
+  
 
 </template>
 
