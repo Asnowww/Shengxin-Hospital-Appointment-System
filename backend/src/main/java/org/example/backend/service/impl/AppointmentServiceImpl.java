@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class AppointmentServiceImpl implements AppointmentService {
@@ -101,7 +102,11 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         // 设置费用
         appointment.setFeeOriginal(appointmentType.getFee());
-        appointment.setFeeFinal(appointmentType.getFee()); // 可以在这里应用折扣逻辑
+        // 查询患者用于计算 feeFinal
+        Patient patient = patientMapper.selectById(param.getPatientId());
+        BigDecimal finalFee = computeFinalFee(appointmentType, patient);
+
+        appointment.setFeeFinal(finalFee);
 
         // 设置状态
         appointment.setPaymentStatus("unpaid");  // 待支付
@@ -135,7 +140,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
             @Override
             public void afterCommit() {
-                notificationEmailService.sendAppointmentCreatedNotification(appointment.getAppointmentId());
+                CompletableFuture.runAsync(() ->
+                        notificationEmailService.sendAppointmentCreatedNotification(appointment.getAppointmentId())
+                );
             }
         });
 
@@ -462,48 +469,33 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     public Result<Object> calculateFee(Long appointmentId) {
 
-        // 1. 查询挂号记录
         Appointment appointment = appointmentMapper.selectById(appointmentId);
-        if (appointment == null) {
-            return Result.error("挂号记录不存在");
-        }
+        if (appointment == null) return Result.error("挂号记录不存在");
 
-        // 2. 查询挂号类别费用
         AppointmentType type = appointmentTypeMapper.selectById(appointment.getAppointmentTypeId());
-        if (type == null) {
-            return Result.error("挂号类别不存在");
-        }
+        if (type == null) return Result.error("挂号类别不存在");
 
-        // 3. 查询患者身份类型
         Patient patient = patientMapper.selectById(appointment.getPatientId());
-        if (patient == null) {
-            return Result.error("患者信息不存在");
-        }
+        if (patient == null) return Result.error("患者信息不存在");
 
-        BigDecimal baseFee = type.getFeeAmount();
-        BigDecimal discountRate;
+        BigDecimal finalFee = computeFinalFee(type, patient);
 
-        switch (patient.getIdentityType()) {
-            case "student":
-                discountRate = new BigDecimal("0.95");
-                break;
-            case "teacher":
-                discountRate = new BigDecimal("0.90");
-                break;
-            case "staff":
-                discountRate = new BigDecimal("0.85");
-                break;
-            default:
-                discountRate = BigDecimal.ZERO;
-        }
-
-        // 4. 计算最终费用（=基础金额 × (1-报销比例)）
-        BigDecimal finalFee = baseFee.multiply(BigDecimal.ONE.subtract(discountRate));
-
-        // 写回 appointments 表
         appointment.setFeeFinal(finalFee);
         appointmentMapper.updateById(appointment);
 
         return Result.success("费用已计算", finalFee);
+    }
+
+    @Override
+    public BigDecimal computeFinalFee(AppointmentType type, Patient patient) {
+        BigDecimal baseFee = type.getFeeAmount();
+        BigDecimal discountRate = switch (patient.getIdentityType()) {
+            case "student" -> new BigDecimal("0.95");
+            case "teacher" -> new BigDecimal("0.90");
+            case "staff" -> new BigDecimal("0.85");
+            default -> BigDecimal.ZERO;
+        };
+
+        return baseFee.multiply(BigDecimal.ONE.subtract(discountRate));
     }
 }

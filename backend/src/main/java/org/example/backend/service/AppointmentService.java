@@ -3,10 +3,12 @@ package org.example.backend.service;
 import org.example.backend.dto.*;
 import org.example.backend.pojo.Appointment;
 import org.example.backend.pojo.AppointmentType;
+import org.example.backend.pojo.Patient;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.example.backend.dto.AppointmentInfoDTO;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -113,4 +115,6 @@ public interface AppointmentService {
      * @return 实际支付费用
      */
     Result<Object> calculateFee(Long appointmentId);
+
+    BigDecimal computeFinalFee(AppointmentType type, Patient patient);
 }
