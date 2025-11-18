@@ -220,7 +220,27 @@ public class AppointmentServiceImpl implements AppointmentService {
             // 5. 如果未支付，直接取消预约
             appointment.setAppointmentStatus("cancelled");
             appointment.setPaymentStatus("unpaid");
+            appointment.setUpdatedAt(LocalDateTime.now());
             appointmentMapper.updateById(appointment);
+        }
+
+        // 6. 释放排班号源
+        Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
+        if (schedule != null) {
+            schedule.setAvailableSlots(schedule.getAvailableSlots() + 1);
+            schedule.setUpdatedAt(LocalDateTime.now());
+            scheduleMapper.updateById(schedule);
+            System.out.println("已释放号源，当前可用号源：" + schedule.getAvailableSlots());
+
+            // 7. 取消成功后，处理候补队列自动转正
+            Integer scheduleId = appointment.getScheduleId();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+                @Override
+                public void afterCommit() {
+                    // 处理候补队列自动转正（按优先级和时间顺序）
+                    waitlistService.processWaitlistConversion(scheduleId);
+                }
+            });
         }
 
         return true;
@@ -270,6 +290,16 @@ public class AppointmentServiceImpl implements AppointmentService {
                 oldSchedule.setAvailableSlots(oldSchedule.getAvailableSlots() + 1);
                 oldSchedule.setUpdatedAt(LocalDateTime.now());
                 scheduleMapper.updateById(oldSchedule);
+
+                // 处理候补队列自动转正
+                Integer scheduleId = appointment.getScheduleId();
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+                    @Override
+                    public void afterCommit() {
+                        // 处理候补队列自动转正（按优先级和时间顺序）
+                        waitlistService.processWaitlistConversion(scheduleId);
+                    }
+                });
             }
 
             // 减少新排班号源
