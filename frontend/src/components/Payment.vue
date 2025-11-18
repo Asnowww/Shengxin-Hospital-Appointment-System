@@ -3,6 +3,19 @@
     <div class="popup" @click.stop>
       <h2>确认支付</h2>
       <p>请确认是否支付 <strong>￥{{ displayAmount }}</strong></p>
+      <div class="fee-box">
+
+  <div class="fee-row">
+    <span>原始费用：</span>
+    <strong>￥{{ feeOriginal.toFixed(2) }}</strong>
+  </div>
+
+  <div class="fee-row">
+    <span>报销后费用：</span>
+    <strong>￥{{ feeFinal.toFixed(2) }}</strong>
+  </div>
+</div>
+
 
       <div class="payment-methods">
         <label v-for="method in paymentMethods" :key="method.value" class="method-item">
@@ -34,7 +47,6 @@ import axios from 'axios'
 
 const props = defineProps({
   appointmentId: { type: [Number, String, null], default: null },
-  amount: { type: [Number, String, null], default: 0 },
   visible: { type: Boolean, default: false }
 })
 
@@ -44,34 +56,83 @@ const loading = ref(false)
 const errorMsg = ref('')
 const selectedMethod = ref('alipay')
 
+// 新增：从后端获取的费用
+const feeOriginal = ref(0)
+const feeFinal = ref(0)
+
 const paymentMethods = [
   { label: '支付宝', value: 'alipay' },
   { label: '微信支付', value: 'wechat' },
   { label: '银行卡', value: 'card' }
 ]
 
-// 安全格式化金额：当不是合法数字时显示 0.00
+// 显示支付金额 = feeFinal
 const displayAmount = computed(() => {
-  const n = Number(props.amount)
+  const n = Number(feeFinal.value)
   return Number.isFinite(n) ? n.toFixed(2) : '0.00'
 })
 
-// 当父传入 visible=false 时，清除本地错误/loading 状态（防止残留）
-watch(() => props.visible, (v) => {
-  if (!v) {
-    loading.value = false
-    errorMsg.value = ''
-    selectedMethod.value = 'alipay'
+import { nextTick } from 'vue'
+
+
+
+// 监听 visible 和 appointmentId，只要弹窗打开就去获取费用
+watch(() => props.visible,async (v) => {
+     if (v && props.appointmentId) {
+    await nextTick()
+    await fetchFeeInfo()
   }
-})
+    if (!v) {
+      loading.value = false
+      errorMsg.value = ''
+      selectedMethod.value = 'alipay'
+    }
+  },
+  { flush: 'post' } // 关键：在组件更新后执行
+)
+
+watch(
+  () => props.appointmentId,
+  async (newId) => {
+    console.log('appointmentId changed:', newId)
+    if (props.visible && newId) {
+      await nextTick()
+      await fetchFeeInfo()
+    }
+  }
+)
+
+async function fetchFeeInfo() {
+  if (!props.appointmentId) {
+    console.warn('fetchFeeInfo: appointmentId 为空')
+    errorMsg.value = '预约信息不完整'
+    return
+  }
+
+  try {
+    console.log('开始获取费用，appointmentId:', props.appointmentId)
+    const res = await axios.get(`/api/fee/${props.appointmentId}`)
+    
+    if (res.data.code === 200) {
+      feeOriginal.value = res.data.data.feeOriginal || 0
+      feeFinal.value = res.data.data.feeFinal || 0
+      console.log('费用获取成功:', feeOriginal.value, feeFinal.value)
+    } else {
+      throw new Error(res.data.message || '费用查询失败')
+    }
+  } catch (err) {
+    console.error('fetchFeeInfo 出错:', err)
+    feeOriginal.value = 0
+    feeFinal.value = 0
+    errorMsg.value = '无法获取费用，请稍后再试'
+  }
+}
 
 function handleOverlayClick() {
-  // 点击遮罩视为取消
   onCancel()
 }
 
 function onCancel() {
-  // 发出 close 事件，由父去彻底清理 payInfo
   emit('close')
 }
 
@@ -81,8 +142,7 @@ async function handlePay() {
     return
   }
 
-  // 额外校验 appointmentId
-  if (props.appointmentId === null || props.appointmentId === undefined) {
+  if (!props.appointmentId) {
     errorMsg.value = '预约信息不完整，无法支付'
     emit('payment-error', errorMsg.value)
     return
@@ -93,7 +153,6 @@ async function handlePay() {
 
   try {
     const token = localStorage.getItem('token') || ''
-
     const response = await axios.put(
       '/api/patient/appointment/pay',
       null,
@@ -108,22 +167,15 @@ async function handlePay() {
       }
     )
 
-    if (response?.data?.code === 200 || response?.data?.success) {
+    if (response.data.code === 200) {
       emit('payment-success', response.data.data)
-      // 不直接 emit close：让父决定是否关闭（父通常会在 success 回调中 close）
     } else {
-      errorMsg.value = response.data?.msg || response.data?.message || '支付失败，请重试'
+      errorMsg.value = response.data.message || '支付失败'
       emit('payment-error', errorMsg.value)
     }
+
   } catch (error) {
-    console.error('支付请求错误:', error)
-    if (error.response) {
-      errorMsg.value = error.response.data?.msg || error.response.data?.message || '支付失败'
-    } else if (error.request) {
-      errorMsg.value = '网络连接失败，请检查网络'
-    } else {
-      errorMsg.value = error.message || '发生未知错误'
-    }
+    errorMsg.value = error.response?.data?.message || '支付失败'
     emit('payment-error', errorMsg.value)
   } finally {
     loading.value = false
@@ -132,9 +184,29 @@ async function handlePay() {
 </script>
 
 
+
 <style scoped>
 .payment-container {
   display: inline-block;
+}
+.fee-box {
+  margin: 1rem 0 1.5rem;
+  text-align: left;
+  background: #f7fafc;
+  padding: 1rem;
+  border-radius: 10px;
+}
+
+.fee-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+  font-size: 0.95rem;
+  color: #4a5568;
+}
+
+.fee-row strong {
+  color: #2d3748;
 }
 
 .pay-btn {

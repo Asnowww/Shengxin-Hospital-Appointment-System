@@ -3,10 +3,12 @@ package org.example.backend.service;
 import org.example.backend.dto.*;
 import org.example.backend.pojo.Appointment;
 import org.example.backend.pojo.AppointmentType;
+import org.example.backend.pojo.Patient;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.example.backend.dto.AppointmentInfoDTO;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -106,4 +108,13 @@ public interface AppointmentService {
      * 返回给前端费用相关数据
      */
     List<AppointmentType> getAllAppointmentTypes();
+
+    /**
+     * 通过返回的appointmentId，计算对应号别和患者的报销比例
+     * @param appointmentId 挂号id
+     * @return 实际支付费用
+     */
+    Result<Object> calculateFee(Long appointmentId);
+
+    BigDecimal computeFinalFee(AppointmentType type, Patient patient);
 }

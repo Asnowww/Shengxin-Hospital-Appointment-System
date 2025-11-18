@@ -1,5 +1,6 @@
 package org.example.backend.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
@@ -64,6 +65,42 @@ public class DoctorServiceImpl extends ServiceImpl<DoctorMapper, Doctor> impleme
             return vo;
         }).toList();
     }
+
+    @Override
+    public List<DoctorVO> getDoctorVOByDeptId(Integer deptId) {
+        // 1. 查询指定科室的医生
+        List<Doctor> doctors = doctorMapper.selectList(
+                new LambdaQueryWrapper<Doctor>().eq(Doctor::getDeptId, deptId)
+        );
+
+        if (doctors.isEmpty()) return Collections.emptyList();
+
+        // 2. 获取医生对应的 userId 和 deptId 列表
+        List<Long> userIds = doctors.stream().map(Doctor::getUserId).distinct().toList();
+        List<Integer> deptIds = doctors.stream().map(Doctor::getDeptId).distinct().toList();
+
+        // 3. 查询用户表获取医生姓名
+        Map<Long, String> userNameMap = userMapper.selectBatchIds(userIds).stream()
+                .collect(Collectors.toMap(User::getUserId, User::getUsername));
+
+        // 4. 查询科室表获取科室名称
+        Map<Integer, String> deptNameMap = departmentMapper.selectBatchIds(deptIds).stream()
+                .collect(Collectors.toMap(Department::getDeptId, Department::getDeptName));
+
+        // 5. 构建 DoctorVO 列表返回
+        return doctors.stream().map(d -> {
+            DoctorVO vo = new DoctorVO();
+            vo.setDoctorId(d.getDoctorId());
+            vo.setDeptId(d.getDeptId());
+            vo.setDoctorName(userNameMap.get(d.getUserId()));
+            vo.setDeptName(deptNameMap.get(d.getDeptId()));
+            vo.setTitle(d.getTitle());
+            vo.setBio(d.getBio());
+            // vo.setStatus(d.getStatus()); // 如果需要状态也可以放开
+            return vo;
+        }).toList();
+    }
+
 
     @Override
     public void addDoctor(DoctorVO doctorVO){
@@ -142,5 +179,8 @@ public class DoctorServiceImpl extends ServiceImpl<DoctorMapper, Doctor> impleme
     public List<DoctorAttendanceStats> getDoctorAttendanceStats(LocalDate startDate, LocalDate endDate) {
         return scheduleMapper.selectDoctorAttendanceStats(startDate, endDate);
     }
+
+
+
 
 }

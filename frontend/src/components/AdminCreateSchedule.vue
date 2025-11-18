@@ -80,10 +80,6 @@
                   <input type="checkbox" :value="1" v-model="scheduleForm.timeSlots" />
                   <span>下午（13:00 - 17:00）</span>
                 </label>
-                <label class="time-period-option">
-                  <input type="checkbox" :value="2" v-model="scheduleForm.timeSlots" />
-                  <span>夜班（18:00 - 22:00）</span>
-                </label>
               </div>
             </div>
 
@@ -118,8 +114,8 @@
               >
                 <option value="">请选择号别类型</option>
                 <option value="1">普通号</option>
-                <option value="2">特需号</option>
-                <option value="3">专家号</option>
+                <option value="2">专家号</option>
+                <option value="3">特需号</option>
               </select>
             </div>
 
@@ -196,34 +192,29 @@
 import { reactive, ref, computed, watch } from 'vue'
 import axios from 'axios'
 
+// 数据源
+const rooms = ref([])
+const doctors = ref([])
+
 // Props
 const props = defineProps({
-  show: {
-    type: Boolean,
-    default: false
-  },
-  isEditing: {
-    type: Boolean,
-    default: false
-  },
+  show: Boolean,
+  isEditing: Boolean,
   initialData: {
     type: Object,
     default: null
   },
-  doctors: {
-    type: Array,
-    default: () => []
-  },
-  rooms: {
-    type: Array,
-    default: () => []
+  deptId: {
+    type: Number,
+    default: null
   }
 })
+
 
 // Emits
 const emit = defineEmits(['close', 'submit'])
 
-// Reactive state
+// 状态
 const showScheduleModal = ref(props.show)
 const hasConflict = ref(false)
 
@@ -260,46 +251,87 @@ const errors = reactive({
   maxSlots: ''
 })
 
-// Computed
-const minDate = computed(() => {
-  return new Date().toISOString().split('T')[0]
-})
+// 最早可选日期
+const minDate = computed(() =>
+  new Date().toISOString().split('T')[0]
+)
 
-// Watchers
-watch(() => props.show, (newVal) => {
-  showScheduleModal.value = newVal
-})
+// 加载诊室
+async function loadRooms() {
+  try {
+    const { data } = await axios.get(`/api/rooms/dept/${props.deptId}`)
+console.log('接口返回:', data)
+const roomList = data?.data || data || []
+rooms.value = [...roomList.sort((a, b) => a.roomId - b.roomId)]
+console.log('✓ 诊室数据:', rooms.value)
 
-watch(() => scheduleForm.doctorId, (newDoctorId) => {
-  const selectedDoctor = props.doctors.find(d => d.doctorId === newDoctorId)
-  if (selectedDoctor) {
-    scheduleForm.deptId = selectedDoctor.deptId
-  } else {
-    scheduleForm.deptId = ''
+  } catch (err) {
+    console.error('✗ 获取诊室列表失败', err)
   }
-})
+}
 
-watch(() => props.initialData, (newVal) => {
-  if (newVal && props.isEditing) {
-    scheduleForm.id = newVal.scheduleId
-    scheduleForm.doctorId = newVal.doctorId
-    scheduleForm.deptId = newVal.deptId || ''
-    scheduleForm.date = newVal.date
-    scheduleForm.roomId = newVal.roomId
-    scheduleForm.appointmentTypeId = newVal.appointmentTypeId
-    scheduleForm.maxSlots = newVal.maxSlots
-    scheduleForm.notes = newVal.notes || ''
-    scheduleForm.timeSlots = Array.isArray(newVal.timeSlots)
-      ? [...newVal.timeSlots]
-      : (typeof newVal.timeSlots === 'string'
-          ? JSON.parse(newVal.timeSlots)
+// 加载医生
+async function loadDoctors() {
+  try {
+    const { data } = await axios.get(`/api/doctor/dept/${props.deptId}`)
+    const doctorList = Array.isArray(data) ? data : (data.data || [])
+    doctors.value = doctorList
+    console.log('✓ 医生数据加载:', doctors.value.length, '条')
+  } catch (err) {
+    console.error('✗ 获取医生列表失败', err)
+  }
+}
+
+// 弹窗打开时加载数据
+watch(
+  () => props.show,
+  (val) => {
+    showScheduleModal.value = val
+    if (val) {
+      loadRooms()
+      loadDoctors()
+    }
+     if (!props.isEditing && props.deptId) {
+        scheduleForm.deptId = props.deptId
+      }
+  }
+)
+
+// 选医生 → 自动回填科室
+watch(
+  () => scheduleForm.doctorId,
+  (newDoctorId) => {
+    const selected = doctors.value.find(d => d.doctorId === newDoctorId)
+    scheduleForm.deptId = selected ? selected.deptId : ''
+  }
+)
+
+// 编辑模式加载初始数据
+watch(
+  () => props.initialData,
+  (data) => {
+    if (!data || !props.isEditing) return
+
+    scheduleForm.id = data.scheduleId
+    scheduleForm.doctorId = data.doctorId
+    scheduleForm.deptId = data.deptId || ''
+    scheduleForm.date = data.date
+    scheduleForm.roomId = data.roomId
+    scheduleForm.appointmentTypeId = data.appointmentTypeId
+    scheduleForm.maxSlots = data.maxSlots
+    scheduleForm.notes = data.notes || ''
+    scheduleForm.timeSlots = Array.isArray(data.timeSlots)
+      ? [...data.timeSlots]
+      : (typeof data.timeSlots === 'string'
+          ? JSON.parse(data.timeSlots)
           : [])
     scheduleForm.isBatch = false
     scheduleForm.weekdays = []
-  }
-}, { deep: true })
+  },
+  { deep: true }
+)
 
-// Methods
+// 关闭 & 重置
 function closeScheduleModal() {
   showScheduleModal.value = false
   emit('close')
@@ -307,18 +339,20 @@ function closeScheduleModal() {
 }
 
 function resetForm() {
-  scheduleForm.id = null
-  scheduleForm.doctorId = ''
-  scheduleForm.date = ''
-  scheduleForm.startDate = ''
-  scheduleForm.endDate = ''
-  scheduleForm.roomId = null
-  scheduleForm.appointmentTypeId = ''
-  scheduleForm.maxSlots = 10
-  scheduleForm.notes = ''
-  scheduleForm.isBatch = false
-  scheduleForm.timeSlots = []
-  scheduleForm.weekdays = []
+  Object.assign(scheduleForm, {
+    id: null,
+    doctorId: '',
+    date: '',
+    startDate: '',
+    endDate: '',
+    roomId: null,
+    appointmentTypeId: '',
+    maxSlots: 10,
+    notes: '',
+    isBatch: false,
+    timeSlots: [],
+    weekdays: []
+  })
   clearErrors()
   hasConflict.value = false
 }
@@ -330,93 +364,70 @@ function clearErrors() {
   errors.maxSlots = ''
 }
 
+// 表单校验
 function validateForm() {
   clearErrors()
-  let isValid = true
+  let ok = true
 
   if (!scheduleForm.doctorId) {
-    console.log('doctorId missing')
     errors.doctorId = '请选择医生'
-    isValid = false
+    ok = false
   }
-
   if (!scheduleForm.isBatch && !scheduleForm.date) {
     errors.date = '请选择日期'
-    isValid = false
+    ok = false
   }
-
   if (!scheduleForm.roomId) {
     errors.roomId = '请选择诊室'
-    isValid = false
+    ok = false
   }
-
   if (!scheduleForm.maxSlots || scheduleForm.maxSlots < 1) {
     errors.maxSlots = '请输入有效的接诊人数'
-    isValid = false
+    ok = false
   }
-
   if (scheduleForm.isBatch && scheduleForm.weekdays.length === 0) {
     alert('请至少选择一个工作日')
-    isValid = false
+    ok = false
   }
 
-  return isValid
+  return ok
 }
 
+// 排班冲突（示例假实现）
 async function checkConflict() {
   if (!scheduleForm.doctorId || !scheduleForm.date) {
     hasConflict.value = false
     return
   }
-
-  try {
-    await new Promise(resolve => setTimeout(resolve, 200))
-    hasConflict.value = false
-  } catch (err) {
-    console.error('检查冲突失败', err)
-  }
+  await new Promise(r => setTimeout(r, 200))
+  hasConflict.value = false
 }
 
+// 提交表单
 async function handleSubmit() {
-  if (!validateForm()) {
-    console.log('表单验证失败')
-    return
-  }
-
+  if (!validateForm()) return
   if (hasConflict.value) {
     alert('存在排班冲突，请调整时间')
     return
   }
 
   try {
-    let response
-
+    let res
     if (props.isEditing) {
-      response = await axios.put(`/api/admin/schedules/${scheduleForm.id}`, scheduleForm)
+      res = await axios.put(`/api/admin/schedules/${scheduleForm.id}`, scheduleForm)
+    } else if (scheduleForm.isBatch) {
+      res = await axios.post('/api/admin/schedules/batchCreate', scheduleForm)
     } else {
-      if (scheduleForm.isBatch) {
-        // 批量创建
-        response = await axios.post('/api/admin/schedules/batchCreate', scheduleForm)
-      } else {
-        // 单条创建
-        response = await axios.post('/api/admin/schedules/create', scheduleForm)
-      }
+      res = await axios.post('/api/admin/schedules/create', scheduleForm)
     }
 
-    const { code, message } = response.data
-
+    const { code, message } = res.data
     if (code === 200) {
-      if (scheduleForm.isBatch) {
-        alert(props.isEditing ? '批量修改成功' : '批量创建成功')
-      } else {
-        alert(props.isEditing ? '修改成功' : '创建成功')
-      }
-
+      alert(props.isEditing ? '保存成功' : '创建成功')
       emit('submit', scheduleForm)
       closeScheduleModal()
     } else {
       alert(`操作失败：${message || '未知错误'}`)
-      console.error('后端返回错误：', response.data)
     }
   } catch (err) {
     console.error('请求出错：', err)

@@ -87,13 +87,18 @@
             </div>
           </div>
 
-          <div class="detail-section">
-            <h4>费用信息</h4>
-            <div class="detail-row">
-              <span class="label">预约费用：</span>
-              <span class="value fee">¥{{ selectedRecord.feeFinal }}</span>
-            </div>
-          </div>
+        <div class="detail-section">
+  <h4>费用信息</h4>
+  <div class="detail-row">
+    <span class="label">原始费用：</span>
+    <span class="value fee">¥{{ selectedRecord.feeOriginal ?? selectedRecord.feeFinal ?? 0 }}</span>
+  </div>
+  <div class="detail-row">
+    <span class="label">待支付费用（报销后）：</span>
+    <span class="value fee">¥{{ selectedRecord.feeFinal ?? 0 }}</span>
+  </div>
+</div>
+
 
           <div v-if="selectedRecord.remarks" class="detail-section">
             <h4>备注</h4>
@@ -124,44 +129,45 @@
         </div>
       </div>
     </div>
-  </div>
 
-<Payment
-  v-if="payDialogVisible"
-  :key="payInfo.appointmentId ?? 'none'"
+    <Payment
   :visible="payDialogVisible"
   :appointment-id="payInfo.appointmentId"
-  :amount="payInfo.amount"
   @close="closePayDialog"
   @payment-success="handlePaymentSuccess"
   @payment-error="handlePaymentError"
 />
+  </div>
+  
 
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted,nextTick} from 'vue'
 import axios from 'axios'
 import AppointmentRecordCard from './AppointmentRecordCard.vue'
 import Payment from './Payment.vue'
 
 const payDialogVisible = ref(false)
-const payInfo = ref({ appointmentId: null, amount: 0 })
+const payInfo = ref({ appointmentId: null })
 
-function handlePay(record) {
+async function handlePay(record) {
   if (!record || !record.appointmentId) {
     console.error('handlePay: appointmentId 不存在', record)
     return
   }
 
-  // 确保 amount 是一个数值
-  const amountNum = Number(record.feeFinal)
+  // 先设置数据
   payInfo.value = {
     appointmentId: record.appointmentId,
-    amount: Number.isFinite(amountNum) ? amountNum : 0
   }
 
-  // 先设置 payInfo，再打开 dialog
+  console.log('设置 payInfo：', payInfo.value)
+
+  // 等待 Vue 同步 props 更新
+  await nextTick()
+
+  // 然后再打开弹窗
   payDialogVisible.value = true
 
   console.log('打开支付窗口，payInfo：', payInfo.value)
@@ -170,7 +176,7 @@ function handlePay(record) {
 function closePayDialog() {
   // 关闭对话框并清理信息（防止下一次残留）
   payDialogVisible.value = false
-  payInfo.value = { appointmentId: null, amount: 0 }
+  payInfo.value = { appointmentId: null}
 }
 
 function handlePaymentSuccess(data) {
@@ -282,6 +288,7 @@ function mapStatus(apiStatus) {
     'booked': 'booked',
     'completed': 'completed',
     'cancelled': 'cancelled',
+    'refunded': 'cancelled',
     'no_show': 'no-show'
   }
   return statusMap[apiStatus] || 'pending'
