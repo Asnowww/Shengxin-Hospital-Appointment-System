@@ -71,4 +71,9 @@ public interface ScheduleService {
     List<ScheduleUtilizationStats> getScheduleUtilizationStats(LocalDate startDate, LocalDate endDate);
 
     List<ScheduleCoverageStats> getDepartmentScheduleCoverageStats(LocalDate startDate, LocalDate endDate);
+
+    List<DoctorSchedulePatientsVO> getDoctorSchedulePatientsGrouped(Long doctorId, LocalDate date);
+
+    List<SchedulePatientVO> getSchedulePatients(Integer scheduleId);
+
 }
