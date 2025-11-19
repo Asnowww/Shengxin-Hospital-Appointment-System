@@ -31,8 +31,8 @@ public class DoctorController {
 
     // 根据 ID 查询医生详情
     @GetMapping("/{id}")
-    public Doctor getDoctorById(@PathVariable Long id) {
-        return doctorMapper.selectById(id);
+    public DoctorVO getDoctorById(@PathVariable Long id) {
+        return doctorService.getDoctorById(id);
     }
 
     /**

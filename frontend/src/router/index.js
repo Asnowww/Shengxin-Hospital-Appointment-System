@@ -6,11 +6,11 @@ import HomePage from '@/views/HomePage.vue'
 import Department from '@/views/Department.vue'
 import Password from '@/views/Password.vue'
 import DoctorProfile from '@/views/DoctorProfile.vue'
-import MySchedule from '@/views/MySchedule.vue'
+import DoctorSchedule from '@/views/DoctorSchedule.vue'
 import AdminProfile from '@/views/AdminProfile.vue'
 import AdminSchedule from '@/views/AdminSchedule.vue'
 import LeaveManagement from '@/views/LeaveManagement.vue'
-import DepartmentSchedule from '@/views/DepartmentSchedule.vue'
+import DepartmentSchedule from '@/views/ScheduleByDepartment.vue'
 import MyWaitlist from '@/views/MyWaitlist.vue'
 import FullyBookedSchedules from '@/views/FullyBookedSchedules.vue'
 
@@ -23,7 +23,7 @@ const routes = [
   { path: '/patient/profile', name: 'profile', component: Profile },
   { path: '/department', name: 'department', component: Department }, //科室导览页
   { path: '/departmentSchedule', name: 'departmentSchedule', component: DepartmentSchedule }, //科室排班页（接受参数）
-  { path: '/doctorSchedule', name: 'doctorSchedule', component: () => import('@/views/DoctorSchedule.vue') }, //医生排班页（接受参数）
+  { path: '/doctorSchedule', name: 'doctorSchedule', component: () => import('@/views/ScheduleByDoctor.vue') }, //医生排班页（接受参数）
   { path: '/password', name: 'password', component: Password }, // 修改密码页
 
   //候补相关页面
@@ -32,8 +32,8 @@ const routes = [
 
   //医生端界面
   { path: '/doctor/profile', name: 'docProfile', component: DoctorProfile }, //医生个人信息页
-  { path: '/doctor/schedules', name: 'doctorSchedules', component: MySchedule }, //医生排班页
-  { path: '/mySchedule', name: 'mySchedule', component: MySchedule }, //医生排班页（兼容旧路径）
+  { path: '/doctor/schedules', name: 'doctorSchedules', component: DoctorSchedule }, //医生排班页
+  // { path: '/mySchedule', name: 'mySchedule', component: MySchedule }, //医生排班页（兼容旧路径）
   { path: '/doctor/leave/apply', name: 'doctorLeaveApply', component: () => import('@/views/DoctorLeaveApply.vue') }, // 医生请假申请
   { path: '/doctor/info-change/apply', name: 'doctorInfoChangeApply', component: () => import('@/views/DoctorInfoChangeApply.vue') }, // 医生信息变更申请
 
@@ -44,6 +44,8 @@ const routes = [
   { path: '/admin/audit', name: 'audit', component: () => import('@/views/Audit.vue') }, //用户审核页
   { path: '/admin/doctors', name: 'doctorManagement', component: () => import('@/views/DoctorManagement.vue') }, // 医生管理
 
+  { path: '/admin/test', name: 'test', component: () => import('@/components/ScheduleTable.vue') }, // 测试页面
+  { path: '/admin/fee', name: 'feeManagement', component: () => import('@/views/AdminFee.vue') }, //费用管理页
   { path: '/reminder', name: 'reminder', component: () => import('@/components/Reminder.vue') }, // 提醒页
   { path: '/:pathMatch(.*)*', redirect: '/home' } // 其他未定义路由定向到首页
 ]
