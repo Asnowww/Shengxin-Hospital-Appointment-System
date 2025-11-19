@@ -78,14 +78,13 @@
                 </div>
               </div>
                <div class="appointment-type-wrapper">
-    <span :class="['appointment-type', `type-${schedule.appointmentTypeId}`]">
-      {{ schedule.appointmentTypeName }}
-    </span>
-    <!-- 新增费用显示 -->
-    <div class="appointment-fee">
-      ¥{{ schedule.fee ? schedule.fee.toFixed(2) : '—' }}
-    </div>
-  </div>
+                <span :class="['appointment-type', `type-${schedule.appointmentTypeId}`]">
+                   {{ schedule.appointmentTypeName }}
+                </span>
+                <div class="appointment-fee">
+                  ¥{{ schedule.fee ? schedule.fee.toFixed(2) : '—' }}
+                </div>
+              </div>
             </div>
 
             <!-- 卡片内容 -->
@@ -230,19 +229,18 @@ const paymentData = ref({
 })
 
 const route = useRoute()
-const router = useRouter()
+
 
 const navRef = ref(null)
 const navHeight = ref(110)
 const departmentId = ref(route.query.deptId)
 const departmentName = ref(route.query.deptName)
-const doctorId = ref(route.query.doctorId || null)
 
 const activeTab = ref('general')
 const selectedDate = ref('')
 const selectedTimeSlot = ref('')
 const schedules = ref([])
-const doctors = ref([])
+
 const loading = ref(false)
 const isSubmitting = ref(false)
 const showAppointModal = ref(false)

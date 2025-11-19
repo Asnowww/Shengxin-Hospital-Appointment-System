@@ -181,30 +181,36 @@ public class DoctorServiceImpl extends ServiceImpl<DoctorMapper, Doctor> impleme
     }
 
     @Override
-    public DoctorVO getDoctorById(Long doctorId) {
-        // 1. 查询医生基础信息
-        Doctor doctor = doctorMapper.selectById(doctorId);
+    public DoctorVO getDoctorById(Long userId) {
+
+        // 1. 根据 userId 查询 doctor
+        Doctor doctor = doctorMapper.selectOne(
+                new LambdaQueryWrapper<Doctor>()
+                        .eq(Doctor::getUserId, userId)
+        );
         if (doctor == null) return null;
 
-        // 2. 查询用户名
-        User user = userMapper.selectById(doctor.getUserId());
+        // 2. 查询用户信息
+        User user = userMapper.selectById(userId);
 
-        // 3. 查询科室名
+        // 3. 查询科室信息
         Department dept = departmentMapper.selectById(doctor.getDeptId());
 
         // 4. 组装 VO
         DoctorVO vo = new DoctorVO();
         vo.setDoctorId(doctor.getDoctorId());
         vo.setDeptId(doctor.getDeptId());
-        vo.setEmail(user != null?user.getEmail():null);
-        vo.setPhone(user != null?user.getPhone():null);
+        vo.setEmail(user != null ? user.getEmail() : null);
+        vo.setPhone(user != null ? user.getPhone() : null);
         vo.setDoctorName(user != null ? user.getUsername() : null);
         vo.setDeptName(dept != null ? dept.getDeptName() : null);
         vo.setTitle(doctor.getTitle());
         vo.setBio(doctor.getBio());
-        vo.setStatus(user!=null?user.getStatus():null);
+        vo.setStatus(user != null ? user.getStatus() : null);
+
         return vo;
     }
+
 
 
 

@@ -102,25 +102,36 @@
                   />
                 </div>
 
-                <!-- <div class="form-group full-width">
-                  <label>擅长领域</label>
-                  <textarea 
-                    v-model="profile.specialization" 
-                    disabled
-                    class="form-control textarea"
-                    rows="3"
-                  ></textarea>
-                </div> -->
+               
 
-                <div class="form-group full-width">
-                  <label>擅长领域</label>
-                  <textarea 
-                    v-model="profile.bio"
-                    disabled
-                    class="form-control textarea"
-                    rows="4"
-                  ></textarea>
-                </div>
+          <div class="form-group full-width">
+
+  <div class="label-inline">
+    <label>擅长领域</label>
+    <button class="edit-btn-small" type="button" @click="openBioEditor">
+      申请修改
+    </button>
+  </div>
+
+  <textarea
+    :value="pendingBio ? '审核中' : profile.bio"
+    disabled
+    class="form-control textarea"
+    rows="4"
+  ></textarea>
+
+</div>
+
+
+
+<DoctorInfoChangeApply
+  :visible="showBioEditor"
+  :doctorId="profile.doctorId"
+  :currentSpecialization="pendingBio ? '' : profile.bio"
+  @close="showBioEditor = false"
+  @submitted="onBioSubmitted"
+/>
+
 
               </div>
 
@@ -141,12 +152,24 @@
 import { reactive, ref, onMounted, nextTick } from 'vue'
 import Navigation from '@/components/Navigation.vue'
 import axios from 'axios'
+import DoctorInfoChangeApply from '@/components/DoctorInfoChangeApply.vue'
 
 const navRef = ref(null)
 const navHeight = ref(110)
 const activeTab = ref('info')
 const isEditing = ref(false)
 const originalProfile = ref({})
+
+const showBioEditor = ref(false)
+const pendingBio = ref(false)
+
+function openBioEditor() {
+  showBioEditor.value = true
+}
+
+function onBioSubmitted() {
+  pendingBio.value = true
+}
 
 const profile = reactive({
   doctorName: '',
@@ -530,6 +553,46 @@ h2 {
 .submit-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.label-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;   /* 控制紧贴程度，想更紧可改成 2px */
+  margin-bottom: 6px;
+}
+
+.edit-btn-small {
+  padding: 3px 8px;
+  font-size: 0.78rem;
+  border: none;
+  border-radius: 6px;
+  background: #6366f1;
+  color: white;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+
+.edit-btn-small {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.edit-btn-small:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
 }
 
 /* 排班视图 */

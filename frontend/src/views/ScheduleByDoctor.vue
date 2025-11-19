@@ -40,11 +40,7 @@
         <div class="date-filter">
           <label>选择日期：</label>
           <div class="date-buttons">
-            <button 
-              v-for="(date, idx) in dateOptions" 
-              :key="idx"
-              :class="['date-btn', { active: selectedDate === date.value }]"
-              @click="selectedDate = date.value">
+            <button v-for="(date, idx) in dateOptions" :key="idx" :class="['date-btn', { active: selectedDate === date.value }]" @click="selectedDate = date.value">
               <span class="date-label">{{ date.label }}</span>
               <span class="date-value">{{ date.display }}</span>
             </button>
@@ -58,18 +54,17 @@
           <div class="spinner"></div>
           <p>加载中...</p>
         </div>
-
         <div v-else-if="filteredSchedules.length > 0" class="schedules-grid">
-          <div 
-            v-for="schedule in filteredSchedules" 
-            :key="schedule.scheduleId"
-            class="schedule-card">
-            
-            <!-- 预约类型标签 -->
-            <div class="card-badge">
-              <span :class="['badge', `type-${schedule.appointmentTypeId}`]">
+          <div v-for="schedule in filteredSchedules" :key="schedule.scheduleId" class="schedule-card">
+            <!-- 预约类型标签和费用 -->
+            <div class="appointment-type-wrapper">
+              <span :class="['appointment-type', `type-${schedule.appointmentTypeId}`]">
                 {{ schedule.appointmentTypeName }}
               </span>
+              <!-- 新增费用显示 -->
+              <div class="appointment-fee">
+                ¥{{ schedule.fee ? schedule.fee.toFixed(2) : '—' }}
+              </div>
             </div>
 
             <!-- 卡片内容 -->
@@ -78,20 +73,16 @@
                 <div class="date-large">{{ formatDate(schedule.workDate) }}</div>
                 <div class="time-slot-large">{{ schedule.timeSlotName }}</div>
               </div>
-
               <div class="divider"></div>
-
               <div class="details-section">
                 <div class="detail-row">
                   <span class="label">诊室：</span>
                   <span class="value">{{ schedule.roomName }}</span>
                 </div>
-                
                 <div class="detail-row">
                   <span class="label">门诊类型：</span>
                   <span class="value">{{ schedule.appointmentTypeName }}</span>
                 </div>
-
                 <!-- 号源信息 -->
                 <div class="slots-section">
                   <div class="slots-header">
@@ -99,9 +90,7 @@
                     <span class="count">{{ schedule.availableSlots }} / {{ schedule.maxSlots }}</span>
                   </div>
                   <div class="progress-bar">
-                    <div 
-                      class="progress-fill" 
-                      :style="{ width: calculateProgressPercentage(schedule) + '%' }"></div>
+                    <div class="progress-fill" :style="{ width: calculateProgressPercentage(schedule) + '%' }"></div>
                   </div>
                   <div class="slots-text">
                     <span class="available">可用 {{ schedule.availableSlots }} 个</span>
@@ -116,10 +105,7 @@
               <span :class="['status', schedule.status]">
                 {{ getStatusText(schedule) }}
               </span>
-              <button 
-                :disabled="schedule.availableSlots === 0"
-                :class="['appoint-btn', { disabled: schedule.availableSlots === 0 }]"
-                @click="handleAppointment(schedule)">
+              <button :disabled="schedule.availableSlots === 0" :class="['appoint-btn', { disabled: schedule.availableSlots === 0 }]" @click="handleAppointment(schedule)">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 5v14M5 12h14"></path>
                 </svg>
@@ -153,7 +139,6 @@
               </svg>
             </button>
           </div>
-
           <div class="modal-body">
             <div class="info-group">
               <span class="label">医生：</span>
@@ -179,8 +164,12 @@
               <span class="label">预约类型：</span>
               <span class="value">{{ selectedSchedule?.appointmentTypeName }}</span>
             </div>
+            <!-- 新增费用显示 -->
+            <div class="info-group">
+              <span class="label">费用：</span>
+              <span class="value">¥{{ selectedSchedule?.fee }}</span>
+            </div>
           </div>
-
           <div class="modal-footer">
             <button class="btn-cancel" @click="showAppointModal = false">取消</button>
             <button class="btn-confirm" @click="confirmAppointment">确认预约</button>
@@ -188,6 +177,9 @@
         </div>
       </div>
     </transition>
+
+    <!-- 支付组件 -->
+    <Payment :visible="showPaymentModal" :appointment-id="paymentData.appointmentId" @close="showPaymentModal = false" @payment-success="handlePaymentSuccess" @payment-error="handlePaymentError" />
   </div>
 </template>
 
@@ -196,6 +188,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import Navigation from '@/components/Navigation.vue'
+import Payment from '@/components/Payment.vue'
 
 const route = useRoute()
 const navRef = ref(null)
@@ -204,14 +197,17 @@ const doctorId = ref(route.query.doctorId)
 const selectedDate = ref('')
 const schedules = ref([])
 const loading = ref(false)
+const isSubmitting = ref(false)
 const showAppointModal = ref(false)
+const showPaymentModal = ref(false)
 const selectedSchedule = ref(null)
+const paymentData = ref({ appointmentId: null })
 
 /* ============ 医生信息 ============ */
 const doctorInfo = ref({
-  name:  '',
-  title:  '',
-  deptName:  '',
+  name: '',
+  title: '',
+  deptName: '',
   deptId: '',
   introduction: ''
 })
@@ -219,19 +215,28 @@ const doctorInfo = ref({
 /* ============ 日期选项 ============ */
 const dateOptions = ref([])
 
+function handlePaymentSuccess(data) {
+  alert('支付成功！您的预约已完成。')
+  setTimeout(() => {
+    showPaymentModal.value = false
+    fetchSchedules()
+  }, 300)
+}
+
+function handlePaymentError(errorMsg) {
+  console.error('支付失败：', errorMsg)
+  alert('支付失败：' + errorMsg)
+}
 
 async function fetchDoctorInfo() {
   try {
     const response = await axios.get(`/api/doctor/${doctorId.value}`)
     const resData = response.data
-
-
     const data = resData
- 
     doctorInfo.value = {
       name: route.query.doctorName || '',
       title: data.title || route.query.doctorTitle || '',
-      deptName:route.query.deptName || '',
+      deptName: route.query.deptName || '',
       deptId: data.deptId || route.query.deptId || '',
       introduction: data.bio || ''
     }
@@ -240,9 +245,7 @@ async function fetchDoctorInfo() {
   }
 }
 
-/* ===============================
-   2️⃣ 获取医生排班信息
-=============================== */
+/* =============================== 获取医生排班信息 =============================== */
 async function fetchSchedules() {
   loading.value = true
   try {
@@ -251,23 +254,34 @@ async function fetchSchedules() {
       .toISOString()
       .split('T')[0]
 
-    const response = await axios.get(
-      `/api/patient/appointment/all-schedules/doctor/${doctorId.value}`,
-      { params: { startDate, endDate } }
-    )
+    // 并行请求排班和费用数据
+    const [scheduleRes, feeRes] = await Promise.all([
+      axios.get(`/api/patient/appointment/all-schedules/doctor/${doctorId.value}`, {
+        params: { startDate, endDate }
+      }),
+      axios.get('/api/fee/type_amount')
+    ])
 
-    const resData = response.data
-    if (resData.code !== 200) {
-      console.warn('排班接口返回异常：', resData.message)
+    const scheduleData = scheduleRes.data
+    const feeList = feeRes.data.data || []
+
+    // 构建费用映射
+    const feeMapLocal = new Map(feeList.map(item => [item.appointmentTypeId, item.fee]))
+
+    if (scheduleData.code !== 200) {
+      console.warn('排班接口返回异常：', scheduleData.message)
       schedules.value = []
       return
     }
 
-    schedules.value = resData.data || []
+    // 合并费用信息
+    schedules.value = (scheduleData.data || []).map(s => ({
+      ...s,
+      fee: feeMapLocal.get(s.appointmentTypeId) || 0
+    }))
 
     // 从返回数据提取日期
     const dates = [...new Set(schedules.value.map(s => s.workDate))].sort()
-
     dateOptions.value = dates.map(date => {
       const d = new Date(date)
       const today = new Date()
@@ -275,12 +289,10 @@ async function fetchSchedules() {
       const tomorrowStr = new Date(today.getTime() + 24 * 60 * 60 * 1000)
         .toISOString()
         .split('T')[0]
-
       let label = ''
       if (date === todayStr) label = '今天'
       else if (date === tomorrowStr) label = '明天'
       else label = d.toLocaleDateString('zh-CN', { weekday: 'short' })
-
       return {
         value: date,
         label,
@@ -297,9 +309,7 @@ async function fetchSchedules() {
   }
 }
 
-/* ===============================
-   3️⃣ 工具函数
-=============================== */
+/* =============================== 工具函数 =============================== */
 function formatDate(date) {
   const d = new Date(date)
   return d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', weekday: 'short' })
@@ -320,16 +330,12 @@ function getStatusText(schedule) {
   return '未开放'
 }
 
-/* ===============================
-   4️⃣ 当前日期的排班过滤
-=============================== */
+/* =============================== 当前日期的排班过滤 =============================== */
 const filteredSchedules = computed(() => {
   return schedules.value.filter(s => s.workDate === selectedDate.value)
 })
 
-/* ===============================
-   5️⃣ 预约逻辑
-=============================== */
+/* =============================== 预约逻辑 =============================== */
 function handleAppointment(schedule) {
   selectedSchedule.value = schedule
   showAppointModal.value = true
@@ -341,6 +347,7 @@ async function confirmAppointment() {
   const token = localStorage.getItem('token')
   if (!token) return alert('未登录或登录已过期，请重新登录')
 
+  isSubmitting.value = true
   try {
     const response = await axios.post(
       '/api/patient/appointment/create',
@@ -348,24 +355,32 @@ async function confirmAppointment() {
         scheduleId: selectedSchedule.value.scheduleId,
         appointmentTypeId: selectedSchedule.value.appointmentTypeId
       },
-      { headers: { Authorization: `Bearer ${token}` } }
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
     )
 
     const resData = response.data
     if (resData.code !== 200) return alert('预约失败：' + resData.message)
 
-    alert('预约成功！')
+    // 获取 appointmentId
+    const appointmentId = resData.data?.appointmentId || null
     showAppointModal.value = false
+
+    // 弹出支付弹窗
+    paymentData.value = { appointmentId }
+    showPaymentModal.value = true
+
     await fetchSchedules()
   } catch (err) {
     console.error('预约失败', err)
     alert('预约失败，请重试')
+  } finally {
+    isSubmitting.value = false
   }
 }
 
-/* ===============================
-   6️⃣ 页面初始化
-=============================== */
+/* =============================== 页面初始化 =============================== */
 function updateNavHeight() {
   if (navRef.value?.$el) navHeight.value = navRef.value.$el.offsetHeight + 30
 }
@@ -378,7 +393,6 @@ onMounted(async () => {
   await nextTick()
   updateNavHeight()
   window.addEventListener('resize', handleResize)
-
   // 并行加载医生信息与排班信息
   await Promise.all([fetchDoctorInfo(), fetchSchedules()])
 })
@@ -394,6 +408,47 @@ onUnmounted(() => {
 .page-container {
   min-height: 100vh;
 }
+
+.appointment-type-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.appointment-type {
+  font-weight: 600;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background-color: #eef2ff;
+  color: #334155;
+}
+.appointment-type {
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.appointment-fee {
+  font-size: 15px;
+  color: #64748b;
+}
+.appointment-type.type-1 {
+  background: #d4edda;
+  color: #28a745;
+}
+
+.appointment-type.type-2 {
+  background: #cce5ff;
+  color: #0056b3;
+}
+
+.appointment-type.type-3 {
+  background: #fff3cd;
+  color: #856404;
+}
+
 
 .doctor-wrapper {
   max-width: 1200px;
