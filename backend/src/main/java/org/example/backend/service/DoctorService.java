@@ -13,6 +13,7 @@ public interface DoctorService extends IService<Doctor> {
     List<DoctorVO> getAllDoctorsWithNameAndDept() ;
     List<DoctorVO> getDoctorVOByDeptId(Integer deptId);
 
+    DoctorVO getDoctorById(Long userId);
     void addDoctor(DoctorVO doctorVO);
     void updateDoctorInfo(DoctorVO doctorVO);
 

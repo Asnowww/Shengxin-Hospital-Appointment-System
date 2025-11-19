@@ -9,7 +9,7 @@
         <input 
           v-model="account" 
           type="text" 
-          placeholder="手机号 / 学工号 / 教工号" 
+          placeholder="手机号 / 用户姓名 / 邮箱" 
           required 
         />
       </div>

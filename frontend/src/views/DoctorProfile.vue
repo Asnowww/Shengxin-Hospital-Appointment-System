@@ -2,7 +2,7 @@
   <Navigation ref="navRef" />
   <div class="page-container" :style="{ paddingTop: navHeight + 'px' }">
     <div class="profile-layout">
-      <!-- 左侧边栏导航 -->
+      <!-- 左侧边栏 -->
       <aside class="sidebar">
         <div class="sidebar-header">
           <div class="avatar">
@@ -24,7 +24,7 @@
             </svg>
             <span>个人信息</span>
           </button>
-          
+
           <router-link
             to="/doctor/schedules"
             class="nav-item"
@@ -40,10 +40,11 @@
         </nav>
       </aside>
 
-      <!-- 右侧主内容区 -->
+      <!-- 右侧 -->
       <main class="main-content">
         <transition name="fade" mode="out-in">
           <div v-if="activeTab === 'info'" key="info" class="doctor-info">
+
             <div class="info-header">
               <h2>个人信息</h2>
               <button 
@@ -51,174 +52,92 @@
                 @click="startEdit" 
                 class="edit-btn"
                 type="button">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                </svg>
                 修改
               </button>
             </div>
 
             <form @submit.prevent="handleSave">
               <div class="form-grid">
-                <!-- 基本信息 -->
+
+                <!-- 基本信息（后端不可改 → disabled） -->
                 <div class="form-group">
-                  <label class="form-label">姓名</label>
-                  <input 
-                    v-model="profile.name" 
-                    type="text" 
-                    disabled
-                    class="form-control"
-                    placeholder="姓名" />
+                  <label>姓名</label>
+                  <input v-model="profile.doctorName" type="text" class="form-control" disabled />
                 </div>
 
                 <div class="form-group">
-                  <label class="form-label">工号</label>
-                  <input 
-                    v-model="profile.employeeId" 
-                    type="text" 
-                    disabled
-                    class="form-control"
-                    placeholder="工号" />
+                  <label>工号</label>
+                  <input v-model="profile.doctorId" type="text" class="form-control" disabled />
                 </div>
 
                 <div class="form-group">
-                  <label class="form-label">
-                    科室 <span class="required">*</span>
-                  </label>
-                  <select 
-                    v-model="profile.department" 
-                    :disabled="!isEditing"
-                    :class="['form-control', { 'error': errors.department }]">
-                    <option value="">请选择</option>
-                    <option value="CARDIO">心内科</option>
-                    <option value="GASTRO">消化内科</option>
-                    <option value="RESPIR">呼吸内科</option>
-                    <option value="ORTHO">骨科</option>
-                    <option value="NEURO">神经外科</option>
-                    <option value="GYNEC">妇科</option>
-                    <option value="PEDIM">小儿内科</option>
-                  </select>
-                  <span v-if="errors.department" class="error-text">{{ errors.department }}</span>
+                  <label>科室</label>
+                  <input v-model="profile.deptName" type="text" disabled class="form-control" />
                 </div>
 
                 <div class="form-group">
-                  <label class="form-label">
-                    职称 <span class="required">*</span>
-                  </label>
-                  <select 
-                    v-model="profile.title" 
-                    :disabled="!isEditing"
-                    :class="['form-control', { 'error': errors.title }]">
-                    <option value="">请选择</option>
-                    <option value="主治医师">主治医师</option>
-                    <option value="副主任医师">副主任医师</option>
-                    <option value="主任医师">主任医师</option>
-                  </select>
-                  <span v-if="errors.title" class="error-text">{{ errors.title }}</span>
+                  <label>职称</label>
+                  <input v-model="profile.title" type="text" disabled class="form-control" />
                 </div>
 
+                <!-- 电话（可编辑字段） -->
                 <div class="form-group">
-                  <label class="form-label">
-                    手机号 <span class="required">*</span>
-                  </label>
+                  <label>手机号 *</label>
                   <input 
                     v-model="profile.phone" 
-                    type="tel" 
+                    type="tel"
                     :disabled="!isEditing"
-                    :class="['form-control', { 'error': errors.phone }]"
-                    placeholder="请输入手机号" />
-                  <span v-if="errors.phone" class="error-text">{{ errors.phone }}</span>
+                    class="form-control" 
+                  />
                 </div>
 
+                <!-- 邮箱（可编辑） -->
                 <div class="form-group">
-                  <label class="form-label">邮箱</label>
+                  <label>邮箱</label>
                   <input 
                     v-model="profile.email" 
-                    type="email" 
+                    type="email"
                     :disabled="!isEditing"
-                    class="form-control"
-                    placeholder="请输入邮箱" />
+                    class="form-control" 
+                  />
                 </div>
 
-                <!-- 专业信息 -->
-                <div class="form-group full-width">
-                  <label class="form-label">
-                    擅长领域 <span class="required">*</span>
-                  </label>
-                  <textarea 
-                    v-model="profile.specialization" 
-                    :disabled="!isEditing"
-                    :class="['form-control textarea', { 'error': errors.specialization }]"
-                    rows="3"
-                    placeholder="请描述您的擅长领域（如：冠心病、高血压、心律失常等）"></textarea>
-                  <span v-if="errors.specialization" class="error-text">{{ errors.specialization }}</span>
-                </div>
+               
 
-                <div class="form-group full-width">
-                  <label class="form-label">个人简介</label>
-                  <textarea 
-                    v-model="profile.description" 
-                    :disabled="!isEditing"
-                    class="form-control textarea"
-                    rows="4"
-                    placeholder="请输入个人简介（学历、工作经历、研究方向等）"></textarea>
-                </div>
+          <div class="form-group full-width">
 
-                <!-- 出诊信息 -->
-                <div class="form-section full-width">
-                  <h3 class="section-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                    出诊时间
-                  </h3>
-                  <div class="schedule-grid">
-                    <label 
-                      v-for="day in weekDays" 
-                      :key="day.value"
-                      class="schedule-checkbox">
-                      <input 
-                        type="checkbox" 
-                        :value="day.value"
-                        v-model="profile.workingDays"
-                        :disabled="!isEditing"
-                      />
-                      <span class="checkbox-label">{{ day.label }}</span>
-                    </label>
-                  </div>
-                </div>
+  <div class="label-inline">
+    <label>擅长领域</label>
+    <button class="edit-btn-small" type="button" @click="openBioEditor">
+      申请修改
+    </button>
+  </div>
 
-                <div class="form-group">
-                  <label class="form-label">上班时间</label>
-                  <input 
-                    v-model="profile.workStartTime" 
-                    type="time" 
-                    :disabled="!isEditing"
-                    class="form-control" />
-                </div>
+  <textarea
+    :value="pendingBio ? '审核中' : profile.bio"
+    disabled
+    class="form-control textarea"
+    rows="4"
+  ></textarea>
 
-                <div class="form-group">
-                  <label class="form-label">下班时间</label>
-                  <input 
-                    v-model="profile.workEndTime" 
-                    type="time" 
-                    :disabled="!isEditing"
-                    class="form-control" />
-                </div>
+</div>
+
+
+
+<DoctorInfoChangeApply
+  :visible="showBioEditor"
+  :doctorId="profile.doctorId"
+  :currentSpecialization="pendingBio ? '' : profile.bio"
+  @close="showBioEditor = false"
+  @submitted="onBioSubmitted"
+/>
+
+
               </div>
 
               <div v-if="isEditing" class="button-group">
-                <button type="button" @click="cancelEdit" class="cancel-btn">
-                  取消
-                </button>
-                <button type="submit" class="submit-btn">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                  保存修改
-                </button>
+                <button type="button" @click="cancelEdit" class="cancel-btn">取消</button>
+                <button type="submit" class="submit-btn">保存修改</button>
               </div>
             </form>
           </div>
@@ -228,10 +147,12 @@
   </div>
 </template>
 
+
 <script setup>
-import { reactive, ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { reactive, ref, onMounted, nextTick } from 'vue'
 import Navigation from '@/components/Navigation.vue'
 import axios from 'axios'
+import DoctorInfoChangeApply from '@/components/DoctorInfoChangeApply.vue'
 
 const navRef = ref(null)
 const navHeight = ref(110)
@@ -239,161 +160,77 @@ const activeTab = ref('info')
 const isEditing = ref(false)
 const originalProfile = ref({})
 
-const weekDays = [
-  { label: '周一', value: 1 },
-  { label: '周二', value: 2 },
-  { label: '周三', value: 3 },
-  { label: '周四', value: 4 },
-  { label: '周五', value: 5 },
-  { label: '周六', value: 6 },
-  { label: '周日', value: 7 }
-]
+const showBioEditor = ref(false)
+const pendingBio = ref(false)
+
+function openBioEditor() {
+  showBioEditor.value = true
+}
+
+function onBioSubmitted() {
+  pendingBio.value = true
+}
 
 const profile = reactive({
-  name: '',
-  employeeId: '',
-  department: '',
+  doctorName: '',
+  doctorId: '',
+  deptName: '',
   title: '',
   phone: '',
   email: '',
-  specialization: '',
-  description: '',
-  workingDays: [],
-  workStartTime: '',
-  workEndTime: '',
-  status: '' // 记录信息审核状态
-})
-
-const errors = reactive({
-  department: '',
-  title: '',
-  phone: '',
-  specialization: ''
+  bio:'',
+  status: ''
 })
 
 function startEdit() {
   isEditing.value = true
   originalProfile.value = JSON.parse(JSON.stringify(profile))
-  clearErrors()
 }
 
 function cancelEdit() {
   Object.assign(profile, originalProfile.value)
   isEditing.value = false
-  clearErrors()
-}
-
-function clearErrors() {
-  errors.department = ''
-  errors.title = ''
-  errors.phone = ''
-  errors.specialization = ''
-}
-
-function validateForm() {
-  clearErrors()
-  let isValid = true
-
-  if (!profile.department) {
-    errors.department = '请选择科室'
-    isValid = false
-  }
-
-  if (!profile.title) {
-    errors.title = '请选择职称'
-    isValid = false
-  }
-
-  if (!profile.phone) {
-    errors.phone = '请输入手机号'
-    isValid = false
-  } else if (!/^1[3-9]\d{9}$/.test(profile.phone)) {
-    errors.phone = '请输入有效的手机号'
-    isValid = false
-  }
-
-  if (!profile.specialization || profile.specialization.trim().length < 10) {
-    errors.specialization = '请输入至少10个字符的擅长领域描述'
-    isValid = false
-  }
-
-  return isValid
 }
 
 async function fetchProfile() {
+  const id = localStorage.getItem('userId')
   try {
-    // 实际使用时替换为：
-    // const { data } = await axios.get('/api/doctor/profile')
-    
-    // 模拟API请求
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    const mockData = {
-      name: '张明',
-      employeeId: 'D2020001',
-      department: 'CARDIO',
-      title: '主任医师',
-      phone: '13800138000',
-      email: 'zhangming@hospital.com',
-      specialization: '从事心血管内科临床工作30余年，擅长冠心病、高血压、心力衰竭的诊治，对心律失常有深入研究',
-      description: '医学博士，博士生导师，曾在美国哈佛医学院进修学习，发表SCI论文20余篇',
-      workingDays: [1, 2, 3, 4, 5],
-      workStartTime: '08:00',
-      workEndTime: '17:00',
-      status: 'ACTIVE'
-    }
-    
-    Object.assign(profile, mockData)
-    originalProfile.value = JSON.parse(JSON.stringify(mockData))
+    const resp = await axios.get(`/api/doctor/${id}`)
+    Object.assign(profile, resp.data)
   } catch (err) {
     console.error('获取医生信息失败', err)
   }
 }
 
 async function handleSave() {
-  if (!validateForm()) {
-    return
-  }
-
   try {
-    // 实际使用时替换为：
-    // await axios.post('/api/doctor/profile/update', profile)
-    
-    // 模拟API请求
-    await new Promise(resolve => setTimeout(resolve, 800))
-    
-    alert('保存成功！')
+    const id = localStorage.getItem('userId')
+    await axios.put(`/api/doctor/${id}/update-contact`, {
+      phone: profile.phone,
+      email: profile.email
+    })
+
+    alert('保存成功')
     isEditing.value = false
-    originalProfile.value = JSON.parse(JSON.stringify(profile))
   } catch (err) {
-    alert('保存失败！')
-    console.error('保存失败', err)
+    alert('保存失败')
+    console.error(err)
   }
 }
 
-// 导航栏高度管理
 function updateNavHeight() {
   if (navRef.value?.$el) {
-    const height = navRef.value.$el.offsetHeight
-    navHeight.value = height + 30
+    navHeight.value = navRef.value.$el.offsetHeight + 30
   }
-}
-
-function handleResize() {
-  updateNavHeight()
 }
 
 onMounted(async () => {
   await nextTick()
   updateNavHeight()
-  window.addEventListener('resize', handleResize)
   fetchProfile()
 })
-
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
-})
 </script>
+
 
 <style scoped>
 .page-container {
@@ -716,6 +553,46 @@ h2 {
 .submit-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.label-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;   /* 控制紧贴程度，想更紧可改成 2px */
+  margin-bottom: 6px;
+}
+
+.edit-btn-small {
+  padding: 3px 8px;
+  font-size: 0.78rem;
+  border: none;
+  border-radius: 6px;
+  background: #6366f1;
+  color: white;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+
+.edit-btn-small {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.edit-btn-small:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
 }
 
 /* 排班视图 */

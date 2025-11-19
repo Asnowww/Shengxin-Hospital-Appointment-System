@@ -20,6 +20,7 @@ public class AppointmentInfoDTO {
     private String appointmentTime; // 预约就诊时间
     private String bookingTime;     // 预约创建时间
     private String status;          // 预约状态（pending, booked, cancelled...）
+    private BigDecimal feeOriginal; //原始费用
     private BigDecimal feeFinal;        // 最终费用
     private String remarks;         // 备注
 }
