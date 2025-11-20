@@ -612,7 +612,14 @@ public class ScheduleServiceImpl implements ScheduleService {
         // 查询该排班的所有预约记录（所有状态都查出来，用于显示完整列表）
         QueryWrapper<Appointment> wrapper = new QueryWrapper<>();
         wrapper.eq("schedule_id", scheduleId)
-                .in("appointment_status", "booked", "completed", "missed")
+                .in("appointment_status",
+                        "pending",
+                        "booked",
+                        "completed",
+                        "cancelled",
+                        "refunded",
+                        "missed",
+                        "no_show")
                 .orderByAsc("queue_number");
 
         List<Appointment> appointments = appointmentMapper.selectList(wrapper);
