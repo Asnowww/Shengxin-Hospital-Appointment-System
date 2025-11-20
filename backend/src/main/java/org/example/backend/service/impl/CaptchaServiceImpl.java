@@ -59,14 +59,18 @@ public class CaptchaServiceImpl implements CaptchaService {
         int newSendCount = StringUtils.isNotBlank(sendCount) ? Integer.parseInt(sendCount) + 1 : 1;
         String captcha = RandomStringUtils.randomNumeric(6);
 
-        CompletableFuture<Boolean> sendFuture = sendCaptchaMail(key, captcha, template);
-        sendFuture.whenComplete((result, throwable) -> {
-            if (throwable != null || !Boolean.TRUE.equals(result)) {
-                log.error("Failed to send captcha email, clearing cache key {}", key, throwable);
-                stringRedisTemplate.delete(key);
+        // 同步等待邮件发送
+        try {
+            Boolean sendResult = sendCaptchaMail(key, captcha, template).get(10, TimeUnit.SECONDS);
+            if (!Boolean.TRUE.equals(sendResult)) {
+                throw new RuntimeException("邮件发送失败");
             }
-        });
+        } catch (Exception e) {
+            log.error("发送验证码邮件失败", e);
+            throw new RuntimeException("验证码发送失败，请稍后重试");
+        }
 
+        // 邮件发送成功后才保存到 Redis
         Map<String, String> payload = new HashMap<>(3);
         payload.put("captcha", captcha);
         payload.put("lastSendTimestamp", String.valueOf(System.currentTimeMillis()));
@@ -80,15 +84,20 @@ public class CaptchaServiceImpl implements CaptchaService {
 
     private CompletableFuture<Boolean> sendCaptchaMail(String hashKey, String captcha, EmailTemplateEnum template) {
         String[] parts = hashKey.split(":");
-        if (parts.length >= 4 && "email".equals(parts[2])) {
+
+        // Redis key 格式: login:email:captcha:用户邮箱
+        if (parts.length >= 4 && "captcha".equals(parts[2])) {
             String toEmail = parts[parts.length - 1];
+            log.info("发送验证码邮件到: {}, 验证码: {}", toEmail, captcha);
             return emailAPI.sendHtmlEmail(
                     template.getSubject(),
                     template.set(captcha),
                     toEmail
             );
         }
-        return CompletableFuture.completedFuture(true);
+
+        log.error("Redis key 格式错误: {}, 无法提取邮箱地址", hashKey);
+        return CompletableFuture.completedFuture(false);
     }
 
 
