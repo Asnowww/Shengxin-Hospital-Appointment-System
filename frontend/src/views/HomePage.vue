@@ -1,13 +1,13 @@
 <template>
   <div>
-    <!-- 提醒列表 -->
+    <!-- 提醒列表
     <div v-if="isLoggedIn && reminders.length > 0" class="reminders-container">
       <div v-for="(reminder, index) in reminders" :key="index" class="reminder-banner">
         <span class="reminder-icon">ℹ️</span>
         <span class="reminder-text">{{ reminder }}</span>
         <button class="reminder-close" @click="removeReminder(index)">×</button>
       </div>
-    </div>
+    </div> -->
     
     <Navigation ref="navRef" />
     <!-- <Reminder ref="reminderRef" /> -->
@@ -31,30 +31,30 @@ onMounted(() => {
   
   // 如果已登录，获取提醒列表
   if (isLoggedIn.value) {
-    fetchReminders()
+    // fetchReminders()
   }
 })
 
-async function fetchReminders() {
-  try {
-    const response = await fetch('/api/reminders', {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    })
+// async function fetchReminders() {
+//   try {
+//     const response = await fetch('/api/reminders', {
+//       headers: {
+//         'Authorization': `Bearer ${localStorage.getItem('token')}`
+//       }
+//     })
     
-    if (response.ok) {
-      const data = await response.json()
-      reminders.value = data.reminders || []
-    }
-  } catch (error) {
-    console.error('获取提醒失败:', error)
-  }
-}
+//     if (response.ok) {
+//       const data = await response.json()
+//       reminders.value = data.reminders || []
+//     }
+//   } catch (error) {
+//     console.error('获取提醒失败:', error)
+//   }
+// }
 
-function removeReminder(index) {
-  reminders.value.splice(index, 1)
-}
+// function removeReminder(index) {
+//   reminders.value.splice(index, 1)
+// }
 </script>
 
 <style scoped>

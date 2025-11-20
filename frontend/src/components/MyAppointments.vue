@@ -91,7 +91,7 @@
   <h4>费用信息</h4>
   <div class="detail-row">
     <span class="label">原始费用：</span>
-    <span class="value fee">¥{{ selectedRecord.feeOriginal ?? selectedRecord.feeFinal ?? 0 }}</span>
+    <span class="value fee">¥{{ selectedRecord.feeOriginal ?? 0 }}</span>
   </div>
   <div class="detail-row">
     <span class="label">待支付费用（报销后）：</span>
@@ -264,6 +264,7 @@ async function loadAppointments() {
 // 格式化预约数据为卡片格式
 function formatRecordData(appt) {
   console.log('feeFinal from backend:', appt.feeFinal)
+  console.log('feeOriginal from backend:', appt.feeOriginal)
 
   return {
     appointmentId: appt.appointmentId,
@@ -276,6 +277,7 @@ function formatRecordData(appt) {
     appointmentTime: appt.appointmentTime || '未指定时间',
     bookingTime: appt.bookingTime,
     status: mapStatus(appt.status),
+    feeOriginal: appt.feeOriginal || '未知',
     feeFinal: appt.feeFinal || '未知',
     remarks: appt.remarks
   }

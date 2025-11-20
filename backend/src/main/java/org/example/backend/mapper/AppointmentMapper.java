@@ -54,6 +54,7 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
                     ) AS appointmentTime,
             DATE_FORMAT(a.booking_time, '%Y-%m-%d %H:%i:%s') AS bookingTime,
             a.appointment_status AS status,
+            a.fee_original,
             a.fee_final,
             a.notes AS remarks
         FROM appointments a
