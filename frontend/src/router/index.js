@@ -36,6 +36,7 @@ const routes = [
   { path: '/mySchedule', name: 'mySchedule', component: MySchedule }, //医生排班页（兼容旧路径）
   { path: '/doctor/leave/apply', name: 'doctorLeaveApply', component: () => import('@/views/DoctorLeaveApply.vue') }, // 医生请假申请
   { path: '/doctor/info-change/apply', name: 'doctorInfoChangeApply', component: () => import('@/views/DoctorInfoChangeApply.vue') }, // 医生信息变更申请
+  { path: '/doctor/patient-management', name: 'doctorPatientManagement', component: () => import('@/views/DoctorPatientManagement.vue') }, // 医生患者管理
 
   //管理端界面
   { path: '/admin/profile', name: 'adminProfile', component: AdminProfile }, //管理员个人信息页
