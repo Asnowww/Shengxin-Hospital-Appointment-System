@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Service
 public class AppointmentServiceImpl implements AppointmentService {
@@ -412,13 +413,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 throw new RuntimeException("支付状态更新失败");
             }
 
-            // 5. 更新预约状态
-            appointment.setPaymentStatus("paid");
-            appointment.setAppointmentStatus("booked");
-            appointment.setUpdatedAt(LocalDateTime.now());
-            appointmentMapper.updateById(appointment);
-
-            // 6. 支付成功后发送邮件（事务提交后执行）
+            // 5. 支付成功后发送邮件（事务提交后执行）
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
                 @Override
                 public void afterCommit() {
@@ -462,6 +457,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             return false;
         }
         appointment.setAppointmentStatus(status);
+        appointment.setUpdatedAt(LocalDateTime.now());
         return appointmentMapper.updateById(appointment) > 0;
     }
 
@@ -528,4 +524,62 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         return baseFee.multiply(BigDecimal.ONE.subtract(discountRate));
     }
+
+    @Override
+    @Transactional
+    public boolean appointmentComplete(Long appointmentId){
+        Appointment appointment = appointmentMapper.selectById(appointmentId);
+        if (appointment == null) return false;
+        appointment.setAppointmentStatus("completed");
+        appointment.setVisitTime(LocalDateTime.now());
+        appointment.setUpdatedAt(LocalDateTime.now());
+        appointmentMapper.updateById(appointment);
+
+        /*发送已就诊通知*/
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+            @Override
+            public void afterCommit() {
+                notificationEmailService.sendCompletedNotification(appointment.getAppointmentId());
+            }
+        });
+
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public boolean appointmentPass(Long appointmentId){
+        Appointment appointment = appointmentMapper.selectById(appointmentId);
+        if (appointment == null) return false;
+        appointment.setAppointmentStatus("no_show");
+        appointment.setVisitTime(LocalDateTime.now());
+        appointment.setUpdatedAt(LocalDateTime.now());
+        appointmentMapper.updateById(appointment);
+
+        /*发送过号通知*/
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+            @Override
+            public void afterCommit() {
+                notificationEmailService.sendNoShowNotification(appointment.getAppointmentId());
+            }
+        });
+
+        return true;
+    }
+
+    /**
+     * 获取患者所有历史就诊记录
+     */
+    @Override
+    public List<AppointmentInfoDTO> getPatientHistory(Long patientId, Integer limit) {
+        List<AppointmentInfoDTO> history = appointmentMapper.selectAppointmentsByPatientId(patientId);
+
+        // 如果需要限制数量
+        if (limit != null && limit > 0 && history.size() > limit) {
+            return history.subList(0, limit);
+        }
+
+        return history;
+    }
+
 }

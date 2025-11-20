@@ -17,6 +17,9 @@ import java.util.List;
 @Mapper
 public interface AppointmentMapper extends BaseMapper<Appointment> {
 
+    // 根据 scheduleId 查询挂号（可以按状态过滤）
+    List<Appointment> selectByScheduleId(@Param("scheduleId") Integer scheduleId);
+
     /**
      * 查询医生的所有预约
      */

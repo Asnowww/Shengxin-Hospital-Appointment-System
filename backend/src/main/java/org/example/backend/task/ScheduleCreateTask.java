@@ -199,25 +199,45 @@ public class ScheduleCreateTask {
                     || date.getDayOfWeek() == DayOfWeek.SUNDAY);
 
             if (isWeekend) {
+                // 周末只有普通号
                 morningType = NORMAL_TYPE;
                 morningAvailableDoctors = allDoctors;
-            } else if (specialDay != null && date.equals(specialDay)) {  // 特需号，仅上午，1个医生
+            } else if (specialDay != null && date.equals(specialDay)) {
+                // 特需号日期：上午同时有特需号和普通号
+                // 特需号只需要1个医生，其余医生看普通号
                 morningType = SPECIAL_TYPE;
                 morningAvailableDoctors = chiefDoctors.isEmpty()
                         ? expertDoctors
                         : chiefDoctors;
                 morningDoctorCountForThisDay = 1;  // 特需号只需要1个医生
-            } else if (expertDay != null && date.equals(expertDay)) {   // 专家号，仅上午，1个医生
+
+                // 安排完特需号后，立即安排普通号（使用剩余医生）
+                createTimeSlotSchedules(
+                        deptId, deptName, room.getRoomId(), date,
+                        MORNING, NORMAL_TYPE, morningDoctorCount - 1,
+                        allDoctors, doctorLastScheduleDate
+                );
+            } else if (expertDay != null && date.equals(expertDay)) {
+                // 专家号日期：上午同时有专家号和普通号
                 morningType = EXPERT_TYPE;
                 morningAvailableDoctors = expertDoctors.isEmpty()
                         ? allDoctors
                         : expertDoctors;
                 morningDoctorCountForThisDay = 1;  // 专家号只需要1个医生
-            } else {  // 其他工作日正常
+
+                // 安排完专家号后，立即安排普通号（使用剩余医生）
+                createTimeSlotSchedules(
+                        deptId, deptName, room.getRoomId(), date,
+                        MORNING, NORMAL_TYPE, morningDoctorCount - 1,
+                        allDoctors, doctorLastScheduleDate
+                );
+            } else {
+                // 其他工作日正常
                 morningType = NORMAL_TYPE;
                 morningAvailableDoctors = allDoctors;
             }
 
+            // 安排主要班次（专家号/特需号/普通号）
             createTimeSlotSchedules(
                     deptId, deptName, room.getRoomId(), date,
                     MORNING, morningType, morningDoctorCountForThisDay,

@@ -71,6 +71,10 @@ public interface AppointmentService {
      */
     boolean updateAppointmentStatus(Long appointmentId, String status);
 
+    boolean appointmentComplete(Long appointmentId);
+
+    boolean appointmentPass(Long appointmentId);
+
     /**
      * 修改预约（改期、改时间段）
      * @param param 修改参数
@@ -103,6 +107,7 @@ public interface AppointmentService {
 
     List<DepartmentAppointmentStats> getDepartmentAppointmentStats(LocalDate startDate, LocalDate endDate);
 
+    List<AppointmentInfoDTO> getPatientHistory(Long patientId, Integer limit);
 
     /**
      * 返回给前端费用相关数据

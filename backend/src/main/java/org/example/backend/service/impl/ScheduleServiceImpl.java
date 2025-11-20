@@ -8,12 +8,14 @@ import org.example.backend.pojo.*;
 import org.example.backend.service.ScheduleService;
 import org.example.backend.service.WaitlistService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authorization.method.AuthorizeReturnObject;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -46,6 +48,9 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Autowired
     private WaitlistService waitlistService;
+
+    @Autowired
+    private PatientMapper patientMapper;
 
 
     @Override
@@ -561,4 +566,120 @@ public class ScheduleServiceImpl implements ScheduleService {
         return scheduleMapper.selectScheduleCoverageStats(startDate, endDate);
     }
 
+    @Override
+    public List<DoctorSchedulePatientsVO> getDoctorSchedulePatientsGrouped(Long doctorId, LocalDate date) {
+        // 查询医生指定日期的所有排班
+        QueryWrapper<Schedule> scheduleWrapper = new QueryWrapper<>();
+        scheduleWrapper.eq("doctor_id", doctorId)
+                .eq("work_date", date)
+                .orderByAsc("time_slot");
+
+        List<Schedule> schedules = scheduleMapper.selectList(scheduleWrapper);
+
+        if (schedules.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 为每个排班查询患者列表
+        return schedules.stream()
+                .map(schedule -> {
+                    DoctorSchedulePatientsVO vo = new DoctorSchedulePatientsVO();
+                    vo.setScheduleId(schedule.getScheduleId());
+                    vo.setWorkDate(schedule.getWorkDate());
+                    vo.setTimeSlot(schedule.getTimeSlot());
+                    vo.setTimeSlotName(getTimeSlotName(schedule.getTimeSlot()));
+
+                    // 查询科室信息
+                    Department dept = departmentMapper.selectById(schedule.getDeptId());
+                    if (dept != null) {
+                        vo.setDeptName(dept.getDeptName());
+                    }
+
+                    // 查询诊室信息
+                    ConsultationRoom room = consultationRoomMapper.selectById(schedule.getRoomId());
+                    if (room != null) {
+                        vo.setRoomName(room.getRoomName());
+                    }
+
+                    // 查询该排班的所有患者
+                    vo.setPatients(getSchedulePatients(schedule.getScheduleId()));
+
+                    return vo;
+                })
+                .collect(Collectors.toList());
+    }
+
+    public List<SchedulePatientVO> getSchedulePatients(Integer scheduleId) {
+        // 验证排班是否存在
+        Schedule schedule = scheduleMapper.selectById(scheduleId);
+        if (schedule == null) {
+            throw new RuntimeException("排班不存在");
+        }
+
+        // 查询该排班的所有预约记录（所有状态都查出来，用于显示完整列表）
+        QueryWrapper<Appointment> wrapper = new QueryWrapper<>();
+        wrapper.eq("schedule_id", scheduleId)
+                .in("appointment_status",
+                        "pending",
+                        "booked",
+                        "completed",
+                        "cancelled",
+                        "refunded",
+                        "missed",
+                        "no_show")
+                .orderByAsc("queue_number");
+
+        List<Appointment> appointments = appointmentMapper.selectList(wrapper);
+
+        // 单独计算候诊序号（只统计 booked 状态的患者）
+        List<Appointment> bookedAppointments = appointments.stream()
+                .filter(appt -> "booked".equals(appt.getAppointmentStatus()))
+                .sorted(Comparator.comparing(Appointment::getQueueNumber))
+                .collect(Collectors.toList());
+
+        return appointments.stream()
+                .map(appointment -> {
+                    SchedulePatientVO vo = new SchedulePatientVO();
+
+                    // 通过预约记录获取患者ID，再获取用户信息
+                    Patient patient = patientMapper.selectById(appointment.getPatientId());
+                    if (patient != null) {
+                        User user = userMapper.selectById(patient.getUserId());
+                        if (user != null) {
+                            vo.setPatientName(user.getName());
+                            vo.setGender(user.getGender());
+                            vo.setPhone(user.getPhone());
+
+                            // 计算年龄
+                            if (patient.getBirthDate() != null) {
+                                vo.setAge(LocalDate.now().getYear() - patient.getBirthDate().getYear());
+                            }
+                        }
+                    }
+
+                    // 设置预约相关信息
+                    vo.setPatientId(appointment.getPatientId());
+                    vo.setAppointmentId(appointment.getAppointmentId());
+                    vo.setQueueNumber(appointment.getQueueNumber()); // 原始排队号
+                    vo.setAppointmentStatus(appointment.getAppointmentStatus());
+                    vo.setBookingTime(schedule.getTimeSlot()); // 预约时间
+
+                    // 计算候诊序号（只对 booked 状态有效）
+                    if ("booked".equals(appointment.getAppointmentStatus())) {
+                        int waitingNumber = bookedAppointments.indexOf(appointment) + 1;
+                        vo.setWaitingNumber(waitingNumber); // 当前候诊位置
+                    } else {
+                        vo.setWaitingNumber(0); // 非候诊状态设为0
+                    }
+
+                    // 查询预约类型
+                    AppointmentType appointmentType = appointmentTypeMapper.selectById(appointment.getAppointmentTypeId());
+                    if (appointmentType != null) {
+                        vo.setAppointmentTypeName(appointmentType.getTypeName());
+                    }
+
+                    return vo;
+                })
+                .collect(Collectors.toList());
+    }
 }

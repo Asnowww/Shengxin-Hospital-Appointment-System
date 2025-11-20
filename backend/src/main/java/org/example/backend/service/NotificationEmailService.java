@@ -193,6 +193,56 @@ public class NotificationEmailService {
         }
     }
 
+    /**
+     * 发送就诊通知
+     */
+    public void sendCompletedNotification(Long appointmentId) {
+        try {
+            Appointment appointment = appointmentMapper.selectById(appointmentId);
+            if (appointment == null) return;
+
+            Patient patient = patientMapper.selectById(appointment.getPatientId());
+            if (patient == null) return;
+
+            User user = userMapper.selectById(patient.getUserId());
+            if (user == null || user.getEmail() == null) return;
+
+            Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
+            String subject = "【已就诊】您已按时就诊";
+            String content = buildCompletedEmail(appointment, schedule);
+
+            sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
+        } catch (Exception e) {
+            log.error("发送支付成功邮件失败: appointmentId={}", appointmentId, e);
+        }
+    }
+
+    /**
+     * 发送过号通知
+     */
+    public void sendNoShowNotification(Long appointmentId) {
+        try {
+            Appointment appointment = appointmentMapper.selectById(appointmentId);
+            if (appointment == null) return;
+
+            Patient patient = patientMapper.selectById(appointment.getPatientId());
+            if (patient == null) return;
+
+            User user = userMapper.selectById(patient.getUserId());
+            if (user == null || user.getEmail() == null) return;
+
+            Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
+            String subject = "【已过号】您未按时就诊";
+            String content = buildNoShowEmail(appointment, schedule);
+
+            sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
+        } catch (Exception e) {
+            log.error("发送支付成功邮件失败: appointmentId={}", appointmentId, e);
+        }
+    }
+
+
+
 
     /**
      * 发送订单退款通知
@@ -312,7 +362,47 @@ public class NotificationEmailService {
     // ==================== 3. 排班变更相关邮件 ====================
 
     /**
-     * 发送排班取消通知
+     * 给患者发送挂号被重新分配到新的排班通知
+     */
+    public void sendAppointmentReassignNotification(Long patientId, Integer originalScheduleId, Integer newScheduleId, String reason) {
+        try {
+            Patient patient = patientMapper.selectById(patientId);
+            if (patient == null) return;
+
+            User user = userMapper.selectById(patient.getUserId());
+            if (user == null || user.getEmail() == null) return;
+
+            Schedule newSchedule = scheduleMapper.selectById(newScheduleId);
+
+            String subject = "【挂号变更待确认】请尽快处理";
+            String content = String.format("""
+                尊敬的%s您好：
+
+                因医生排班变更，您原预约的就诊时间已调整：
+
+                📌 原排班：%s  
+                ➡ 新排班：%s
+
+                请登录系统进行确认或重新挂号，否则系统将在24小时后自动处理。
+
+                变更原因：%s
+                """,
+                    user.getName(),
+                    originalScheduleId,
+                    newScheduleId,
+                    reason
+            );
+
+            // 调用你已有的邮件发送机制 + 记录机制
+            sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
+
+        } catch (Exception e) {
+            log.error("发送挂号变更通知失败: patientId={}, newScheduleId={}", patientId, newScheduleId, e);
+        }
+    }
+
+    /**
+     * 发送排班取消通知（包含记录 + 邮件发送）
      */
     public void sendScheduleCancelledNotification(Long patientId, Integer scheduleId, String reason) {
         try {
@@ -323,14 +413,32 @@ public class NotificationEmailService {
             if (user == null || user.getEmail() == null) return;
 
             Schedule schedule = scheduleMapper.selectById(scheduleId);
-            String subject = "【排班取消】您预约的排班已取消";
+            String subject = "【排班变更通知】您的预约已调整";
             String content = buildScheduleCancelledEmail(user.getName(), schedule, reason);
 
+            // ➤ 记录到通知表
+            Notification notification = new Notification();
+            notification.setUserId(user.getUserId());
+            notification.setEmail(user.getEmail());
+            notification.setSubject(subject);
+            notification.setContent(content);
+            notification.setStatus("pending");
+            notification.setCreatedAt(LocalDateTime.now());
+            notificationMapper.insert(notification);
+
+            // ➤ 发送邮件
             sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
+
+            // ➤ 更新通知状态为成功
+            notification.setStatus("sent");
+            notification.setSentAt(LocalDateTime.now());
+            notificationMapper.updateById(notification);
+
         } catch (Exception e) {
-            log.error("发送排班取消邮件失败: patientId={}, scheduleId={}", patientId, scheduleId, e);
+            log.error("发送排班变更通知失败: patientId={}, scheduleId={}", patientId, scheduleId, e);
         }
     }
+
 
     // ==================== 4. 通用邮件 ====================
 
@@ -754,4 +862,103 @@ public class NotificationEmailService {
                 patientName, deptName, doctorInfo, workDate, timeSlot, reason != null ? reason : "医生临时有事");
     }
 
+    //就诊通知
+    private String buildCompletedEmail(Appointment appointment, Schedule schedule) {
+        String patientName = getPatientName(String.valueOf(appointment.getPatientId()));
+        String doctorInfo = getDoctorInfo(schedule.getDoctorId());
+        String deptName = getDeptName(schedule.getDeptId());
+        String workDate = schedule.getWorkDate().format(DATE_FORMATTER);
+        String timeSlot = getTimeSlotName(schedule.getTimeSlot());
+
+        return String.format("""
+            <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="background: linear-gradient(135deg, #4CAF50 0%%, #45a049 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                        <h1>✅ 就诊完成通知</h1>
+                    </div>
+                    <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                        <p>尊敬的 <strong>%s</strong> 患者，您好！</p>
+                        <p style="font-size: 1.2em; color: #4CAF50; font-weight: bold;">您的就诊已完成，感谢您的配合！</p>
+                        
+                        <div style="background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #4CAF50; border-radius: 5px;">
+                            <h3 style="color: #4CAF50; margin-top: 0;">📋 就诊信息</h3>
+                            <p><strong>就诊编号：</strong>%d</p>
+                            <p><strong>就诊科室：</strong>%s</p>
+                            <p><strong>就诊医生：</strong>%s</p>
+                            <p><strong>就诊时间：</strong>%s %s</p>
+                            <p><strong>完成时间：</strong>%s</p>
+                        </div>
+                        
+                        <p><strong>后续建议：</strong></p>
+                        <ul>
+                            <li>请按照医嘱按时服药和复查</li>
+                            <li>如有不适请及时复诊</li>
+                            <li>保持健康的生活习惯</li>
+                            <li>定期进行健康检查</li>
+                        </ul>
+                        
+                        <div style="background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                            <p style="margin: 0; color: #2e7d32;"><strong>💡 温馨提示：</strong>您可以在患者端查看详细的就诊记录和医嘱信息。</p>
+                        </div>
+                        
+                        <p>祝您早日康复，身体健康！</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """,
+                patientName, appointment.getAppointmentId(), deptName, doctorInfo,
+                workDate, timeSlot, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+    }
+
+    //过号通知
+    private String buildNoShowEmail(Appointment appointment, Schedule schedule) {
+        String patientName = getPatientName(String.valueOf(appointment.getPatientId()));
+        String doctorInfo = getDoctorInfo(schedule.getDoctorId());
+        String deptName = getDeptName(schedule.getDeptId());
+        String workDate = schedule.getWorkDate().format(DATE_FORMATTER);
+        String timeSlot = getTimeSlotName(schedule.getTimeSlot());
+
+        return String.format("""
+            <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="background: linear-gradient(135deg, #ff6b6b 0%%, #ff8e8e 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                        <h1>⏰ 过号提醒</h1>
+                    </div>
+                    <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                        <p>尊敬的 <strong>%s</strong> 患者，您好！</p>
+                        <p style="font-size: 1.2em; color: #ff6b6b; font-weight: bold;">您已错过本次预约就诊时间</p>
+                        
+                        <div style="background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #ff6b6b; border-radius: 5px;">
+                            <h3 style="color: #ff6b6b; margin-top: 0;">📋 预约信息</h3>
+                            <p><strong>预约编号：</strong>%d</p>
+                            <p><strong>就诊科室：</strong>%s</p>
+                            <p><strong>就诊医生：</strong>%s</p>
+                            <p><strong>预约时间：</strong>%s %s</p>
+                            <p><strong>排队号：</strong>%d号</p>
+                            <p><strong>状态：</strong><span style="color: #ff6b6b; font-weight: bold;">已过号</span></p>
+                        </div>
+                        
+                        <p><strong>后续操作建议：</strong></p>
+                        <ul>
+                            <li>如需继续就诊，请重新预约</li>
+                            <li>您可以在患者端查看其他可预约时段</li>
+                            <li>如有疑问，请联系医院客服</li>
+                        </ul>
+                        
+                        <div style="background: #ffebee; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                            <p style="margin: 0; color: #c62828;"><strong>⚠️ 重要提醒：</strong>多次过号可能会影响您的预约信用，请合理安排时间。</p>
+                        </div>
+                        
+                        <p>感谢您的理解与配合！</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """,
+                patientName, appointment.getAppointmentId(), deptName, doctorInfo,
+                workDate, timeSlot, appointment.getQueueNumber());
+    }
 }

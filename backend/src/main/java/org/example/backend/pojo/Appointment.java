@@ -65,4 +65,5 @@ public class Appointment {
 
     @TableField("updated_at")
     private LocalDateTime updatedAt;
+
 }
