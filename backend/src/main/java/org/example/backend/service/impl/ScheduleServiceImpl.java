@@ -1,5 +1,6 @@
 package org.example.backend.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.example.backend.dto.*;
 import org.example.backend.mapper.*;
@@ -290,7 +291,13 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
-    public List<ScheduleDetailVO> getDoctorSchedules(Long doctorId, LocalDate startDate, LocalDate endDate) {
+    public List<ScheduleDetailVO> getDoctorSchedules(Long userId, LocalDate startDate, LocalDate endDate) {
+        Doctor doctor = doctorMapper.selectOne(
+                new LambdaQueryWrapper<Doctor>()
+                        .eq(Doctor::getUserId, userId)
+        );
+        Long doctorId = doctor.getDoctorId();
+
         QueryWrapper<Schedule> wrapper = new QueryWrapper<>();
         wrapper.eq("doctor_id", doctorId);
         if (startDate != null) {

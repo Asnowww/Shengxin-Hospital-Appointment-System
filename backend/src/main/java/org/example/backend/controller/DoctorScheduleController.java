@@ -30,11 +30,11 @@ public class DoctorScheduleController {
      */
     @GetMapping("/my")
     public Result<List<ScheduleDetailVO>> getMySchedules(
-            @RequestParam Long doctorId,
+            @RequestParam Long userId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
-            List<ScheduleDetailVO> schedules = scheduleService.getDoctorSchedules(doctorId, startDate, endDate);
+            List<ScheduleDetailVO> schedules = scheduleService.getDoctorSchedules(userId, startDate, endDate);
             return Result.success(schedules);
         } catch (Exception e) {
             return Result.error(e.getMessage());
