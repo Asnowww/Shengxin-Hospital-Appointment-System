@@ -362,7 +362,47 @@ public class NotificationEmailService {
     // ==================== 3. 排班变更相关邮件 ====================
 
     /**
-     * 发送排班取消通知
+     * 给患者发送挂号被重新分配到新的排班通知
+     */
+    public void sendAppointmentReassignNotification(Long patientId, Integer originalScheduleId, Integer newScheduleId, String reason) {
+        try {
+            Patient patient = patientMapper.selectById(patientId);
+            if (patient == null) return;
+
+            User user = userMapper.selectById(patient.getUserId());
+            if (user == null || user.getEmail() == null) return;
+
+            Schedule newSchedule = scheduleMapper.selectById(newScheduleId);
+
+            String subject = "【挂号变更待确认】请尽快处理";
+            String content = String.format("""
+                尊敬的%s您好：
+
+                因医生排班变更，您原预约的就诊时间已调整：
+
+                📌 原排班：%s  
+                ➡ 新排班：%s
+
+                请登录系统进行确认或重新挂号，否则系统将在24小时后自动处理。
+
+                变更原因：%s
+                """,
+                    user.getName(),
+                    originalScheduleId,
+                    newScheduleId,
+                    reason
+            );
+
+            // 调用你已有的邮件发送机制 + 记录机制
+            sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
+
+        } catch (Exception e) {
+            log.error("发送挂号变更通知失败: patientId={}, newScheduleId={}", patientId, newScheduleId, e);
+        }
+    }
+
+    /**
+     * 发送排班取消通知（包含记录 + 邮件发送）
      */
     public void sendScheduleCancelledNotification(Long patientId, Integer scheduleId, String reason) {
         try {
@@ -373,14 +413,32 @@ public class NotificationEmailService {
             if (user == null || user.getEmail() == null) return;
 
             Schedule schedule = scheduleMapper.selectById(scheduleId);
-            String subject = "【排班取消】您预约的排班已取消";
+            String subject = "【排班变更通知】您的预约已调整";
             String content = buildScheduleCancelledEmail(user.getName(), schedule, reason);
 
+            // ➤ 记录到通知表
+            Notification notification = new Notification();
+            notification.setUserId(user.getUserId());
+            notification.setEmail(user.getEmail());
+            notification.setSubject(subject);
+            notification.setContent(content);
+            notification.setStatus("pending");
+            notification.setCreatedAt(LocalDateTime.now());
+            notificationMapper.insert(notification);
+
+            // ➤ 发送邮件
             sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
+
+            // ➤ 更新通知状态为成功
+            notification.setStatus("sent");
+            notification.setSentAt(LocalDateTime.now());
+            notificationMapper.updateById(notification);
+
         } catch (Exception e) {
-            log.error("发送排班取消邮件失败: patientId={}, scheduleId={}", patientId, scheduleId, e);
+            log.error("发送排班变更通知失败: patientId={}, scheduleId={}", patientId, scheduleId, e);
         }
     }
+
 
     // ==================== 4. 通用邮件 ====================
 

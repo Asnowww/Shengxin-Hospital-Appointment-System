@@ -1,10 +1,13 @@
 package org.example.backend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.example.backend.dto.*;
 import org.example.backend.mapper.*;
 import org.example.backend.pojo.*;
 import org.example.backend.service.DoctorLeaveService;
+import org.example.backend.service.NotificationEmailService;
 import org.example.backend.service.ScheduleService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class DoctorLeaveServiceImpl implements DoctorLeaveService {
 
@@ -42,6 +46,9 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
 
     @Autowired
     private ScheduleService scheduleService;
+
+    @Resource
+    private NotificationEmailService notificationEmailService;
 
     @Override
     @Transactional
@@ -163,7 +170,8 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
                 exception.setCreatedAt(LocalDateTime.now());
                 scheduleExceptionMapper.insert(exception);
 
-                // TODO: 处理受影响的患者挂号（退款+通知）
+                // 将受影响患者迁移或通知
+                reassignAppointments(schedule, param.getReviewedBy(), exception.getExceptionId());
             }
 
         } else if ("reject".equals(param.getAction())) {
@@ -219,7 +227,14 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
             originalSchedule.setUpdatedAt(LocalDateTime.now());
             scheduleMapper.updateById(originalSchedule);
 
-            // TODO: 处理已挂号患者（转移到新排班或退款）
+            // 记录 exception（已经存在 exceptionId，但为安全，我们也更新）
+            exception.setAdjustedDate(exception.getAdjustedDate());
+            exception.setAdjustedRoomId(exception.getAdjustedRoomId());
+            exception.setAdjustedTimeSlot(exception.getAdjustedTimeSlot());
+            scheduleExceptionMapper.updateById(exception);
+
+            // 迁移/通知已挂号患者：把原 schedule 中的 appointment 尝试系统分配到同科室同日期同时间段的其它医生
+            reassignAppointments(originalSchedule, reviewedBy, exception.getExceptionId());
 
         } else if ("reject".equals(action)) {
             exception.setStatus("rejected");
@@ -228,6 +243,88 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
         }
 
         scheduleExceptionMapper.updateById(exception);
+    }
+
+    /**
+     * 处理取消排班后的挂号迁移逻辑：
+     * 1. 若存在替代排班：自动迁移但需患者确认(pending_patient_confirm)
+     * 2. 若没有可替代排班：挂号标记为等待操作(waiting_patient_action)
+     * 3. 全流程发送通知提醒患者
+     */
+    private void reassignAppointments(Schedule cancelledSchedule, Long operatorId, Long exceptionId) {
+
+        List<Appointment> appointments = appointmentMapper.selectByScheduleId(cancelledSchedule.getScheduleId());
+
+        if (appointments == null || appointments.isEmpty()) {
+            log.info("【排班取消】排班 {} 无关联挂号，无需处理", cancelledSchedule.getScheduleId());
+            return;
+        }
+
+        for (Appointment appointment : appointments) {
+
+            Schedule alternative = findAlternativeSchedule(
+                    cancelledSchedule.getDeptId(),
+                    cancelledSchedule.getWorkDate(),
+                    cancelledSchedule.getTimeSlot()
+            );
+
+            // ------------------- 情况 ① 有可替代排班 -------------------
+            if (alternative != null && alternative.getAvailableSlots() != null && alternative.getAvailableSlots() > 0) {
+
+                // 占号
+                alternative.setAvailableSlots(alternative.getAvailableSlots() - 1);
+                scheduleMapper.updateById(alternative);
+
+                // 更新挂号信息进入“待患者确认”状态
+                appointment.setScheduleId(alternative.getScheduleId());
+                appointment.setAppointmentStatus("pending_patient_confirm");
+                appointment.setUpdatedAt(LocalDateTime.now());
+                appointmentMapper.updateById(appointment);
+
+                // 调用邮件服务 → 不手写内容
+                notificationEmailService.sendAppointmentReassignNotification(
+                        appointment.getPatientId(),
+                        cancelledSchedule.getScheduleId(),
+                        alternative.getScheduleId(),
+                        "因医生排班调整已为您自动分配至替代排班，请确认。"
+                );
+
+                log.info("已为挂号 {} 分配替代排班 {}，等待患者确认", appointment.getAppointmentId(), alternative.getScheduleId());
+                continue;
+            }
+
+            // ------------------- 情况 ② 无替代排班 -------------------
+            appointment.setAppointmentStatus("waiting_patient_action");
+            appointment.setUpdatedAt(LocalDateTime.now());
+            appointmentMapper.updateById(appointment);
+
+            // 调用原邮件方法通知用户自己处理
+            notificationEmailService.sendScheduleCancelledNotification(
+                    appointment.getPatientId(),
+                    cancelledSchedule.getScheduleId(),
+                    "当前暂无替补排班，请自行重新选择或者退号。"
+            );
+
+            log.info("挂号 {} 未找到替代排班，已通知患者手动处理", appointment.getAppointmentId());
+        }
+    }
+
+
+
+    /**
+     * 查找替代排班（查询顺序、策略可按需求微调）
+     */
+    private Schedule findAlternativeSchedule(Integer deptId, java.time.LocalDate workDate, Integer timeSlot) {
+        QueryWrapper<Schedule> q = new QueryWrapper<>();
+        q.eq("dept_id", deptId)
+                .eq("work_date", workDate)
+                .eq("time_slot", timeSlot)
+                .eq("status", "open")
+                .gt("available_slots", 0)
+                .orderByDesc("available_slots")
+                .last("LIMIT 1");
+
+        return scheduleMapper.selectOne(q);
     }
 
     @Override
