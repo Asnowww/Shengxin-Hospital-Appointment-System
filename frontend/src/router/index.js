@@ -33,7 +33,7 @@ const routes = [
   //医生端界面
   { path: '/doctor/profile', name: 'docProfile', component: DoctorProfile }, //医生个人信息页
   { path: '/doctor/schedules', name: 'doctorSchedules', component: DoctorSchedule }, //医生排班页
-  { path: '/doctor/leave/apply', name: 'doctorLeaveApply', component: () => import('@/views/DoctorLeaveApply.vue') }, // 医生请假申请
+  { path: '/doctor/leave/apply', name: 'doctorLeaveApply', component: () => import('@/views/DoctorLeaveApplication.vue') }, // 医生请假申请
   { path: '/doctor/patient-management', name: 'doctorPatientManagement', component: () => import('@/views/DoctorPatientManagement.vue') }, // 医生患者管理
 
   //管理端界面

@@ -13,11 +13,13 @@
         <div class="form-grid">
           <div class="form-group">
             <label>开始日期 <span class="required">*</span></label>
-            <input v-model="form.fromDate" type="date" />
+            <input v-model="form.fromDate" type="date" :min="today" />
+
+
           </div>
           <div class="form-group">
             <label>结束日期 <span class="required">*</span></label>
-            <input v-model="form.toDate" type="date" />
+            <input v-model="form.toDate" type="date" :min="form.fromDate || today" />
           </div>
           <div class="form-group full">
             <label>请假事由 <span class="required">*</span></label>
@@ -66,6 +68,8 @@ import { ref, onMounted, nextTick } from 'vue'
 import axios from 'axios'
 import Navigation from '@/components/Navigation.vue'
 
+const today = new Date().toISOString().split('T')[0]
+
 const navRef = ref(null)
 const navHeight = ref(110)
 
@@ -100,6 +104,18 @@ async function submit() {
   if (!form.value.toDate) { alert('请选择结束日期'); return }
   if (!form.value.reason || !form.value.reason.trim()) { alert('请输入请假事由'); return }
 
+    // 日期不得早于今天
+  if (form.value.fromDate < today) {
+    alert('开始日期不能早于今天');
+    return
+  }
+
+  // 结束日期不得早于开始日期
+  if (form.value.toDate < form.value.fromDate) {
+    alert('结束日期不能早于开始日期');
+    return
+  }
+  
   // 确保 userId 已设置（从 form 或 localStorage）
   if (!form.value.userId) {
     form.value.userId = getUserIdFromStorage()
@@ -181,8 +197,8 @@ onMounted(async () => {
 
 
 <style scoped>
-.page-container { min-height: 100vh; background: #f7fafc; }
-.content { max-width: 1000px; margin: 0 auto; padding: 1.5rem; display: grid; gap: 1.5rem; }
+.page-container { min-height: 100vh; }
+.content { max-width: 1200px; margin: 0 auto; padding: 1.5rem; display: grid; gap: 1.5rem; }
 .card { background: #fff; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,.1); overflow: hidden; }
 .card-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 2px solid #f0f0f0; }
 .title-group h2 { margin: 0; color: #2d3748; font-size: 1.5rem; font-weight: 700; }

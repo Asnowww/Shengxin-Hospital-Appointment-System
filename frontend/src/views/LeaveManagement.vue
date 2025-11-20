@@ -122,7 +122,7 @@
             <div v-else class="leave-cards">
               <div
                 v-for="leave in filteredLeaves"
-                :key="leave.id"
+                :key="leave.leaveId"
                 class="leave-card">
                 <!-- 卡片头部 -->
                 <div class="card-header">
@@ -135,7 +135,7 @@
                     </div>
                     <div class="doctor-details">
                       <h3>{{ leave.doctorName }}</h3>
-                      <p>{{ leave.department }} - {{ leave.title }}</p>
+                      <p>{{ leave.deptName }}</p>
                     </div>
                   </div>
                   <span :class="['status-badge', leave.status]">
@@ -155,7 +155,7 @@
                       </svg>
                       <div>
                         <div class="info-label">请假日期</div>
-                        <div class="info-value">{{ leave.date }}</div>
+                        <div class="info-value">{{ formatDateRange(leave.fromDate, leave.toDate) }}</div>
                       </div>
                     </div>
                     <div class="info-item">
@@ -164,50 +164,37 @@
                         <polyline points="12 6 12 12 16 14"></polyline>
                       </svg>
                       <div>
-                        <div class="info-label">请假时间</div>
-                        <div class="info-value">{{ leave.timeSlot }}</div>
-                      </div>
-                    </div>
-                    <div class="info-item">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                      </svg>
-                      <div>
-                        <div class="info-label">影响预约数</div>
-                        <div class="info-value">{{ leave.affectedAppointments }}人</div>
+                        <div class="info-label">影响排班</div>
+                        <div class="info-value">{{ leave.affectedScheduleCount }}个班次</div>
                       </div>
                     </div>
                   </div>
 
                   <div class="reason-section">
                     <div class="reason-label">请假原因</div>
-                    <div class="reason-text">{{ leave.reason }}</div>
+                    <div class="reason-text">{{ leave.reason || '未填写' }}</div>
                   </div>
 
                   <!-- 警告信息 -->
-                  <div v-if="leave.affectedAppointments > 0 && leave.status === 'pending'" class="warning-banner">
+                  <div v-if="leave.affectedAppointmentCount > 0 && leave.status === 'pending'" class="warning-banner">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
                       <line x1="12" y1="9" x2="12" y2="13"></line>
                       <line x1="12" y1="17" x2="12.01" y2="17"></line>
                     </svg>
-                    <span>批准此请假将影响 {{ leave.affectedAppointments }} 个患者预约，请谨慎处理</span>
+                    <span>批准此请假将影响 {{ leave.affectedAppointmentCount }} 个患者预约,请谨慎处理</span>
                   </div>
 
                   <!-- 申请时间 -->
                   <div class="request-time">
-                    申请时间：{{ leave.requestTime }}
+                    申请时间:{{ formatDateTime(leave.appliedAt) }}
                   </div>
 
-                  <!-- 审批备注（如果有） -->
-                  <div v-if="leave.reviewNote" class="review-note">
-                    <div class="review-note-label">审批备注</div>
-                    <div class="review-note-text">{{ leave.reviewNote }}</div>
+                  <!-- 审批信息(如果已审批) -->
+                  <div v-if="leave.status !== 'pending' && leave.reviewedAt" class="review-note">
+                    <div class="review-note-label">审批信息</div>
                     <div class="review-info">
-                      由 {{ leave.reviewerName }} 于 {{ leave.reviewTime }} 处理
+                      由 {{ leave.reviewedByName || '管理员' }} 于 {{ formatDateTime(leave.reviewedAt) }} 处理
                     </div>
                   </div>
                 </div>
@@ -217,22 +204,22 @@
                   <button
                     @click="openRejectModal(leave)"
                     class="reject-btn"
-                    :disabled="processingId === leave.id">
+                    :disabled="processingId === leave.leaveId">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <circle cx="12" cy="12" r="10"></circle>
                       <line x1="15" y1="9" x2="9" y2="15"></line>
                       <line x1="9" y1="9" x2="15" y2="15"></line>
                     </svg>
-                    {{ processingId === leave.id && processingAction === 'reject' ? '处理中...' : '拒绝' }}
+                    {{ processingId === leave.leaveId && processingAction === 'reject' ? '处理中...' : '拒绝' }}
                   </button>
                   <button
                     @click="openApproveModal(leave)"
                     class="approve-btn"
-                    :disabled="processingId === leave.id">
+                    :disabled="processingId === leave.leaveId">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    {{ processingId === leave.id && processingAction === 'approve' ? '处理中...' : '批准' }}
+                    {{ processingId === leave.leaveId && processingAction === 'approve' ? '处理中...' : '批准' }}
                   </button>
                 </div>
               </div>
@@ -256,20 +243,20 @@
         </div>
         <div class="modal-body">
           <div v-if="selectedLeave" class="modal-info">
-            <p><strong>医生：</strong>{{ selectedLeave.doctorName }} - {{ selectedLeave.department }}</p>
-            <p><strong>日期：</strong>{{ selectedLeave.date }} {{ selectedLeave.timeSlot }}</p>
-            <p><strong>原因：</strong>{{ selectedLeave.reason }}</p>
-            <div v-if="selectedLeave.affectedAppointments > 0" class="modal-warning">
+            <p><strong>医生:</strong>{{ selectedLeave.doctorName }} - {{ selectedLeave.deptName }}</p>
+            <p><strong>日期:</strong>{{ formatDateRange(selectedLeave.fromDate, selectedLeave.toDate) }}</p>
+            <p><strong>原因:</strong>{{ selectedLeave.reason || '未填写' }}</p>
+            <div v-if="selectedLeave.affectedAppointmentCount > 0" class="modal-warning">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
                 <line x1="12" y1="9" x2="12" y2="13"></line>
                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
               </svg>
-              <span>此操作将影响 {{ selectedLeave.affectedAppointments }} 个患者预约</span>
+              <span>此操作将影响 {{ selectedLeave.affectedAppointmentCount }} 个患者预约</span>
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label">审批备注（可选）</label>
+            <label class="form-label">审批备注(可选)</label>
             <textarea
               v-model="approveNote"
               class="form-textarea"
@@ -301,9 +288,9 @@
         </div>
         <div class="modal-body">
           <div v-if="selectedLeave" class="modal-info">
-            <p><strong>医生：</strong>{{ selectedLeave.doctorName }} - {{ selectedLeave.department }}</p>
-            <p><strong>日期：</strong>{{ selectedLeave.date }} {{ selectedLeave.timeSlot }}</p>
-            <p><strong>原因：</strong>{{ selectedLeave.reason }}</p>
+            <p><strong>医生:</strong>{{ selectedLeave.doctorName }} - {{ selectedLeave.deptName }}</p>
+            <p><strong>日期:</strong>{{ formatDateRange(selectedLeave.fromDate, selectedLeave.toDate) }}</p>
+            <p><strong>原因:</strong>{{ selectedLeave.reason || '未填写' }}</p>
           </div>
           <div class="form-group">
             <label class="form-label">
@@ -397,6 +384,27 @@ const filteredLeaves = computed(() => {
   return leaves.value.filter(leave => leave.status === activeTab.value)
 })
 
+// 格式化日期范围
+function formatDateRange(fromDate, toDate) {
+  if (fromDate === toDate) {
+    return fromDate
+  }
+  return `${fromDate} 至 ${toDate}`
+}
+
+// 格式化日期时间
+function formatDateTime(dateTime) {
+  if (!dateTime) return ''
+  const date = new Date(dateTime)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 // 获取状态文本
 function getStatusText(status) {
   const statusMap = {
@@ -463,32 +471,31 @@ async function handleApprove() {
   if (!selectedLeave.value) return
 
   processing.value = true
-  processingId.value = selectedLeave.value.id
+  processingId.value = selectedLeave.value.leaveId
   processingAction.value = 'approve'
 
   try {
-    // 实际使用时替换为：
-    // await axios.post(`/api/admin/leaves/${selectedLeave.value.id}/approve`, {
-    //   note: approveNote.value
-    // })
+    // 获取当前登录的管理员ID，这里需要从你的用户状态管理中获取
+    // 假设你有一个全局的用户信息store或者localStorage
+    const reviewedBy = parseInt(localStorage.getItem('userId')) || 1 // 默认为1，实际使用时需要从登录状态获取
 
-    // 模拟API请求
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const response = await axios.put('/api/admin/leaves/review', {
+      leaveId: selectedLeave.value.leaveId,
+      action: 'approve',
+      reviewedBy: reviewedBy
+    })
 
-    // 更新本地数据
-    const leave = leaves.value.find(l => l.id === selectedLeave.value.id)
-    if (leave) {
-      leave.status = 'approved'
-      leave.reviewNote = approveNote.value || '已批准'
-      leave.reviewerName = '管理员'
-      leave.reviewTime = new Date().toLocaleString('zh-CN')
+    if (response.data.code === 200) {
+      showToastMessage('已批准该请假申请')
+      closeApproveModal()
+      // 重新加载数据
+      await fetchLeaves()
+    } else {
+      showToastMessage(response.data.message || '操作失败', 'error')
     }
-
-    showToastMessage('已批准该请假申请')
-    closeApproveModal()
   } catch (err) {
     console.error('批准失败', err)
-    showToastMessage('操作失败，请重试', 'error')
+    showToastMessage(err.response?.data?.message || '操作失败,请重试', 'error')
   } finally {
     processing.value = false
     processingId.value = null
@@ -500,7 +507,7 @@ async function handleApprove() {
 async function handleReject() {
   if (!selectedLeave.value) return
 
-  // 验证拒绝原因
+  // 验证拒绝原因（如果需要的话，可以移除这个验证）
   if (!rejectNote.value.trim()) {
     rejectError.value = '请输入拒绝原因'
     return
@@ -508,32 +515,30 @@ async function handleReject() {
   rejectError.value = ''
 
   processing.value = true
-  processingId.value = selectedLeave.value.id
+  processingId.value = selectedLeave.value.leaveId
   processingAction.value = 'reject'
 
   try {
-    // 实际使用时替换为：
-    // await axios.post(`/api/admin/leaves/${selectedLeave.value.id}/reject`, {
-    //   note: rejectNote.value
-    // })
+    // 获取当前登录的管理员ID
+    const reviewedBy = parseInt(localStorage.getItem('userId')) || 1 // 默认为1，实际使用时需要从登录状态获取
 
-    // 模拟API请求
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const response = await axios.put('/api/admin/leaves/review', {
+      leaveId: selectedLeave.value.leaveId,
+      action: 'reject',
+      reviewedBy: reviewedBy
+    })
 
-    // 更新本地数据
-    const leave = leaves.value.find(l => l.id === selectedLeave.value.id)
-    if (leave) {
-      leave.status = 'rejected'
-      leave.reviewNote = rejectNote.value
-      leave.reviewerName = '管理员'
-      leave.reviewTime = new Date().toLocaleString('zh-CN')
+    if (response.data.code === 200) {
+      showToastMessage('已拒绝该请假申请')
+      closeRejectModal()
+      // 重新加载数据
+      await fetchLeaves()
+    } else {
+      showToastMessage(response.data.message || '操作失败', 'error')
     }
-
-    showToastMessage('已拒绝该请假申请')
-    closeRejectModal()
   } catch (err) {
     console.error('拒绝失败', err)
-    showToastMessage('操作失败，请重试', 'error')
+    showToastMessage(err.response?.data?.message || '操作失败,请重试', 'error')
   } finally {
     processing.value = false
     processingId.value = null
@@ -545,100 +550,16 @@ async function handleReject() {
 async function fetchLeaves() {
   loading.value = true
   try {
-    // 实际使用时替换为：
-    // const { data } = await axios.get('/api/admin/leaves')
-    // leaves.value = data
-
-    // 模拟API请求
-    await new Promise(resolve => setTimeout(resolve, 800))
-
-    // 模拟数据
-    leaves.value = [
-      {
-        id: 1,
-        doctorName: '张医生',
-        department: '内科',
-        title: '主任医师',
-        date: '2025-10-25',
-        timeSlot: '上午 08:00-12:00',
-        reason: '家中有急事需要处理',
-        affectedAppointments: 8,
-        status: 'pending',
-        requestTime: '2025-10-22 09:30:00'
-      },
-      {
-        id: 2,
-        doctorName: '李医生',
-        department: '外科',
-        title: '副主任医师',
-        date: '2025-10-26',
-        timeSlot: '下午 14:00-17:00',
-        reason: '参加学术会议',
-        affectedAppointments: 5,
-        status: 'pending',
-        requestTime: '2025-10-22 10:15:00'
-      },
-      {
-        id: 3,
-        doctorName: '王医生',
-        department: '儿科',
-        title: '主治医师',
-        date: '2025-10-24',
-        timeSlot: '全天',
-        reason: '身体不适需要休息',
-        affectedAppointments: 12,
-        status: 'approved',
-        requestTime: '2025-10-21 16:20:00',
-        reviewNote: '同意请假，注意休息',
-        reviewerName: '管理员',
-        reviewTime: '2025-10-21 17:00:00'
-      },
-      {
-        id: 4,
-        doctorName: '赵医生',
-        department: '骨科',
-        title: '主任医师',
-        date: '2025-10-23',
-        timeSlot: '上午 08:00-12:00',
-        reason: '个人原因',
-        affectedAppointments: 15,
-        status: 'rejected',
-        requestTime: '2025-10-20 14:30:00',
-        reviewNote: '该时段预约较多，建议调整至其他时间',
-        reviewerName: '管理员',
-        reviewTime: '2025-10-20 15:45:00'
-      },
-      {
-        id: 5,
-        doctorName: '刘医生',
-        department: '妇产科',
-        title: '主治医师',
-        date: '2025-10-27',
-        timeSlot: '上午 08:00-12:00',
-        reason: '培训学习',
-        affectedAppointments: 0,
-        status: 'pending',
-        requestTime: '2025-10-22 11:00:00'
-      },
-      {
-        id: 6,
-        doctorName: '陈医生',
-        department: '眼科',
-        title: '副主任医师',
-        date: '2025-10-28',
-        timeSlot: '下午 14:00-17:00',
-        reason: '科研项目需要',
-        affectedAppointments: 3,
-        status: 'approved',
-        requestTime: '2025-10-21 09:00:00',
-        reviewNote: '已批准',
-        reviewerName: '管理员',
-        reviewTime: '2025-10-21 10:30:00'
-      }
-    ]
+    const response = await axios.get('/api/admin/leaves/list')
+    
+    if (response.data.code === 200) {
+      leaves.value = response.data.data || []
+    } else {
+      showToastMessage(response.data.message || '获取数据失败', 'error')
+    }
   } catch (err) {
     console.error('获取请假列表失败', err)
-    showToastMessage('获取数据失败，请刷新重试', 'error')
+    showToastMessage('获取数据失败,请刷新重试', 'error')
   } finally {
     loading.value = false
   }
@@ -1124,15 +1045,9 @@ onUnmounted(() => {
   margin-bottom: 0.5rem;
 }
 
-.review-note-text {
-  color: #2d3748;
-  font-size: 0.95rem;
-  margin-bottom: 0.5rem;
-}
-
 .review-info {
   color: #69c0ff;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
 }
 
 .card-actions {
