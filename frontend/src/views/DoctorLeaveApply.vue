@@ -76,23 +76,38 @@ function updateNavHeight() {
   }
 }
 
-const form = ref({ doctorId: null, fromDate: '', toDate: '', reason: '' })
+// --- 表单与状态 ---
+const form = ref({ userId: null, fromDate: '', toDate: '', reason: '' })
 const loading = ref(false)
 const history = ref([])
 const submitting = ref(false)
+
+// helper: 从 localStorage 读 userId（返回 null 或 Number）
+function getUserIdFromStorage() {
+  const raw = localStorage.getItem('userId')
+  if (!raw) return null
+  const n = Number(raw)
+  return Number.isNaN(n) ? raw : n
+}
 
 function statusText(s) {
   return s === 'approved' ? '已通过' : s === 'rejected' ? '已拒绝' : '待审批'
 }
 
 async function submit() {
-  // 校验表单项（逐项提示更友好）
+  // 校验表单项
   if (!form.value.fromDate) { alert('请选择开始日期'); return }
   if (!form.value.toDate) { alert('请选择结束日期'); return }
   if (!form.value.reason || !form.value.reason.trim()) { alert('请输入请假事由'); return }
 
-  if (!form.value.doctorId) { await ensureDoctorId() }
-  if (!form.value.doctorId) { alert('无法识别医生身份，请重新登录医生账号或稍后再试'); return }
+  // 确保 userId 已设置（从 form 或 localStorage）
+  if (!form.value.userId) {
+    form.value.userId = getUserIdFromStorage()
+  }
+  if (!form.value.userId) {
+    alert('无法识别用户，请先登录或在本地保存 userId（localStorage）')
+    return
+  }
 
   try {
     submitting.value = true
@@ -101,6 +116,7 @@ async function submit() {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
     alert('已提交，请等待审批')
+    // 提交后刷新历史（等待服务器处理可能需要一点时间）
     fetchHistory()
   } catch (e) {
     console.error(e)
@@ -111,58 +127,58 @@ async function submit() {
 }
 
 async function fetchHistory() {
-  if (!form.value.doctorId) {
-    await ensureDoctorId()
-    if (!form.value.doctorId) return
-  }
   loading.value = true
   try {
+    // 若 form 中没有 userId，尝试从 localStorage 获取并写回 form
+    if (!form.value.userId) {
+      form.value.userId = getUserIdFromStorage()
+    }
+
+    // 如果还是没有 userId：尝试使用 token 请求也可能返回当前用户历史（如果后端支持）
     const token = localStorage.getItem('token')
+    const params = {
+      userId:getUserIdFromStorage()
+    }
+    if (form.value.userId) params.userId = form.value.userId
+
     const { data } = await axios.get('/api/doctor/schedules/leave/history', {
-      params: { doctorId: form.value.doctorId },
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
+      params,
     })
+
     if (data?.code === 200) {
       history.value = data.data || []
     } else {
+      console.warn('fetchHistory 返回非 200：', data)
       history.value = []
     }
   } catch (e) {
-    console.error(e)
+    console.error('fetchHistory error:', e)
+    history.value = []
   } finally {
     loading.value = false
   }
 }
 
-async function ensureDoctorId() {
-  // 1) 本地已有缓存
-  const cached = localStorage.getItem('doctorId')
-  if (cached) { form.value.doctorId = Number(cached); return }
-
-  // 2) 通过医生列表匹配用户名
-  try {
-    const token = localStorage.getItem('token')
-    const { data } = await axios.get('/api/doctor/list', {
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
-    })
-    const username = localStorage.getItem('username') || localStorage.getItem('name')
-    if (data?.code === 200 && Array.isArray(data.data)) {
-      // 尝试按 name/username 匹配
-      const hit = data.data.find(d => d.name === username || d.username === username)
-      if (hit && (hit.id || hit.doctorId)) {
-        form.value.doctorId = Number(hit.id || hit.doctorId)
-        localStorage.setItem('doctorId', String(form.value.doctorId))
-      }
-    }
-  } catch (e) {
-    // 忽略获取失败
-  }
-}
-
+// onMounted 时读取 userId、调整导航高度并首次拉取历史
 onMounted(async () => {
-  await nextTick(); updateNavHeight(); await ensureDoctorId()
+  // 先从 localStorage 读取 userId，放到 form 中
+  const uid = getUserIdFromStorage()
+  if (uid) {
+    form.value.userId = uid
+  } else {
+    // 可选：控制台提示（避免打扰用户 UI）
+    console.warn('userId not found in localStorage')
+  }
+
+  // 更新导航高度（等 DOM 渲染）
+  await nextTick()
+  updateNavHeight()
+
+  // 首次尝试拉取历史（如果没有 userId，但后端支持 token 识别，也会返回数据）
+  fetchHistory()
 })
 </script>
+
 
 <style scoped>
 .page-container { min-height: 100vh; background: #f7fafc; }

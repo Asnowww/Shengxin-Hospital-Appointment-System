@@ -2,54 +2,6 @@
   <Navigation ref="navRef" />
   <div class="page-container" :style="{ paddingTop: navHeight + 'px' }">
     <div class="profile-layout">
-      <!-- 左侧边栏 -->
-      <aside class="sidebar">
-        <div class="sidebar-header">
-          <div class="avatar">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"></path>
-            </svg>
-          </div>
-          <h3>管理员中心</h3>
-        </div>
-
-        <nav class="sidebar-nav">
-          <router-link to="/admin/profile" class="nav-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            <span>个人信息</span>
-          </router-link>
-
-          <router-link to="/admin/schedules" class="nav-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            <span>排班管理</span>
-          </router-link>
-
-          <router-link to="/admin/leaves" class="nav-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            <span>请假审批</span>
-          </router-link>
-
-          <router-link to="/admin/fees" class="nav-item active">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23"></line>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-            </svg>
-            <span>号别管理</span>
-          </router-link>
-        </nav>
-      </aside>
-
       <!-- 右侧主内容区 -->
       <main class="main-content">
         <div class="fee-management">
@@ -68,20 +20,7 @@
             </button>
           </div>
 
-          <!-- 统计卡片 -->
-          <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-              </div>
-           
-            </div>
-
-          </div>
-
+         
           <!-- 表格区域 -->
           <div class="table-container">
             <table class="fee-table">
@@ -89,7 +28,7 @@
                 <tr>
                   <th>序号</th>
                   <th>号别名称</th>
-                  <th>号别类型</th>
+                 
                   <th>默认挂号人数</th>
                   <th>费用（元）</th>
                   <th>描述</th>
@@ -113,11 +52,7 @@
                 <tr v-for="(item, index) in feeList" :key="item.appointmentTypeId" class="table-row">
                   <td class="text-center">{{ index + 1 }}</td>
                   <td class="font-medium">{{ item.typeName }}</td>
-                  <td>
-                    <span class="type-badge" :class="`type-${item.typeKey}`">
-                      {{ item.typeKey }}
-                    </span>
-                  </td>
+
                   <td class="text-center">{{ item.maxSlots }}</td>
                   <td class="text-center font-medium">¥{{ item.feeAmount.toFixed(2) }}</td>
                   <td class="desc-text">{{ item.description || '-' }}</td>
@@ -161,16 +96,6 @@
               v-model="formData.typeName"
               type="text"
               placeholder="例如：普通号、专家号"
-              class="form-input"
-              required />
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">号别标识 <span class="required">*</span></label>
-            <input
-              v-model="formData.typeKey"
-              type="text"
-              placeholder="例如：normal、expert、special"
               class="form-input"
               required />
           </div>
@@ -249,24 +174,8 @@ const initialFormData = {
   description: ''
 }
 
-const averageFee = computed(() => {
-  if (feeList.value.length === 0) return '0.00'
-  const total = feeList.value.reduce((sum, item) => sum + item.feeAmount, 0)
-  return (total / feeList.value.length).toFixed(2)
-})
 
-const totalCapacity = computed(() => {
-  return feeList.value.reduce((sum, item) => sum + item.maxSlots, 0)
-})
 
-function getFeeTypeLabel(type) {
-  const typeMap = {
-    normal: '普通',
-    expert: '专家',
-    special: '特需'
-  }
-  return typeMap[type] || '-'
-}
 
 function openCreateDialog() {
   isEditing.value = false
@@ -397,7 +306,7 @@ onUnmounted(() => {
 .profile-layout {
   display: flex;
   min-height: calc(100vh - 80px);
-  max-width: 1800px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
   gap: 2rem;

@@ -54,6 +54,7 @@ public class DoctorScheduleController {
         }
     }
 
+
     /**
      * 申请调班
      */
@@ -71,9 +72,9 @@ public class DoctorScheduleController {
      * 查看我的请假历史
      */
     @GetMapping("/leave/history")
-    public Result<List<DoctorLeave>> getLeaveHistory(@RequestParam Long doctorId) {
+    public Result<List<DoctorLeave>> getLeaveHistory(@RequestParam Long userId) {
         try {
-            List<DoctorLeave> leaves = doctorLeaveService.getDoctorLeaveHistory(doctorId);
+            List<DoctorLeave> leaves = doctorLeaveService.getDoctorLeaveHistory(userId);
             return Result.success(leaves);
         } catch (Exception e) {
             return Result.error(e.getMessage());

@@ -9,7 +9,7 @@ import java.time.LocalDate;
  */
 @Data
 public class LeaveApplyParam {
-    private Long doctorId;
+    private Long userId;
     private LocalDate fromDate;
     private LocalDate toDate;
     private String reason;

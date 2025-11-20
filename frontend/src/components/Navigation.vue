@@ -55,6 +55,13 @@
         审核中心
       </router-link>
 
+       <router-link
+        v-if="isLoggedIn && currentRole === 'admin'"
+        to="/admin/fee"
+        class="nav-item"
+        :class="{ active: isActive('/admin/fee') }">
+        号别管理
+      </router-link>
       <!-- 管理端：医生管理 -->
       <router-link
         v-if="isLoggedIn && currentRole === 'admin'"

@@ -1,5 +1,6 @@
 package org.example.backend.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -53,8 +54,12 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
     @Override
     @Transactional
     public void applyLeave(LeaveApplyParam param) {
+        Doctor doctor = doctorMapper.selectOne(
+                new LambdaQueryWrapper<Doctor>()
+                        .eq(Doctor::getUserId, param.getUserId())
+        );
+        Long doctorId = doctor.getDoctorId();
         // 验证医生是否存在
-        Doctor doctor = doctorMapper.selectById(param.getDoctorId());
         if (doctor == null) {
             throw new RuntimeException("医生不存在");
         }
@@ -66,7 +71,7 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
 
         // 检查是否有重叠的请假申请
         QueryWrapper<DoctorLeave> wrapper = new QueryWrapper<>();
-        wrapper.eq("doctor_id", param.getDoctorId())
+        wrapper.eq("doctor_id", doctorId)
                 .eq("status", "pending")
                 .and(w -> w.between("from_date", param.getFromDate(), param.getToDate())
                         .or()
@@ -78,12 +83,12 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
 
         // 创建请假申请
         DoctorLeave leave = new DoctorLeave();
-        leave.setDoctorId(param.getDoctorId());
+        leave.setDoctorId(doctorId);
         leave.setFromDate(param.getFromDate());
         leave.setToDate(param.getToDate());
         leave.setReason(param.getReason());
         leave.setStatus("pending");
-        leave.setAppliedBy(param.getDoctorId());
+        leave.setAppliedBy(doctorId);
         leave.setAppliedAt(LocalDateTime.now());
 
         doctorLeaveMapper.insert(leave);
@@ -360,7 +365,12 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
     }
 
     @Override
-    public List<DoctorLeave> getDoctorLeaveHistory(Long doctorId) {
+    public List<DoctorLeave> getDoctorLeaveHistory(Long userId) {
+        Doctor doctor = doctorMapper.selectOne(
+                new LambdaQueryWrapper<Doctor>()
+                        .eq(Doctor::getUserId, userId)
+        );
+        Long doctorId = doctor.getDoctorId();
         QueryWrapper<DoctorLeave> wrapper = new QueryWrapper<>();
         wrapper.eq("doctor_id", doctorId)
                 .orderByDesc("applied_at");
