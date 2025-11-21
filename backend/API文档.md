@@ -711,10 +711,10 @@ POST /api/doctor/bio/request
 
 #### **3️⃣ 请求参数**
 
-| 参数名      | 类型     | 是否必填 | 说明         |
-| -------- | ------ | ---- | ---------- |
-| doctorId | Long   | 是    | 医生ID       |
-| newBio   | String | 是    | 修改后的擅长领域内容 |
+| 参数名    | 类型     | 是否必填 | 说明         |
+|--------| ------ | ---- |------------|
+| userId | Long   | 是    | 用户ID       |
+| newBio | String | 是    | 修改后的擅长领域内容 |
 
 ---
 
@@ -723,7 +723,7 @@ POST /api/doctor/bio/request
 #### Form Data 或 `application/x-www-form-urlencoded`
 
 ```
-doctorId=1&newBio=擅长神经外科脑肿瘤微创治疗
+userId=1&newBio=擅长神经外科脑肿瘤微创治疗
 ```
 
 ---
