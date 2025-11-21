@@ -4,7 +4,6 @@ import org.example.backend.dto.DoctorAccountDTO;
 import org.example.backend.dto.DoctorQueryDTO;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 public interface DoctorAccountService {
 
@@ -43,7 +42,7 @@ public interface DoctorAccountService {
     /**
      * 医生提交修改bio申请
      */
-    void submitBioChange(Long doctorId, String newBio);
+    void submitBioChange(Long userId, String newBio);
 
     //-----管理端-----//
     /**

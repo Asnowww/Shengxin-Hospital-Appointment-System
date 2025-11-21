@@ -179,15 +179,15 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
         return doctor;
     }
 
-    public void submitBioChange(Long doctorId, String newBio) {
-        Doctor doctor = doctorMapper.selectById(doctorId);
+    public void submitBioChange(Long userId, String newBio) {
+        Doctor doctor = doctorMapper.selectOne(new QueryWrapper<Doctor>().eq("user_id", userId));
         if (doctor == null) {
             throw new RuntimeException("医生不存在");
         }
 
         // 校验是否有待审核记录
         Long count = requestMapper.selectCount(new QueryWrapper<DoctorBioUpdateRequest>()
-                .eq("doctor_id", doctorId)
+                .eq("doctor_id", doctor.getDoctorId())
                 .eq("status", "pending")
         );
 
@@ -196,7 +196,7 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
         }
 
         DoctorBioUpdateRequest req = new DoctorBioUpdateRequest();
-        req.setDoctorId(doctorId);
+        req.setDoctorId(doctor.getDoctorId());  // 仍用 doctorId 插入关联表
         req.setOldBio(doctor.getBio());
         req.setNewBio(newBio);
         req.setStatus("pending");
@@ -204,6 +204,7 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
 
         requestMapper.insert(req);
     }
+
 
     /**
      * 管理员审核bio修改

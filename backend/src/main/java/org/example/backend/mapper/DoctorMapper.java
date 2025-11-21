@@ -97,4 +97,30 @@ public interface DoctorMapper extends BaseMapper<Doctor> {
     """)
     int updateById(Doctor doctor);
 
+    /**
+     * 根据 userId 查询医生信息（用于医生自己操作）
+     */
+    @Select("""
+    SELECT 
+        d.doctor_id AS doctorId,
+        d.user_id AS userId,
+        d.dept_id AS deptId,
+        dep.dept_name AS deptName,
+        d.title,
+        d.bio,
+        d.status AS doctorStatus,
+        d.created_at AS createdAt,
+        d.updated_at AS updatedAt,
+        u.username,
+        u.phone,
+        u.email,
+        u.gender,
+        u.status AS userStatus
+    FROM doctors d
+    INNER JOIN users u ON d.user_id = u.user_id
+    LEFT JOIN departments dep ON d.dept_id = dep.dept_id
+    WHERE d.user_id = #{userId}
+""")
+    DoctorAccountDTO selectDoctorWithUserByUserId(@Param("userId") Long userId);
+
 }
