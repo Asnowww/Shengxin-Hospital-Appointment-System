@@ -4,8 +4,10 @@ package org.example.backend.controller;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.DoctorVO;
 import org.example.backend.dto.Result;
+import org.example.backend.mapper.DoctorBioUpdateRequestMapper;
 import org.example.backend.mapper.DoctorMapper;
 import org.example.backend.pojo.Doctor;
+import org.example.backend.service.DoctorAccountService;
 import org.example.backend.service.DoctorService;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +22,12 @@ public class DoctorController {
 
     @Resource
     private DoctorService doctorService;
+
+    @Resource
+    private DoctorAccountService doctorAccountService;
+
+    @Resource
+    private DoctorBioUpdateRequestMapper requestMapper;
 
     // 查询所有医生
     @GetMapping("/list")
@@ -92,5 +100,36 @@ public class DoctorController {
         List<DoctorVO> doctors = doctorService.getDoctorVOByDeptId(deptId);
         return Result.success(doctors);
     }
+
+    //---医生端---//
+    /**
+     * 医生提交修改擅长领域的申请
+     */
+    @PostMapping("/bio/request")
+    public Result<String> submitBioRequest(@RequestParam Long doctorId, @RequestParam String newBio) {
+        try {
+            doctorAccountService.submitBioChange(doctorId, newBio);
+            return Result.success("申请提交成功，等待管理员审核");
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    //---管理端---//
+    @PostMapping("/bio/review/{requestId}")
+    public Result<String> review(
+            @PathVariable Long requestId,
+            @RequestParam boolean approved,
+            @RequestParam(required = false) String reason
+    ) {
+        try {
+            doctorAccountService.reviewRequest(requestId, approved, reason);
+            return Result.success(approved ? "审核通过" : "已拒绝");
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+
 }
 

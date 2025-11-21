@@ -38,4 +38,16 @@ public interface DoctorAccountService {
      */
     DoctorAccountDTO getDoctorById(Long doctorId);
 
+    //-----医生端-----//
+
+    /**
+     * 医生提交修改bio申请
+     */
+    void submitBioChange(Long doctorId, String newBio);
+
+    //-----管理端-----//
+    /**
+     * 管理员审核bio修改申请
+     */
+    void reviewRequest(Long requestId, boolean approved, String reason);
 }

@@ -1,10 +1,13 @@
 package org.example.backend.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.DoctorAccountDTO;
 import org.example.backend.dto.DoctorQueryDTO;
 import org.example.backend.mapper.AppointmentMapper;
+import org.example.backend.mapper.DoctorBioUpdateRequestMapper;
 import org.example.backend.pojo.Doctor;
+import org.example.backend.pojo.DoctorBioUpdateRequest;
 import org.example.backend.pojo.User;
 import org.example.backend.mapper.DoctorMapper;
 import org.example.backend.mapper.UserMapper;
@@ -38,6 +41,9 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
     private PasswordEncoder passwordEncoder; // Spring Security 密码加密器
 
     private static final String DEFAULT_PASSWORD = "123456"; // 新账号默认密码
+
+    @Resource
+    private DoctorBioUpdateRequestMapper requestMapper;
 
     /**
      * 查询医生列表（支持条件筛选）
@@ -173,5 +179,59 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
         return doctor;
     }
 
+    public void submitBioChange(Long doctorId, String newBio) {
+        Doctor doctor = doctorMapper.selectById(doctorId);
+        if (doctor == null) {
+            throw new RuntimeException("医生不存在");
+        }
+
+        // 校验是否有待审核记录
+        Long count = requestMapper.selectCount(new QueryWrapper<DoctorBioUpdateRequest>()
+                .eq("doctor_id", doctorId)
+                .eq("status", "pending")
+        );
+
+        if (count > 0) {
+            throw new RuntimeException("已有修改申请正在审核中");
+        }
+
+        DoctorBioUpdateRequest req = new DoctorBioUpdateRequest();
+        req.setDoctorId(doctorId);
+        req.setOldBio(doctor.getBio());
+        req.setNewBio(newBio);
+        req.setStatus("pending");
+        req.setCreatedAt(LocalDateTime.now());
+
+        requestMapper.insert(req);
+    }
+
+    /**
+     * 管理员审核bio修改
+     */
+    @Transactional
+    public void reviewRequest(Long requestId, boolean approved, String reason) {
+        DoctorBioUpdateRequest request = requestMapper.selectById(requestId);
+        if (request == null || !"pending".equals(request.getStatus())) {
+            throw new RuntimeException("无法审核：申请不存在或已处理");
+        }
+
+        if (approved) {
+            // 修改医生信息
+            Doctor doctor = new Doctor();
+            doctor.setDoctorId(request.getDoctorId());
+            doctor.setBio(request.getNewBio());
+            doctor.setUpdatedAt(LocalDateTime.now());
+            doctorMapper.updateById(doctor);
+
+            request.setStatus("approved");
+            request.setReason(reason);
+        } else {
+            request.setStatus("rejected");
+            request.setReason(reason);
+        }
+
+        request.setReviewedAt(LocalDateTime.now());
+        requestMapper.updateById(request);
+    }
 
 }
