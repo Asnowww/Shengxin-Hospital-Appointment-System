@@ -73,6 +73,13 @@
 
       <!-- 登录状态判断：已登录显示"个人中心"，未登录显示"登录/注册" -->
       <template v-if="isLoggedIn">
+        <router-link
+          v-if="currentRole === 'admin'"
+          to="/admin/statistics"
+          class="nav-item"
+          :class="{ active: isActive('/admin/statistics') }">
+          数据分析
+        </router-link>
         <router-link 
           :to="roleRoutes[currentRole]" 
           class="nav-item" 
