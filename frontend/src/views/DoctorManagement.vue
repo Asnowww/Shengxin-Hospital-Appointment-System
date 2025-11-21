@@ -1,8 +1,9 @@
+
 <template>
   <Navigation ref="navRef" />
   <div class="page-container" :style="{ paddingTop: navHeight + 'px' }">
     <div class="profile-layout">
-      <!-- 左侧边栏导航（与其他管理员页保持一致风格，可后续整合复用） -->
+      <!-- 左侧边栏导航 -->
       <aside class="sidebar">
         <div class="sidebar-header">
           <div class="avatar">
@@ -68,76 +69,65 @@
             </button>
           </div>
 
-          <!-- 新建表单（复用组件） -->
+          <!-- 新建表单 -->
           <transition name="expand">
             <div v-if="toggleCreate" class="create-panel">
               <CreateDocAccount @created="fetchDoctors" />
             </div>
           </transition>
 
+          <!-- 筛选区 -->
+          <div class="filter-section">
+            <div class="filter-group">
+              <label class="filter-label">科室</label>
+              <div class="custom-select-container" @click.stop="toggleDropdown">
+                <div class="select-trigger" :class="{ 'is-open': dropdownVisible }">
+                  <span :class="{ 'placeholder-text': !selectedDeptName }">
+                    {{ selectedDeptName || '请选择科室' }}
+                  </span>
+                  <svg class="arrow-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
 
-<!-- 筛选区 -->
-<div class="filter-section">
-  <div class="filter-group">
-    <label class="filter-label">科室</label>
-    <!-- 修改开始：自定义下拉框结构 -->
-    <div class="custom-select-container" @click.stop="toggleDropdown">
-      <div class="select-trigger" :class="{ 'is-open': dropdownVisible }">
-        <span :class="{ 'placeholder-text': !selectedDeptName }">
-          {{ selectedDeptName || '请选择科室' }}
-        </span>
-        <!-- 下拉箭头图标 -->
-        <svg class="arrow-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"></polyline>
-        </svg>
-      </div>
-
-      <!-- 下拉菜单 -->
-      <transition name="fade">
-        <div v-show="dropdownVisible" class="select-options">
-          <div v-for="dept in departments" :key="dept.deptId" class="dept-group">
-            <!-- 一级科室标题 (不可点) -->
-            <div class="dept-group-title">{{ dept.deptName }}</div>
-            <!-- 二级科室选项 (可点) -->
-            <div 
-              v-for="child in dept.children || []" 
-              :key="child.deptId" 
-              class="dept-option"
-              :class="{ selected: filters.department === child.deptId }"
-              @click.stop="selectChild(child)"
-            >
-              {{ child.deptName }}
+                <transition name="fade">
+                  <div v-show="dropdownVisible" class="select-options">
+                    <div v-for="dept in departments" :key="dept.deptId" class="dept-group">
+                      <div class="dept-group-title">{{ dept.deptName }}</div>
+                      <div 
+                        v-for="child in dept.children || []" 
+                        :key="child.deptId" 
+                        class="dept-option"
+                        :class="{ selected: filters.department === child.deptId }"
+                        @click.stop="selectChild(child)"
+                      >
+                        {{ child.deptName }}
+                      </div>
+                    </div>
+                    <div v-if="departments.length === 0" class="no-data">暂无科室数据</div>
+                  </div>
+                </transition>
+              </div>
             </div>
+
+            <div class="filter-group">
+              <label class="filter-label">关键字</label>
+              <input
+                v-model="filters.keyword"
+                @keyup.enter="fetchDoctors"
+                class="filter-input"
+                placeholder="姓名 / 工号"
+              />
+            </div>
+            
+            <button @click="resetFilters" class="reset-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1 4 1 10 7 10"></polyline>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+              </svg>
+              重置
+            </button>
           </div>
-          <!-- 空数据状态 -->
-          <div v-if="departments.length === 0" class="no-data">暂无科室数据</div>
-        </div>
-      </transition>
-    </div>
-    <!-- 修改结束 -->
-  </div>
-
-  <div class="filter-group">
-    <label class="filter-label">关键字</label>
-    <!-- ... 保持原有的关键字输入框代码不变 ... -->
-    <input
-      v-model="filters.keyword"
-      @keyup.enter="fetchDoctors"
-      class="filter-input"
-      placeholder="姓名 / 工号"
-    />
-  </div>
-  
-  <!-- ... 保持原有的重置按钮代码不变 ... -->
-  <button @click="resetFilters" class="reset-btn">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="1 4 1 10 7 10"></polyline>
-      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-    </svg>
-    重置
-  </button>
-</div>
-
 
           <!-- 列表 -->
           <div v-if="loading" class="loading-state">
@@ -217,23 +207,41 @@
       </main>
     </div>
   </div>
+
+  <!-- 编辑医生信息弹窗组件 -->
+  <EditDoctorModal 
+    v-model="showEditModal" 
+    :doctor="editingDoctor" 
+    :departments="departments"
+    @success="handleEditSuccess"
+  />
 </template>
 
 <script setup>
 import { reactive, ref, onMounted, onUnmounted, nextTick } from 'vue'
 import Navigation from '@/components/Navigation.vue'
 import CreateDocAccount from '@/components/CreateDocAccount.vue'
+import EditDoctorModal from '@/components/EditDoctorModal.vue'
 import axios from 'axios'
 
 const navRef = ref(null)
 const navHeight = ref(110)
 const loading = ref(false)
 const toggleCreate = ref(false)
-// script 部分新增/修改
 const selectedDeptId = ref('')
 const selectedDeptName = ref('')
 const dropdownVisible = ref(false)
-const departments = ref([]) 
+const departments = ref([])
+const doctors = ref([])
+
+// 编辑相关状态
+const showEditModal = ref(false)
+const editingDoctor = ref(null)
+
+const filters = reactive({
+  department: '',
+  keyword: ''
+})
 
 function toggleDropdown() {
   dropdownVisible.value = !dropdownVisible.value
@@ -243,17 +251,14 @@ function selectChild(child) {
   selectedDeptId.value = child.deptId
   selectedDeptName.value = child.deptName
   filters.department = child.deptId
-  dropdownVisible.value = false // 选择后关闭
-  fetchDoctors() // 可选：选择后立即搜索
+  dropdownVisible.value = false
+  fetchDoctors()
 }
 
-
-// 点击页面任意处关闭下拉
-document.addEventListener('click', () => {
+function closeDropdown() {
   dropdownVisible.value = false
-})
+}
 
-// 获取科室列表
 async function fetchDepartments() {
   try {
     const res = await axios.get('/api/departments/all')
@@ -265,24 +270,6 @@ async function fetchDepartments() {
   }
 }
 
-onMounted(async () => {
-  document.addEventListener('click', closeDropdown)
-  await fetchDepartments()
-})
-
-function closeDropdown() {
-  dropdownVisible.value = false
-}
-
-const filters = reactive({
-  department: '',
-  keyword: ''
-})
-
-const doctors = ref([])
-
-
-
 async function fetchDoctors() {
   loading.value = true
   try {
@@ -293,7 +280,6 @@ async function fetchDoctors() {
       params.username = filters.keyword.trim()
     }
 
-    // 加上所选科室
     if (filters.department) {
       params.deptId = filters.department
     }
@@ -310,6 +296,11 @@ async function fetchDoctors() {
         departmentName: d.deptName,
         deptId: d.deptId,
         title: d.title,
+        gender: d.gender,
+        phone: d.phone,
+        email: d.email,
+        specialty: d.specialty,
+        bio: d.bio,
         enabled: (d.doctorStatus === 'active') && (d.userStatus === 'verified')
       }))
     } else {
@@ -322,7 +313,6 @@ async function fetchDoctors() {
     loading.value = false
   }
 }
-
 
 function resetFilters() {
   filters.department = ''
@@ -347,8 +337,15 @@ async function viewDoctor(doc) {
   }
 }
 
+// 编辑医生 - 打开弹窗
 function editDoctor(doc) {
-  alert(`编辑医生：${doc.name}（此处可打开编辑弹窗）`)
+  editingDoctor.value = doc
+  showEditModal.value = true
+}
+
+// 编辑成功回调
+function handleEditSuccess() {
+  fetchDoctors()
 }
 
 async function resetPassword(doc) {
@@ -370,12 +367,12 @@ async function toggleStatus(doctor) {
 
   try {
     const { data } = await axios.put(
-        `/api/admin/doctors/status/${doctor.id}`,
-        null,
-        {
-          params: { status: newStatus },
-          headers: { Authorization: `Bearer ${token}` }
-        }
+      `/api/admin/doctors/status/${doctor.id}`,
+      null,
+      {
+        params: { status: newStatus },
+        headers: { Authorization: `Bearer ${token}` }
+      }
     )
 
     if (data.code === 200) {
@@ -406,9 +403,11 @@ function handleResize() {
 }
 
 onMounted(async () => {
+  document.addEventListener('click', closeDropdown)
   await nextTick()
   updateNavHeight()
   window.addEventListener('resize', handleResize)
+  await fetchDepartments()
   fetchDoctors()
 })
 
@@ -426,7 +425,7 @@ onUnmounted(() => {
 /* 下拉框容器 */
 .custom-select-container {
   position: relative;
-  width: 200px; /* 可根据需要调整宽度 */
+  width: 200px;
   font-size: 14px;
   cursor: pointer;
 }
@@ -479,7 +478,7 @@ onUnmounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   max-height: 300px;
   overflow-y: auto;
-  z-index: 100; /* 确保浮在表格上方 */
+  z-index: 100;
 }
 
 /* 科室分组 */
@@ -502,7 +501,7 @@ onUnmounted(() => {
 
 /* 二级科室选项 */
 .dept-option {
-  padding: 10px 12px 10px 24px; /* 左侧缩进表示层级 */
+  padding: 10px 12px 10px 24px;
   color: #475569;
   transition: background 0.2s;
 }
@@ -536,6 +535,7 @@ onUnmounted(() => {
 .fade-leave-to {
   opacity: 0;
 }
+
 .profile-layout {
   display: flex;
   min-height: calc(100vh - 80px);
@@ -616,89 +616,6 @@ onUnmounted(() => {
 }
 
 .doctor-management { padding: 2.5rem; }
-/* 新增科室下拉样式 */
-.dept-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  position: relative;
-}
-
-.dept-dropdown {
-  position: relative;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 6px 12px;
-  min-width: 160px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.dept-selected {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 200px;
-  max-height: 280px;
-  overflow-y: auto;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,.1);
-  z-index: 1000;
-  padding: 4px 0;
-}
-
-.menu-item {
-  padding: 6px 12px;
-  position: relative;
-}
-
-.menu-item:hover {
-  background-color: #f5f7fa;
-}
-
-.submenu {
-  position: absolute;
-  top: 0;
-  left: 100%;
-  min-width: 160px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,.1);
-  z-index: 1000;
-}
-
-.submenu-item {
-  padding: 6px 12px;
-}
-
-.submenu-item:hover {
-  background-color: #f0f4ff;
-}
-
-.search-btn {
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: none;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.search-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 
 .header-section {
   display: flex;
@@ -751,8 +668,8 @@ onUnmounted(() => {
 .view-btn:hover { background: #2196f3; color: #fff; }
 .edit-btn { background: #fff3e0; color: #ff9800; }
 .edit-btn:hover { background: #ff9800; color: #fff; }
-.reset-btn { background: #ede7f6; color: #673ab7; }
-.reset-btn:hover { background: #673ab7; color: #fff; }
+.action-btn.reset-btn { background: #ede7f6; color: #673ab7; }
+.action-btn.reset-btn:hover { background: #673ab7; color: #fff; }
 .status-btn { background: #f1f8e9; color: #689f38; }
 .status-btn:hover { background: #689f38; color: #fff; }
 .delete-btn { background: #ffebee; color: #f44336; }
@@ -764,6 +681,181 @@ onUnmounted(() => {
 /* 展开过渡 */
 .expand-enter-active, .expand-leave-active { transition: all .25s ease; }
 .expand-enter-from, .expand-leave-to { opacity: 0; transform: translateY(-8px); }
+
+/* 模态框样式 */
+.modal-fade-enter-active, .modal-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.modal-fade-enter-from, .modal-fade-leave-to {
+  opacity: 0;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #2d3748;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #718096;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: #f7fafc;
+  color: #2d3748;
+}
+
+.modal-body {
+  padding: 2rem;
+}
+
+.readonly-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group.required .form-label::after {
+  content: '*';
+  color: #f44336;
+  margin-left: 4px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #4a5568;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #f5576c;
+  box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.1);
+}
+
+.form-input.readonly {
+  background: #f7fafc;
+  color: #718096;
+  cursor: not-allowed;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #f0f0f0;
+}
+
+.btn-cancel,
+.btn-submit {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.btn-cancel {
+  background: #f7fafc;
+  color: #4a5568;
+}
+
+.btn-cancel:hover {
+  background: #e2e8f0;
+}
+
+.btn-submit {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+}
+
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4);
+}
+
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.no-data {
+  padding: 2rem;
+  text-align: center;
+  color: #94a3b8;
+}
 
 /* 响应式 */
 @media (max-width: 1024px) {
@@ -778,7 +870,18 @@ onUnmounted(() => {
   .doctor-management { padding: 1.5rem; }
   .table-header, .table-row { min-width: 900px; }
   .doctor-table { overflow-x: auto; }
+  
+  .readonly-section {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-content {
+    max-height: 95vh;
+  }
+  
+  .modal-header,
+  .modal-body {
+    padding: 1.5rem;
+  }
 }
 </style>
-
-

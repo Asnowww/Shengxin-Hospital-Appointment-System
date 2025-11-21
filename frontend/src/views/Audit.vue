@@ -21,11 +21,11 @@
             <span>医生信息更改审核</span>
           </button>
 
-          <button 
+          <!-- <button 
             :class="['nav-item', { active: activeTab === 'leave' }]" 
             @click="activeTab = 'leave'">
             <span>请假审批</span>
-          </button>
+          </button> -->
 
           <button 
             :class="['nav-item', { active: activeTab === 'identity' }]" 
@@ -39,7 +39,7 @@
       <main class="main-content">
         <transition name="fade" mode="out-in">
           <DoctorInfoChangeAudit v-if="activeTab === 'doctorInfo'" key="doctorInfo" />
-          <LeaveAudit v-else-if="activeTab === 'leave'" key="leave" />
+          <LeaveManagement v-else-if="activeTab === 'leave'" key="leave" />
           <IdentityAudit v-else key="identity" />
         </transition>
       </main>
@@ -51,7 +51,7 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import Navigation from '@/components/Navigation.vue'
 import IdentityAudit from '@/components/IdentityAudit.vue'
-import LeaveAudit from '@/components/LeaveAudit.vue'
+import LeaveManagement from '@/views/LeaveManagement.vue'
 import DoctorInfoChangeAudit from '@/components/DoctorInfoChangeAudit.vue'
 
 const activeTab = ref('doctorInfo')

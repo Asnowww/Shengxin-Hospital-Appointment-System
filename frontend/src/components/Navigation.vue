@@ -31,14 +31,6 @@
 
       <router-link
         v-if="isLoggedIn && currentRole === 'doctor'"
-        to="/doctor/patient-management"
-        class="nav-item"
-        :class="{ active: isActive('/doctor/patient-management') }">
-        患者管理
-      </router-link>
-
-      <router-link
-        v-if="isLoggedIn && currentRole === 'doctor'"
         to="/doctor/leave/apply"
         class="nav-item"
         :class="{ active: isActive('/doctor/leave/apply') }">

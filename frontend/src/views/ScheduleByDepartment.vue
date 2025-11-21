@@ -357,6 +357,7 @@ const filteredSchedules = computed(() => {
   const typeId = getCurrentTypeId()
   
   return schedules.value.filter(s => {
+    if (s.status === 'cancelled') return false 
     const typeMatch = s.appointmentTypeId === typeId
     const dateMatch = selectedDate.value === '' || s.workDate === selectedDate.value
     
