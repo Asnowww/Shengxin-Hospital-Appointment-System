@@ -115,21 +115,5 @@ public class DoctorController {
         }
     }
 
-    //---管理端---//
-    @PostMapping("/bio/review/{requestId}")
-    public Result<String> review(
-            @PathVariable Long requestId,
-            @RequestParam boolean approved,
-            @RequestParam(required = false) String reason
-    ) {
-        try {
-            doctorAccountService.reviewRequest(requestId, approved, reason);
-            return Result.success(approved ? "审核通过" : "已拒绝");
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
-        }
-    }
-
-
 }
 

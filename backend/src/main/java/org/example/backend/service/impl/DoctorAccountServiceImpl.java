@@ -235,4 +235,13 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
         requestMapper.updateById(request);
     }
 
+    @Override
+    public List<DoctorBioUpdateRequest> getPendingBioRequests() {
+        return requestMapper.selectPendingRequests();
+    }
+
+    @Override
+    public DoctorBioUpdateRequest getBioRequestDetail(Long requestId) {
+        return requestMapper.selectById(requestId);
+    }
 }

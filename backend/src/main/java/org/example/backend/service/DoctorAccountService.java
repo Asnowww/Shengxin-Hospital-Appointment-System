@@ -2,6 +2,7 @@ package org.example.backend.service;
 
 import org.example.backend.dto.DoctorAccountDTO;
 import org.example.backend.dto.DoctorQueryDTO;
+import org.example.backend.pojo.DoctorBioUpdateRequest;
 
 import java.util.List;
 
@@ -49,4 +50,15 @@ public interface DoctorAccountService {
      * 管理员审核bio修改申请
      */
     void reviewRequest(Long requestId, boolean approved, String reason);
+
+    /**
+     * 获取所有待审批的bio修改
+     */
+    List<DoctorBioUpdateRequest> getPendingBioRequests();
+
+    /**
+     * 获取详细bio修改申请
+     */
+    DoctorBioUpdateRequest getBioRequestDetail(Long requestId);
+
 }
