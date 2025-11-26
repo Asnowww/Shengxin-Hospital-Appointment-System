@@ -2,17 +2,19 @@ package org.example.backend.service;
 
 import org.example.backend.dto.DoctorAccountDTO;
 import org.example.backend.dto.DoctorQueryDTO;
+import org.example.backend.dto.PageResult;
+import org.example.backend.dto.Result;
 import org.example.backend.pojo.DoctorBioUpdateRequest;
 
 import java.util.List;
+import java.util.Map;
 
 public interface DoctorAccountService {
 
     /**
      * 查询医生列表(支持筛选)
      */
-    List<DoctorAccountDTO> getDoctorList(DoctorQueryDTO queryDTO);
-
+    PageResult<DoctorAccountDTO> getDoctorList(DoctorQueryDTO queryDTO) ;
     /**
      * 新增医生账号
      */

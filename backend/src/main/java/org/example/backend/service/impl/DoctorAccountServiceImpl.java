@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.DoctorAccountDTO;
 import org.example.backend.dto.DoctorQueryDTO;
+import org.example.backend.dto.PageResult;
+import org.example.backend.dto.Result;
 import org.example.backend.mapper.AppointmentMapper;
 import org.example.backend.mapper.DoctorBioUpdateRequestMapper;
 import org.example.backend.pojo.Doctor;
@@ -19,7 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -49,10 +53,30 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
      * 查询医生列表（支持条件筛选）
      */
     @Override
-    public List<DoctorAccountDTO> getDoctorList(DoctorQueryDTO queryDTO) {
-        // 直接查询返回 DTO
-        return doctorMapper.selectDoctorList(queryDTO);
+    public PageResult<DoctorAccountDTO> getDoctorList(DoctorQueryDTO queryDTO) {
+
+        int offset = (queryDTO.getPageNum() - 1) * queryDTO.getPageSize();
+
+        List<DoctorAccountDTO> list = doctorMapper.selectDoctorList(
+                queryDTO.getDeptId(),
+                queryDTO.getUsername(),
+                queryDTO.getStatus(),
+                queryDTO.getDoctorStatus(),
+                offset,
+                queryDTO.getPageSize()
+        );
+
+        int total = doctorMapper.countDoctorList(
+                queryDTO.getDeptId(),
+                queryDTO.getUsername(),
+                queryDTO.getStatus(),
+                queryDTO.getDoctorStatus()
+        );
+
+        return new PageResult<>(total, list, queryDTO.getPageNum(), queryDTO.getPageSize());
     }
+
+
 
 
     /**

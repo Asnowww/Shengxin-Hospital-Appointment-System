@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.example.backend.mapper.DoctorMapper">
+
+    <!-- 分页查询 -->
+    <select id="selectDoctorList" resultType="org.example.backend.dto.DoctorAccountDTO">
+        SELECT
+        d.doctor_id AS doctorId,
+        d.user_id AS userId,
+        d.dept_id AS deptId,
+        dep.dept_name AS deptName,
+        d.title,
+        d.bio,
+        d.status AS doctorStatus,
+        d.created_at AS createdAt,
+        d.updated_at AS updatedAt,
+        u.username,
+        u.phone,
+        u.email,
+        u.gender,
+        u.status AS userStatus
+        FROM doctors d
+        INNER JOIN users u ON d.user_id = u.user_id
+        LEFT JOIN departments dep ON d.dept_id = dep.dept_id
+        <where>
+            <if test="deptId != null"> AND d.dept_id = #{deptId} </if>
+            <if test="username != null and username.trim() != ''"> AND u.username LIKE CONCAT('%', #{username}, '%') </if>
+            <if test="status != null"> AND u.status = #{status} </if>
+            <if test="doctorStatus != null"> AND d.status = #{doctorStatus} </if>
+        </where>
+        ORDER BY d.created_at DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 总数查询 -->
+    <select id="countDoctorList" resultType="int">
+        SELECT COUNT(1)
+        FROM doctors d
+        INNER JOIN users u ON d.user_id = u.user_id
+        LEFT JOIN departments dep ON d.dept_id = dep.dept_id
+        <where>
+            <if test="deptId != null"> AND d.dept_id = #{deptId} </if>
+            <if test="username != null and username.trim() != ''"> AND u.username LIKE CONCAT('%', #{username}, '%') </if>
+            <if test="status != null"> AND u.status = #{status} </if>
+            <if test="doctorStatus != null"> AND d.status = #{doctorStatus} </if>
+        </where>
+    </select>
+
+</mapper>
