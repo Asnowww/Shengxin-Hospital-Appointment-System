@@ -97,22 +97,21 @@ public class DoctorPatientController {
     }
 
     /**
-     * 标记患者过号
+     * 叫号
      */
-    @PutMapping("/{appointmentId}/missed")
-    public Result<Object> markPatientMissed(@PathVariable Long appointmentId) {
+    @PostMapping("/{appointmentId}/call")
+    public Result<Object> callPatient(@PathVariable Long appointmentId) {
         try {
-            boolean success = appointmentService.appointmentPass(appointmentId);
+            boolean success = appointmentService.callPatient(appointmentId);
             if (success) {
-                return Result.success("已标记为过号");
+                return Result.success("叫号成功，已发送通知");
             } else {
-                return Result.error("操作失败");
+                return Result.error("叫号失败");
             }
         } catch (Exception e) {
             return Result.error(e.getMessage());
         }
     }
-
     /**
      * 获取患者的所有历史就诊记录
      */

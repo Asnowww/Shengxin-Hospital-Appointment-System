@@ -17,90 +17,190 @@ VALUES (LAST_INSERT_ID(), '1', 'student', '2000-01-01');
 INSERT INTO users (username, password, gender, phone, email, role_type, status)
 VALUES ('doctor1', '$2a$10$yHGO4JufiZvY/0LsyOryIOJF1XVx8MNH34g0XwKOw0g.FXZt5jV3G', 'M', 'd', 'doctor1@test.com', 'doctor', 'verified');
 
--- ==================== 科室和诊室数据 ====================
+-- ==================== 科室数据 ====================
 
--- 一级科室：内科（1楼）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (NULL, '内科', '圣心楼', 1, NULL, '内科是我院重点科室之一，拥有先进的医疗设备和经验丰富的医疗团队，致力于为患者提供优质的医疗服务。');
+-- 一级科室：内科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (NULL, '内科', '圣心楼', 1, 101, '内科是我院重点科室之一，拥有先进的医疗设备和经验丰富的医疗团队，致力于为患者提供优质的医疗服务。');
 SET @parent_内科 = LAST_INSERT_ID();
--- 二级科室：老年病科（1楼，诊室号：101，所属：内科）
+-- 二级科室：老年病科
 INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_内科, '老年病科', '圣心楼', 1, '101', '老年病科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='老年病科' LIMIT 1), '101', '圣心楼', 1, '老年病科诊室');
-
--- 二级科室：风湿免疫科（1楼，诊室号：112，所属：内科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_内科, '风湿免疫科', '圣心楼', 1, '112', '风湿免疫科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='风湿免疫科' LIMIT 1), '112', '圣心楼', 1, '风湿免疫科诊室');
-
--- 二级科室：高血压科（1楼，诊室号：105，所属：内科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_内科, '高血压科', '圣心楼', 1, '105', '高血压科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='高血压科' LIMIT 1), '105', '圣心楼', 1, '高血压科诊室');
-
--- 二级科室：呼吸内科（1楼，诊室号：104，所属：内科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_内科, '呼吸内科', '圣心楼', 1, '104', '呼吸内科是我院重点科室之一，拥有先进的医疗设备和经验丰富的医疗团队，致力于为患者提供优质的医疗服务。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='呼吸内科' LIMIT 1), '104', '圣心楼', 1, '呼吸内科诊室');
-
--- 二级科室：内分泌科（1楼，诊室号：103，所属：内科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_内科, '内分泌科', '圣心楼', 1, '103', '内分泌科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='内分泌科' LIMIT 1), '103', '圣心楼', 1, '内分泌科诊室');
-
--- 二级科室：神经内科（1楼，诊室号：102，所属：内科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_内科, '神经内科', '圣心楼', 1, '102', '神经内科是我院重点科室之一，拥有先进的医疗设备和经验丰富的医疗团队，致力于为患者提供优质的医疗服务。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='神经内科' LIMIT 1), '102', '圣心楼', 1, '神经内科诊室');
-
--- 一级科室：外科（5楼）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (NULL, '外科', '圣心楼', 5, NULL, '外科配备先进的手术设施和专业的医护团队，专注于各类外科疾病的诊疗，手术成功率高。');
+-- 二级科室：风湿免疫科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_内科, '风湿免疫科', '圣心楼', 1, '109', '风湿免疫科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
+-- 二级科室：高血压科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_内科, '高血压科', '圣心楼', 1, '117', '高血压科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
+-- 二级科室：呼吸内科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_内科, '呼吸内科', '圣心楼', 2, '203', '呼吸内科是我院重点科室之一，拥有先进的医疗设备和经验丰富的医疗团队，致力于为患者提供优质的医疗服务。');
+-- 二级科室：内分泌科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_内科, '内分泌科', '圣心楼', 2, '211', '内分泌科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
+-- 二级科室：神经内科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_内科, '神经内科', '圣心楼', 2, '219', '神经内科是我院重点科室之一，拥有先进的医疗设备和经验丰富的医疗团队，致力于为患者提供优质的医疗服务。');
+-- 一级科室：外科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (NULL, '外科', '圣心楼', 3, 305, '外科配备先进的手术设施和专业的医护团队，专注于各类外科疾病的诊疗，手术成功率高。');
 SET @parent_外科 = LAST_INSERT_ID();
--- 二级科室：骨科（5楼，诊室号：502，所属：外科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_外科, '骨科', '圣心楼', 5, '502', '骨科专业诊治各类骨科疾病，包括骨折、关节疾病、脊柱疾病等，拥有先进的骨科治疗技术。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='骨科' LIMIT 1), '502', '圣心楼', 5, '骨科诊室');
-
--- 二级科室：功能神经外科（5楼，诊室号：510，所属：外科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_外科, '功能神经外科', '圣心楼', 5, '510', '功能神经外科配备先进的手术设施和专业的医护团队，专注于各类外科疾病的诊疗，手术成功率高。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='功能神经外科' LIMIT 1), '510', '圣心楼', 5, '功能神经外科诊室');
-
--- 二级科室：心脏外科（5楼，诊室号：507，所属：外科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_外科, '心脏外科', '圣心楼', 5, '507', '心脏外科配备先进的手术设施和专业的医护团队，专注于各类外科疾病的诊疗，手术成功率高。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='心脏外科' LIMIT 1), '507', '圣心楼', 5, '心脏外科诊室');
-
--- 二级科室：神经外科（5楼，诊室号：501，所属：外科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_外科, '神经外科', '圣心楼', 5, '501', '神经外科配备先进的手术设施和专业的医护团队，专注于各类外科疾病的诊疗，手术成功率高。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='神经外科' LIMIT 1), '501', '圣心楼', 5, '神经外科诊室');
-
--- 二级科室：烧伤整形科（5楼，诊室号：504，所属：外科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_外科, '烧伤整形科', '圣心楼', 5, '504', '烧伤整形科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='烧伤整形科' LIMIT 1), '504', '圣心楼', 5, '烧伤整形科诊室');
-
--- 二级科室：普胸外科（5楼，诊室号：509，所属：外科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_外科, '普胸外科', '圣心楼', 5, '509', '普胸外科配备先进的手术设施和专业的医护团队，专注于各类外科疾病的诊疗，手术成功率高。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='普胸外科' LIMIT 1), '509', '圣心楼', 5, '普胸外科诊室');
-
--- 一级科室：儿科（5楼）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (NULL, '儿科', '圣心楼', 5, NULL, '儿科专注于儿童健康成长，提供儿童常见病、多发病的诊疗服务，医护人员经验丰富，深受患儿家长信赖。');
+-- 二级科室：骨科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_外科, '骨科', '圣心楼', 3, '305', '骨科专业诊治各类骨科疾病，包括骨折、关节疾病、脊柱疾病等，拥有先进的骨科治疗技术。');
+-- 二级科室：功能神经外科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_外科, '功能神经外科', '圣心楼', 3, '313', '功能神经外科配备先进的手术设施和专业的医护团队，专注于各类外科疾病的诊疗，手术成功率高。');
+-- 二级科室：心脏外科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_外科, '心脏外科', '圣心楼', 3, '321', '心脏外科配备先进的手术设施和专业的医护团队，专注于各类外科疾病的诊疗，手术成功率高。');
+-- 二级科室：神经外科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_外科, '神经外科', '圣心楼', 4, '408', '神经外科配备先进的手术设施和专业的医护团队，专注于各类外科疾病的诊疗，手术成功率高。');
+-- 二级科室：烧伤整形科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_外科, '烧伤整形科', '圣心楼', 4, '416', '烧伤整形科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
+-- 二级科室：普胸外科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_外科, '普胸外科', '圣心楼', 5, '502', '普胸外科配备先进的手术设施和专业的医护团队，专注于各类外科疾病的诊疗，手术成功率高。');
+-- 一级科室：儿科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (NULL, '儿科', '圣心楼', 5, 501, '儿科专注于儿童健康成长，提供儿童常见病、多发病的诊疗服务，医护人员经验丰富，深受患儿家长信赖。');
 SET @parent_儿科 = LAST_INSERT_ID();
--- 二级科室：小儿内科（5楼，诊室号：512，所属：儿科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_儿科, '小儿内科', '圣心楼', 5, '512', '小儿内科是我院重点科室之一，拥有先进的医疗设备和经验丰富的医疗团队，致力于为患者提供优质的医疗服务。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='小儿内科' LIMIT 1), '512', '圣心楼', 5, '小儿内科诊室');
-
--- 二级科室：小儿外科（5楼，诊室号：511，所属：儿科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_儿科, '小儿外科', '圣心楼', 5, '511', '小儿外科配备先进的手术设施和专业的医护团队，专注于各类外科疾病的诊疗，手术成功率高。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='小儿外科' LIMIT 1), '511', '圣心楼', 5, '小儿外科诊室');
-
--- 一级科室：妇产科（5楼）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (NULL, '妇产科', '圣心楼', 5, NULL, '妇产科为广大女性提供全方位的医疗保健服务，包括孕期检查、分娩、妇科疾病诊疗等。');
+-- 二级科室：小儿内科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_儿科, '小儿内科', '圣心楼', 5, '501', '小儿内科是我院重点科室之一，拥有先进的医疗设备和经验丰富的医疗团队，致力于为患者提供优质的医疗服务。');
+-- 二级科室：小儿外科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_儿科, '小儿外科', '圣心楼', 5, '518', '小儿外科配备先进的手术设施和专业的医护团队，专注于各类外科疾病的诊疗，手术成功率高。');
+-- 一级科室：妇产科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (NULL, '妇产科', '圣心楼', 5, 604, '妇产科为广大女性提供全方位的医疗保健服务，包括孕期检查、分娩、妇科疾病诊疗等。');
 SET @parent_妇产科 = LAST_INSERT_ID();
--- 二级科室：妇科（5楼，诊室号：508，所属：妇产科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_妇产科, '妇科', '圣心楼', 5, '508', '妇科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='妇科' LIMIT 1), '508', '圣心楼', 5, '妇科诊室');
-
--- 一级科室：医学检验科（5楼）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (NULL, '医学检验科', '圣心楼', 5, NULL, '医学检验科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
+-- 二级科室：妇科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_妇产科, '妇科', '圣心楼', 6, '604', '妇科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
+-- 一级科室：医学检验科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (NULL, '医学检验科', '圣心楼', 6, 613, '医学检验科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
 SET @parent_医学检验科 = LAST_INSERT_ID();
--- 二级科室：核医学科（5楼，诊室号：505，所属：医学检验科）
-INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_医学检验科, '核医学科', '圣心楼', 5, '505', '核医学科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
-INSERT IGNORE INTO consultation_rooms (dept_id, room_name, building, floor, description) VALUES ((SELECT dept_id FROM departments WHERE dept_name='核医学科' LIMIT 1), '505', '圣心楼', 5, '核医学科诊室');
+-- 二级科室：核医学科
+INSERT IGNORE INTO departments (parent_dept_id, dept_name, building, floor, room, description) VALUES (@parent_医学检验科, '核医学科', '圣心楼', 6, '613', '核医学科拥有专业的医疗团队和先进的医疗设备，为患者提供高质量的医疗服务，深受患者好评。');
+-- ==================== 诊室数据 ====================
+INSERT INTO consultation_rooms (room_id, dept_id, room_name, building, floor, description) VALUES
+                                                                                               (1,2,'101','圣心楼',1,'老年病科办公室'),
+                                                                                               (2,2,'102','圣心楼',1,'老年病科诊室1'),
+                                                                                               (3,2,'103','圣心楼',1,'老年病科诊室2'),
+                                                                                               (4,2,'104','圣心楼',1,'老年病科诊室3'),
+                                                                                               (5,2,'105','圣心楼',1,'老年病科诊室4'),
+                                                                                               (6,2,'106','圣心楼',1,'老年病科诊室5'),
+                                                                                               (7,2,'107','圣心楼',1,'老年病科诊室6'),
+                                                                                               (8,2,'108','圣心楼',1,'老年病科诊室7'),
+                                                                                               (9,3,'109','圣心楼',1,'风湿免疫科办公室'),
+                                                                                               (10,3,'110','圣心楼',1,'风湿免疫科诊室1'),
+                                                                                               (11,3,'111','圣心楼',1,'风湿免疫科诊室2'),
+                                                                                               (12,3,'112','圣心楼',1,'风湿免疫科诊室3'),
+                                                                                               (13,3,'113','圣心楼',1,'风湿免疫科诊室4'),
+                                                                                               (14,3,'114','圣心楼',1,'风湿免疫科诊室5'),
+                                                                                               (15,3,'115','圣心楼',1,'风湿免疫科诊室6'),
+                                                                                               (16,3,'116','圣心楼',1,'风湿免疫科诊室7'),
+                                                                                               (17,4,'117','圣心楼',1,'高血压科办公室'),
+                                                                                               (18,4,'118','圣心楼',1,'高血压科诊室1'),
+                                                                                               (19,4,'119','圣心楼',1,'高血压科诊室2'),
+                                                                                               (20,4,'120','圣心楼',1,'高血压科诊室3'),
+                                                                                               (21,4,'121','圣心楼',1,'高血压科诊室4'),
+                                                                                               (22,4,'122','圣心楼',1,'高血压科诊室5'),
+                                                                                               (23,4,'201','圣心楼',2,'高血压科诊室6'),
+                                                                                               (24,4,'202','圣心楼',2,'高血压科诊室7'),
+                                                                                               (25,5,'203','圣心楼',2,'呼吸内科办公室'),
+                                                                                               (26,5,'204','圣心楼',2,'呼吸内科诊室1'),
+                                                                                               (27,5,'205','圣心楼',2,'呼吸内科诊室2'),
+                                                                                               (28,5,'206','圣心楼',2,'呼吸内科诊室3'),
+                                                                                               (29,5,'207','圣心楼',2,'呼吸内科诊室4'),
+                                                                                               (30,5,'208','圣心楼',2,'呼吸内科诊室5'),
+                                                                                               (31,5,'209','圣心楼',2,'呼吸内科诊室6'),
+                                                                                               (32,5,'210','圣心楼',2,'呼吸内科诊室7'),
+                                                                                               (33,6,'211','圣心楼',2,'内分泌科办公室'),
+                                                                                               (34,6,'212','圣心楼',2,'内分泌科诊室1'),
+                                                                                               (35,6,'213','圣心楼',2,'内分泌科诊室2'),
+                                                                                               (36,6,'214','圣心楼',2,'内分泌科诊室3'),
+                                                                                               (37,6,'215','圣心楼',2,'内分泌科诊室4'),
+                                                                                               (38,6,'216','圣心楼',2,'内分泌科诊室5'),
+                                                                                               (39,6,'217','圣心楼',2,'内分泌科诊室6'),
+                                                                                               (40,6,'218','圣心楼',2,'内分泌科诊室7'),
+                                                                                               (41,7,'219','圣心楼',2,'神经内科办公室'),
+                                                                                               (42,7,'220','圣心楼',2,'神经内科诊室1'),
+                                                                                               (43,7,'221','圣心楼',2,'神经内科诊室2'),
+                                                                                               (44,7,'222','圣心楼',2,'神经内科诊室3'),
+                                                                                               (45,7,'301','圣心楼',3,'神经内科诊室4'),
+                                                                                               (46,7,'302','圣心楼',3,'神经内科诊室5'),
+                                                                                               (47,7,'303','圣心楼',3,'神经内科诊室6'),
+                                                                                               (48,7,'304','圣心楼',3,'神经内科诊室7'),
+                                                                                               (49,9,'305','圣心楼',3,'骨科办公室'),
+                                                                                               (50,9,'306','圣心楼',3,'骨科诊室1'),
+                                                                                               (51,9,'307','圣心楼',3,'骨科诊室2'),
+                                                                                               (52,9,'308','圣心楼',3,'骨科诊室3'),
+                                                                                               (53,9,'309','圣心楼',3,'骨科诊室4'),
+                                                                                               (54,9,'310','圣心楼',3,'骨科诊室5'),
+                                                                                               (55,9,'311','圣心楼',3,'骨科诊室6'),
+                                                                                               (56,9,'312','圣心楼',3,'骨科诊室7'),
+                                                                                               (57,10,'313','圣心楼',3,'功能神经外科办公室'),
+                                                                                               (58,10,'314','圣心楼',3,'功能神经外科诊室1'),
+                                                                                               (59,10,'315','圣心楼',3,'功能神经外科诊室2'),
+                                                                                               (60,10,'316','圣心楼',3,'功能神经外科诊室3'),
+                                                                                               (61,10,'317','圣心楼',3,'功能神经外科诊室4'),
+                                                                                               (62,10,'318','圣心楼',3,'功能神经外科诊室5'),
+                                                                                               (63,10,'319','圣心楼',3,'功能神经外科诊室6'),
+                                                                                               (64,10,'320','圣心楼',3,'功能神经外科诊室7'),
+                                                                                               (65,11,'321','圣心楼',3,'心脏外科办公室'),
+                                                                                               (66,11,'322','圣心楼',3,'心脏外科诊室1'),
+                                                                                               (67,11,'401','圣心楼',4,'心脏外科诊室2'),
+                                                                                               (68,11,'402','圣心楼',4,'心脏外科诊室3'),
+                                                                                               (69,11,'403','圣心楼',4,'心脏外科诊室4'),
+                                                                                               (70,11,'404','圣心楼',4,'心脏外科诊室5'),
+                                                                                               (71,11,'405','圣心楼',4,'心脏外科诊室6'),
+                                                                                               (72,11,'406','圣心楼',4,'心脏外科诊室7'),
+                                                                                               (73,11,'407','圣心楼',4,'心脏外科诊室8'),
+                                                                                               (74,12,'408','圣心楼',4,'神经外科办公室'),
+                                                                                               (75,12,'409','圣心楼',4,'神经外科诊室1'),
+                                                                                               (76,12,'410','圣心楼',4,'神经外科诊室2'),
+                                                                                               (77,12,'411','圣心楼',4,'神经外科诊室3'),
+                                                                                               (78,12,'412','圣心楼',4,'神经外科诊室4'),
+                                                                                               (79,12,'413','圣心楼',4,'神经外科诊室5'),
+                                                                                               (80,12,'414','圣心楼',4,'神经外科诊室6'),
+                                                                                               (81,12,'415','圣心楼',4,'神经外科诊室7'),
+                                                                                               (82,13,'416','圣心楼',4,'烧伤整形科办公室'),
+                                                                                               (83,13,'417','圣心楼',4,'烧伤整形科诊室1'),
+                                                                                               (84,13,'418','圣心楼',4,'烧伤整形科诊室2'),
+                                                                                               (85,13,'419','圣心楼',4,'烧伤整形科诊室3'),
+                                                                                               (86,13,'420','圣心楼',4,'烧伤整形科诊室4'),
+                                                                                               (87,13,'421','圣心楼',4,'烧伤整形科诊室5'),
+                                                                                               (88,13,'422','圣心楼',4,'烧伤整形科诊室6'),
+                                                                                               (89,13,'501','圣心楼',5,'烧伤整形科诊室7'),
+                                                                                               (90,14,'502','圣心楼',5,'普胸外科办公室'),
+                                                                                               (91,14,'503','圣心楼',5,'普胸外科诊室1'),
+                                                                                               (92,14,'504','圣心楼',5,'普胸外科诊室2'),
+                                                                                               (93,14,'505','圣心楼',5,'普胸外科诊室3'),
+                                                                                               (94,14,'506','圣心楼',5,'普胸外科诊室4'),
+                                                                                               (95,14,'507','圣心楼',5,'普胸外科诊室5'),
+                                                                                               (96,14,'508','圣心楼',5,'普胸外科诊室6'),
+                                                                                               (97,14,'509','圣心楼',5,'普胸外科诊室7'),
+                                                                                               (98,16,'510','圣心楼',5,'小儿内科办公室'),
+                                                                                               (99,16,'511','圣心楼',5,'小儿内科诊室1'),
+                                                                                               (100,16,'512','圣心楼',5,'小儿内科诊室2'),
+                                                                                               (101,16,'513','圣心楼',5,'小儿内科诊室3'),
+                                                                                               (102,16,'514','圣心楼',5,'小儿内科诊室4'),
+                                                                                               (103,16,'515','圣心楼',5,'小儿内科诊室5'),
+                                                                                               (104,16,'516','圣心楼',5,'小儿内科诊室6'),
+                                                                                               (105,16,'517','圣心楼',5,'小儿内科诊室7'),
+                                                                                               (106,17,'518','圣心楼',5,'小儿外科办公室'),
+                                                                                               (107,17,'519','圣心楼',5,'小儿外科诊室1'),
+                                                                                               (108,17,'520','圣心楼',5,'小儿外科诊室2'),
+                                                                                               (109,17,'521','圣心楼',5,'小儿外科诊室3'),
+                                                                                               (110,17,'522','圣心楼',5,'小儿外科诊室4'),
+                                                                                               (111,17,'601','圣心楼',6,'小儿外科诊室5'),
+                                                                                               (112,17,'602','圣心楼',6,'小儿外科诊室6'),
+                                                                                               (113,17,'603','圣心楼',6,'小儿外科诊室7'),
+                                                                                               (114,19,'604','圣心楼',6,'妇科办公室'),
+                                                                                               (115,19,'605','圣心楼',6,'妇科诊室1'),
+                                                                                               (116,19,'606','圣心楼',6,'妇科诊室2'),
+                                                                                               (117,19,'607','圣心楼',6,'妇科诊室3'),
+                                                                                               (118,19,'608','圣心楼',6,'妇科诊室4'),
+                                                                                               (119,19,'609','圣心楼',6,'妇科诊室5'),
+                                                                                               (120,19,'610','圣心楼',6,'妇科诊室6'),
+                                                                                               (121,19,'611','圣心楼',6,'妇科诊室7'),
+                                                                                               (122,19,'612','圣心楼',6,'妇科诊室8'),
+                                                                                               (123,21,'613','圣心楼',6,'核医学科办公室'),
+                                                                                               (124,21,'614','圣心楼',6,'核医学科诊室1'),
+                                                                                               (125,21,'615','圣心楼',6,'核医学科诊室2'),
+                                                                                               (126,21,'616','圣心楼',6,'核医学科诊室3'),
+                                                                                               (127,21,'617','圣心楼',6,'核医学科诊室4'),
+                                                                                               (128,21,'618','圣心楼',6,'核医学科诊室5'),
+                                                                                               (129,21,'619','圣心楼',6,'核医学科诊室6'),
+                                                                                               (130,21,'620','圣心楼',6,'核医学科诊室7');
 
 
 -- ==================== 医生数据 ====================
-
 -- 医生：徐志红 (老年病科)
 INSERT IGNORE INTO users (username, password, gender, phone, email, role_type, status) VALUES ('徐志红', '$2b$12$CC/P7CynA7gnNmqsexeBBOdj3PhcIrtUFaBgVqUXKh/gZAwPaHRd.', 'M', '19965241839', '19965241839@sx.com', 'doctor', 'verified');
 INSERT INTO doctors (user_id, dept_id, title, bio, status) VALUES (LAST_INSERT_ID(), (SELECT dept_id FROM departments WHERE dept_name='老年病科' LIMIT 1), '副主任医师', '老年呼吸系统及心血管常见病，包括肺部感染，慢阻肺，慢支，肺结节，睡眠呼吸暂停，高血压，冠心病及体检报告的分析解读等。', 'active');

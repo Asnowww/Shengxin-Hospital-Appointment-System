@@ -2,6 +2,7 @@ package org.example.backend.controller;
 
 import org.example.backend.dto.DoctorAccountDTO;
 import org.example.backend.dto.DoctorQueryDTO;
+import org.example.backend.dto.PageResult;
 import org.example.backend.pojo.DoctorBioUpdateRequest;
 import org.example.backend.service.DoctorAccountService;
 import org.example.backend.dto.Result;
@@ -23,9 +24,8 @@ public class AdminDoctorAccountController {
      * 查询医生账号列表(支持筛选)
      */
     @GetMapping("/list")
-    public Result<List<DoctorAccountDTO>> getDoctorList(DoctorQueryDTO queryDTO) {
-        List<DoctorAccountDTO> doctors = doctorAccountService.getDoctorList(queryDTO);
-        return Result.success(doctors);
+    public Result<PageResult<DoctorAccountDTO>> getDoctorList(DoctorQueryDTO queryDTO) {
+        return Result.success(doctorAccountService.getDoctorList(queryDTO));
     }
 
     /**

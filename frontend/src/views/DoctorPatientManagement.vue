@@ -72,18 +72,18 @@
               </div>
               <div class="actions-col actions">
                 <button
+                    class="mini-btn primary"
+                    :disabled="actionLoading === p.appointmentId || disableCall(p.appointmentStatus)"
+                    @click="callPatient(p)"
+                >
+                  叫号
+                </button>
+                <button
                   class="mini-btn success"
                   :disabled="actionLoading === p.appointmentId || disableMark(p.appointmentStatus)"
                   @click="markCompleted(p, card.workDate)"
                 >
                   已就诊
-                </button>
-                <button
-                  class="mini-btn warn"
-                  :disabled="actionLoading === p.appointmentId || disableMark(p.appointmentStatus)"
-                  @click="markMissed(p, card.workDate)"
-                >
-                  过号
                 </button>
                 <button
                   class="mini-btn ghost"
@@ -202,8 +202,13 @@ function historyStatusLabel(status) {
 }
 
 function disableMark(status) {
-  return status === 'completed' || status === 'cancelled'
+  return status === 'completed' || status === 'no_show' || status === 'cancelled'
 }
+
+function disableCall(status) {
+  return status === 'completed' || status === 'no_show' || status === 'cancelled'
+}
+
 
 function formatDate(dateStr) {
   const d = new Date(dateStr)
@@ -287,23 +292,30 @@ async function markCompleted(p, workDate) {
   }
 }
 
-async function markMissed(p, workDate) {
+async function callPatient(p) {
   if (!p?.appointmentId) return
-  if (!confirm('确认将该患者标记为过号？')) return
+  if (!confirm(`确认叫号：${p.patientName}？`)) return
+
   actionLoading.value = p.appointmentId
-  error.value = ''
   try {
     const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
-    const { data } = await axios.put(`/api/doctor/patient/${p.appointmentId}/missed`, null, { headers })
-    if (data?.code !== 200) throw new Error(data?.message || '操作失败')
-    await refreshSingleDate(workDate)
-    alert('已标记为过号')
+
+    const { data } = await axios.post(
+        `/api/doctor/patient/${p.appointmentId}/call`,
+        null,
+        { headers }
+    )
+
+    if (data?.code !== 200) throw new Error(data?.message || '叫号失败')
+
+    alert('已叫号，15分钟内未就诊将自动过号')
   } catch (e) {
-    alert(e?.response?.data?.message || e?.message || '操作失败')
+    alert(e?.response?.data?.message || e?.message || '叫号失败')
   } finally {
     actionLoading.value = null
   }
 }
+
 
 async function refreshSingleDate(workDate) {
   if (!workDate) return refresh()
@@ -382,7 +394,7 @@ onMounted(async () => {
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .mini-btn { padding: 6px 10px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; }
 .mini-btn.success { background: #dcfce7; color: #15803d; }
-.mini-btn.warn { background: #fff7ed; color: #c2410c; }
+.mini-btn.primary { background: #fff7ed; color: #c2410c; }
 .mini-btn.ghost { background: #f3f4f6; color: #374151; }
 .mini-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .status { padding: 4px 8px; border-radius: 999px; font-size: 12px; }
