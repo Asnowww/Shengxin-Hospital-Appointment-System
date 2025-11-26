@@ -25,6 +25,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -566,6 +569,79 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         return true;
     }
+
+    @Override
+    @Transactional
+    public boolean callPatient(Long appointmentId) {
+
+        Appointment appointment = appointmentMapper.selectById(appointmentId);
+
+        Appointment next = appointmentMapper.selectOne(
+                new QueryWrapper<Appointment>()
+                        .eq("schedule_id", appointment.getScheduleId())
+                        .eq("appointment_status", "booked")
+                        .orderByAsc("queue_number")
+                        .last("limit 1")
+        );
+
+        if (!next.getAppointmentId().equals(appointmentId)) {
+            throw new RuntimeException("请按顺序叫号");
+        }
+
+        if (appointment == null) {
+            throw new RuntimeException("预约不存在");
+        }
+
+        // 只允许对已挂号的预约叫号
+        if (!"booked".equals(appointment.getAppointmentStatus())) {
+            throw new RuntimeException("当前状态不允许叫号");
+        }
+
+        appointment.setUpdatedAt(LocalDateTime.now());
+
+        int rows = appointmentMapper.updateById(appointment);
+
+        if (rows <= 0) {
+            throw new RuntimeException("叫号更新失败");
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+            @Override
+            public void afterCommit() {
+                notificationEmailService.sendNoShowNotification(appointment.getAppointmentId());
+            }
+        });
+
+
+        startAutoNoShowTask(appointmentId);
+
+        return true;
+    }
+
+
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+
+    private void startAutoNoShowTask(Long appointmentId) {
+        scheduler.schedule(() -> {
+
+            Appointment appointment = appointmentMapper.selectById(appointmentId);
+
+            if (appointment == null) return;
+
+            // 如果还处于 booked ，说明未就诊，自动过号
+            if ("booked".equals(appointment.getAppointmentStatus())) {
+                appointment.setAppointmentStatus("no_show");
+                appointment.setUpdatedAt(LocalDateTime.now());
+                appointmentMapper.updateById(appointment);
+
+                /*发送过号通知*/
+                notificationEmailService.sendNoShowNotification(appointment.getAppointmentId());
+
+            }
+
+        }, 15, TimeUnit.MINUTES);
+    }
+
 
     /**
      * 获取患者所有历史就诊记录

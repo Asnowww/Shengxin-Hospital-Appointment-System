@@ -314,6 +314,31 @@ public class NotificationEmailService {
         }
     }
 
+    /**
+     * 发送就诊提醒
+     */
+    public void sendAppointmentCallNotification(Long appointmentId) {
+        try {
+            Appointment appointment = appointmentMapper.selectById(appointmentId);
+            if (appointment == null) return;
+
+            Patient patient = patientMapper.selectById(appointment.getPatientId());
+            if (patient == null) return;
+
+            User user = userMapper.selectById(patient.getUserId());
+            if (user == null || user.getEmail() == null) return;
+
+            Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
+            String subject = "【叫号提醒】请及时就诊";
+            String content = buildAppointmentCallEmail(appointment, schedule);
+
+            sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
+        } catch (Exception e) {
+            log.error("发送就诊提醒邮件失败: appointmentId={}", appointmentId, e);
+        }
+    }
+
+
     // ==================== 2. 候补相关邮件 ====================
 
     /**
@@ -739,6 +764,57 @@ public class NotificationEmailService {
                 workDate, timeSlot, appointment.getQueueNumber());
     }
 
+    private String buildAppointmentCallEmail(Appointment appointment, Schedule schedule) {
+        String patientName = getPatientName(String.valueOf(appointment.getPatientId()));
+        String doctorInfo = getDoctorInfo(schedule.getDoctorId());
+        String deptName = getDeptName(schedule.getDeptId());
+        String workDate = schedule.getWorkDate().format(DATE_FORMATTER);
+        String timeSlot = getTimeSlotName(schedule.getTimeSlot());
+
+        return String.format("""
+    <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #ff512f 0%%, #f09819 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                    <h1>🔔 叫号提醒</h1>
+                </div>
+                <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                    <p>尊敬的 <strong>%s</strong> 患者，您好！</p>
+        
+                    <p style="font-size: 1.3em; color: #ff512f; font-weight: bold;">
+                        您的预约正在叫号，请立即前往就诊！
+                    </p>
+        
+                    <div style="background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #ff512f; border-radius: 5px;">
+                        <h3 style="color: #ff512f; margin-top: 0;">📋 当前叫号信息</h3>
+                        <p><strong>预约编号：</strong>%d</p>
+                        <p><strong>就诊科室：</strong>%s</p>
+                        <p><strong>就诊医生：</strong>%s</p>
+                        <p><strong>就诊时间：</strong>%s %s</p>
+        
+                    <div style="background: #fff3f3; padding: 15px; border-radius: 6px; border: 1px dashed #ff512f;">
+                        <p style="color:#d63031; font-weight:bold; margin:0;">
+                            ⚠ 请注意：若在叫号后 15 分钟内未完成签到或就诊，系统将自动判定为过号。
+                        </p>
+                    </div>
+        
+                    <p style="margin-top: 20px;">如已到达，请尽快前往对应诊室报到。</p>
+        
+                    <p>祝您就诊顺利，早日康复！</p>
+                </div>
+            </div>
+        </body>
+    </html>
+    """,
+                patientName,
+                appointment.getAppointmentId(),
+                deptName,
+                doctorInfo,
+                workDate,
+                timeSlot
+        );
+    }
+
     /**
      * 候补成功邮件模板
      */
@@ -899,7 +975,7 @@ public class NotificationEmailService {
                         </ul>
                         
                         <div style="background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                            <p style="margin: 0; color: #2e7d32;"><strong>💡 温馨提示：</strong>您可以在患者端查看详细的就诊记录和医嘱信息。</p>
+                            <p style="margin: 0; color: #2e7d32;"><strong>💡 温馨提示：</strong>您可以在患者端查看详细的就诊记录。</p>
                         </div>
                         
                         <p>祝您早日康复，身体健康！</p>

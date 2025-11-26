@@ -76,6 +76,13 @@ public interface AppointmentService {
     boolean appointmentPass(Long appointmentId);
 
     /**
+     * 叫号
+     * @param appointmentId 预约ID
+     * @return 是否成功
+     */
+    boolean callPatient(Long appointmentId);
+
+    /**
      * 修改预约（改期、改时间段）
      * @param param 修改参数
      * @return 是否修改成功
