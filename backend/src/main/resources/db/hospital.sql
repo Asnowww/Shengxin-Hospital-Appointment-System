@@ -1,23 +1,32 @@
--- 先删最下游的表（无其他表依赖它）
-DROP TABLE IF EXISTS appointment_audit;
-DROP TABLE IF EXISTS notifications;
-DROP TABLE IF EXISTS refunds;
-DROP TABLE IF EXISTS payments;
-DROP TABLE IF EXISTS waitlist;
-DROP TABLE IF EXISTS schedule_exceptions;
+-- 临时禁用外键检查
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- 先删除子表（依赖表）
+DROP TABLE IF EXISTS doctor_bio_update_request;
 DROP TABLE IF EXISTS doctor_leaves;
-DROP TABLE IF EXISTS appointment_rules;
-DROP TABLE IF EXISTS user_verifications;
+DROP TABLE IF EXISTS schedules;
+DROP TABLE IF EXISTS appointments;
+DROP TABLE IF EXISTS waitlist;
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS refunds;
+DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS logs;
 DROP TABLE IF EXISTS appointment_histories;
-DROP TABLE IF EXISTS appointments;
-DROP TABLE IF EXISTS schedules;
-DROP TABLE IF EXISTS appointment_types;
-DROP TABLE IF EXISTS consultation_rooms;
-DROP TABLE IF EXISTS patients;
+DROP TABLE IF EXISTS appointment_audit;
+DROP TABLE IF EXISTS appointment_rules;
+DROP TABLE IF EXISTS user_verifications;
+DROP TABLE IF EXISTS schedule_exceptions;
+
+-- 再删除主表（父表）
 DROP TABLE IF EXISTS doctors;
+DROP TABLE IF EXISTS patients;
+DROP TABLE IF EXISTS consultation_rooms;
 DROP TABLE IF EXISTS departments;
 DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS appointment_types;
+
+-- 恢复外键检查
+SET FOREIGN_KEY_CHECKS = 1;
 
 -- 用户信息表
 CREATE TABLE users (
@@ -305,3 +314,17 @@ CREATE TABLE user_verifications (
                                     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
                                     FOREIGN KEY (reviewed_by) REFERENCES users(user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='患者身份认证（学生、教工）';
+
+CREATE TABLE doctor_bio_update_request (
+                                           id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+                                           doctor_id BIGINT NOT NULL COMMENT '医生ID',
+                                           old_bio TEXT COMMENT '提交时旧的个人简介',
+                                           new_bio TEXT NOT NULL COMMENT '医生申请的新简介',
+                                           status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending' COMMENT '审核状态',
+                                           reason VARCHAR(255) DEFAULT NULL COMMENT '拒绝理由',
+                                           created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '提交时间',
+                                           reviewed_at DATETIME DEFAULT NULL COMMENT '审核时间',
+                                           CONSTRAINT fk_doctor_bio_request_doctor FOREIGN KEY (doctor_id)
+                                               REFERENCES doctors(doctor_id)
+                                               ON DELETE CASCADE
+) COMMENT='医生个人简介修改申请表';
