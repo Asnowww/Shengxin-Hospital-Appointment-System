@@ -266,13 +266,20 @@ function formatRecordData(appt) {
   console.log('feeFinal from backend:', appt.feeFinal)
   console.log('feeOriginal from backend:', appt.feeOriginal)
 
+  const locationParts = [
+    appt.building,
+    appt.roomName || appt.room_name
+  ].filter(Boolean)
+  const location = locationParts.join(' ')
+
   return {
     appointmentId: appt.appointmentId,
     patientName: appt.patientName || '患者',
     doctorName: appt.doctorName || '医生',
     doctorTitle: appt.doctorTitle || '医师',
     deptName: appt.deptName || '科室',
-    building: appt.building || '医院',
+    building: location || appt.building || '医院',
+    roomName: appt.roomName || appt.room_name || '',
     typeName: appt.typeName || '普通',
     appointmentTime: appt.appointmentTime || '未指定时间',
     bookingTime: appt.bookingTime,

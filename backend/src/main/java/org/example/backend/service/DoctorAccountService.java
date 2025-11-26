@@ -2,17 +2,19 @@ package org.example.backend.service;
 
 import org.example.backend.dto.DoctorAccountDTO;
 import org.example.backend.dto.DoctorQueryDTO;
+import org.example.backend.dto.PageResult;
+import org.example.backend.dto.Result;
+import org.example.backend.pojo.DoctorBioUpdateRequest;
 
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 public interface DoctorAccountService {
 
     /**
      * 查询医生列表(支持筛选)
      */
-    List<DoctorAccountDTO> getDoctorList(DoctorQueryDTO queryDTO);
-
+    PageResult<DoctorAccountDTO> getDoctorList(DoctorQueryDTO queryDTO) ;
     /**
      * 新增医生账号
      */
@@ -43,11 +45,22 @@ public interface DoctorAccountService {
     /**
      * 医生提交修改bio申请
      */
-    void submitBioChange(Long doctorId, String newBio);
+    void submitBioChange(Long userId, String newBio);
 
     //-----管理端-----//
     /**
      * 管理员审核bio修改申请
      */
     void reviewRequest(Long requestId, boolean approved, String reason);
+
+    /**
+     * 获取所有待审批的bio修改
+     */
+    List<DoctorBioUpdateRequest> getPendingBioRequests();
+
+    /**
+     * 获取详细bio修改申请
+     */
+    DoctorBioUpdateRequest getBioRequestDetail(Long requestId);
+
 }

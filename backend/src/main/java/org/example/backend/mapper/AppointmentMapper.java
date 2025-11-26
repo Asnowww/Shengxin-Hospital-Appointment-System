@@ -18,6 +18,7 @@ import java.util.List;
 public interface AppointmentMapper extends BaseMapper<Appointment> {
 
     // 根据 scheduleId 查询挂号（可以按状态过滤）
+    @Select("SELECT * FROM appointments WHERE schedule_id = #{scheduleId} AND appointment_status != 'cancelled'")
     List<Appointment> selectByScheduleId(@Param("scheduleId") Integer scheduleId);
 
     /**

@@ -694,7 +694,7 @@ GET /api/doctor/schedules/leave/history?doctorId=1
 ---
 
 ## 提交擅长领域修改申请接口
-### 医生端
+### 一、医生端提交申请
 #### **1️⃣ 接口描述**
 
 医生提交修改其擅长科室简介，提交后进入管理员审核流程。
@@ -711,10 +711,10 @@ POST /api/doctor/bio/request
 
 #### **3️⃣ 请求参数**
 
-| 参数名      | 类型     | 是否必填 | 说明         |
-| -------- | ------ | ---- | ---------- |
-| doctorId | Long   | 是    | 医生ID       |
-| newBio   | String | 是    | 修改后的擅长领域内容 |
+| 参数名    | 类型     | 是否必填 | 说明         |
+|--------| ------ | ---- |------------|
+| userId | Long   | 是    | 用户ID       |
+| newBio | String | 是    | 修改后的擅长领域内容 |
 
 ---
 
@@ -723,7 +723,7 @@ POST /api/doctor/bio/request
 #### Form Data 或 `application/x-www-form-urlencoded`
 
 ```
-doctorId=1&newBio=擅长神经外科脑肿瘤微创治疗
+userId=1&newBio=擅长神经外科脑肿瘤微创治疗
 ```
 
 ---
@@ -754,8 +754,97 @@ doctorId=1&newBio=擅长神经外科脑肿瘤微创治疗
 
 ---
 
-###  管理端
+###  二、管理端查看申请列表
 
+
+* **URL**: `/api/admin/doctors/bio/pending`
+* **方法**: `GET`
+* **说明**: 查询所有待审批的医生擅长领域修改申请。
+
+#### 请求参数
+
+无
+
+#### 请求示例
+
+```http
+GET /api/admin/doctors/bio/pending HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer <token>
+```
+
+#### 响应示例
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "doctorId": 101,
+      "oldBio": "心血管疾病",
+      "newBio": "心血管疾病, 高血压",
+      "status": "pending",
+      "reason": null,
+      "createdAt": "2025-11-21T07:30:00",
+      "reviewedAt": null
+    },
+    {
+      "id": 2,
+      "doctorId": 102,
+      "oldBio": "内分泌",
+      "newBio": "内分泌, 糖尿病",
+      "status": "pending",
+      "reason": null,
+      "createdAt": "2025-11-21T07:32:00",
+      "reviewedAt": null
+    }
+  ]
+}
+```
+
+---
+
+### 三、获取单条申请详情
+
+* **URL**: `/api/admin/doctors/bio/{requestId}`
+* **方法**: `GET`
+* **说明**: 根据 `requestId` 查询单条申请详情。
+
+#### 请求参数
+
+| 参数        | 类型   | 必填 | 说明    |
+| --------- | ---- | -- | ----- |
+| requestId | Long | 是  | 申请 ID |
+
+#### 请求示例
+
+```http
+GET /api/admin/doctors/bio/1 HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer <token>
+```
+
+#### 响应示例
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": 1,
+    "doctorId": 101,
+    "oldBio": "心血管疾病",
+    "newBio": "心血管疾病, 高血压",
+    "status": "pending",
+    "reason": null,
+    "createdAt": "2025-11-21T07:30:00",
+    "reviewedAt": null
+  }
+}
+```
+### 四、管理员审批申请
 #### **1️⃣ 接口描述**
 
 管理员审核医生提交的擅长修改申请，可选择通过或驳回。
@@ -765,7 +854,7 @@ doctorId=1&newBio=擅长神经外科脑肿瘤微创治疗
 #### **2️⃣ 请求方式**
 
 ```
-POST /api/doctor/bio/review/{requestId}
+POST /api/admin/doctors/bio/review/{requestId}
 ```
 
 ---
@@ -792,7 +881,7 @@ POST /api/doctor/bio/review/{requestId}
 ##### 审核通过：
 
 ```
-POST /api/doctor/bio/review/12
+POST /api/admin/doctors/bio/review/12
 ```
 
 Form Data：
@@ -804,7 +893,7 @@ approved=true
 ##### 审核拒绝：
 
 ```
-POST /api/doctor/bio/review/12
+POST /api/admin/doctors/bio/review/12
 ```
 
 Form Data：
@@ -842,4 +931,75 @@ reason=内容不符合格式规范，请重新编辑
 
 * 修改申请提交后不可再次提交，直到管理员审核完成。
 * 管理员审核后，若通过，将同步更新到医生信息表。
-* 审核记录可供管理员查看（如需要可扩展 GET 接口）。
+
+
+已按你的分页接口**格式统一整理好**👇
+你直接可以复制到项目文档。
+
+---
+
+## 5 医生账号管理
+
+Base URL: `/api/admin/doctors`
+
+---
+
+###  分页查询医生列表（支持条件过滤）
+
+**URL:** `/list`
+**Method:** `GET`
+
+---
+
+#### Query Parameters（全部可选）：
+
+| 参数           | 类型      | 必填 | 说明                         |
+| ------------ | ------- | -- | -------------------------- |
+| pageNum      | Integer | 否  | 页码（默认 1）                   |
+| pageSize     | Integer | 否  | 每页数量（默认 10）                |
+| deptId       | Long    | 否  | 按科室筛选                      |
+| username     | String  | 否  | 按用户名模糊搜索                   |
+| status       | String  | 否  | 用户账号状态（enabled/disabled 等） |
+| doctorStatus | String  | 否  | 医生执业状态（active/inactive 等）  |
+
+---
+
+#### 示例请求:
+
+```
+GET /api/admin/doctors/list?pageNum=1&pageSize=10&username=张&deptId=5
+```
+
+---
+
+#### 示例响应:
+
+```json
+{
+  "code": 200,
+  "message": "查询成功",
+  "data": {
+    "total": 15,
+    "records": [
+      {
+        "doctorId": 1,
+        "userId": 3,
+        "deptId": 5,
+        "deptName": "骨科",
+        "title": "主任医师",
+        "bio": "擅长骨科创伤与关节置换",
+        "doctorStatus": "active",
+        "createdAt": "2025-11-20T09:30:00",
+        "updatedAt": "2025-11-22T14:05:00",
+        "username": "张三",
+        "phone": "13800000000",
+        "email": "test@example.com",
+        "gender": "男",
+        "userStatus": "enabled"
+      }
+    ],
+    "pageNum": 1,
+    "pageSize": 10
+  }
+}
+```

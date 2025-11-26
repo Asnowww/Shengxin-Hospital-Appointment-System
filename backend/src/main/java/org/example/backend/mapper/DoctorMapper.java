@@ -24,23 +24,22 @@ public interface DoctorMapper extends BaseMapper<Doctor> {
             "OR d.bio LIKE CONCAT('%', #{keyword}, '%')")
     List<DoctorVO> searchDoctors(@Param("keyword") String keyword);
 
-    @Select(""" 
-    SELECT 
-        d.doctor_id AS doctorId, d.user_id AS userId, d.dept_id AS deptId, 
-        dep.dept_name AS deptName, d.title, d.bio,
-        d.status AS doctorStatus, d.created_at AS createdAt, d.updated_at AS updatedAt,
-        u.username, u.phone, u.email, u.gender,
-        u.status AS userStatus
-    FROM doctors d
-    INNER JOIN users u ON d.user_id = u.user_id
-    LEFT JOIN departments dep ON d.dept_id = dep.dept_id
-    WHERE (#{deptId} IS NULL OR d.dept_id = #{deptId})
-      AND (#{username} IS NULL OR u.username LIKE CONCAT('%', #{username}, '%'))
-      AND (#{status} IS NULL OR u.status = #{status})
-      AND (#{doctorStatus} IS NULL OR d.status = #{doctorStatus})
-    ORDER BY d.created_at DESC
-""")
-    List<DoctorAccountDTO> selectDoctorList(DoctorQueryDTO queryDTO);
+    List<DoctorAccountDTO> selectDoctorList(
+            @Param("deptId") Integer deptId,
+            @Param("username") String username,
+            @Param("status") String status,
+            @Param("doctorStatus") String doctorStatus,
+            @Param("offset") int offset,
+            @Param("pageSize") int pageSize
+    );
+
+    int countDoctorList(
+            @Param("deptId") Integer deptId,
+            @Param("username") String username,
+            @Param("status") String status,
+            @Param("doctorStatus") String doctorStatus
+    );
+
 
 
 
@@ -96,5 +95,31 @@ public interface DoctorMapper extends BaseMapper<Doctor> {
         WHERE doctor_id = #{doctorId}
     """)
     int updateById(Doctor doctor);
+
+    /**
+     * 根据 userId 查询医生信息（用于医生自己操作）
+     */
+    @Select("""
+    SELECT 
+        d.doctor_id AS doctorId,
+        d.user_id AS userId,
+        d.dept_id AS deptId,
+        dep.dept_name AS deptName,
+        d.title,
+        d.bio,
+        d.status AS doctorStatus,
+        d.created_at AS createdAt,
+        d.updated_at AS updatedAt,
+        u.username,
+        u.phone,
+        u.email,
+        u.gender,
+        u.status AS userStatus
+    FROM doctors d
+    INNER JOIN users u ON d.user_id = u.user_id
+    LEFT JOIN departments dep ON d.dept_id = dep.dept_id
+    WHERE d.user_id = #{userId}
+""")
+    DoctorAccountDTO selectDoctorWithUserByUserId(@Param("userId") Long userId);
 
 }

@@ -2,6 +2,8 @@ package org.example.backend.controller;
 
 import org.example.backend.dto.DoctorAccountDTO;
 import org.example.backend.dto.DoctorQueryDTO;
+import org.example.backend.dto.PageResult;
+import org.example.backend.pojo.DoctorBioUpdateRequest;
 import org.example.backend.service.DoctorAccountService;
 import org.example.backend.dto.Result;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,9 +24,8 @@ public class AdminDoctorAccountController {
      * 查询医生账号列表(支持筛选)
      */
     @GetMapping("/list")
-    public Result<List<DoctorAccountDTO>> getDoctorList(DoctorQueryDTO queryDTO) {
-        List<DoctorAccountDTO> doctors = doctorAccountService.getDoctorList(queryDTO);
-        return Result.success(doctors);
+    public Result<PageResult<DoctorAccountDTO>> getDoctorList(DoctorQueryDTO queryDTO) {
+        return Result.success(doctorAccountService.getDoctorList(queryDTO));
     }
 
     /**
@@ -78,4 +79,36 @@ public class AdminDoctorAccountController {
         return Result.success(doctor);
     }
 
+    /**
+     * 审批医生修改bio的申请
+     */
+    @PostMapping("/bio/review/{requestId}")
+    public Result<String> review(
+            @PathVariable Long requestId,
+            @RequestParam boolean approved,
+            @RequestParam(required = false) String reason
+    ) {
+        try {
+            doctorAccountService.reviewRequest(requestId, approved, reason);
+            return Result.success(approved ? "审核通过" : "已拒绝");
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 获取待审批的医生 bio 修改申请列表
+     */
+    @GetMapping("/bio/pending")
+    public Result<List<DoctorBioUpdateRequest>> getPendingBioRequests() {
+        return Result.success(doctorAccountService.getPendingBioRequests());
+    }
+
+    /**
+     * 获取单条申请详情
+     */
+    @GetMapping("/bio/{requestId}")
+    public Result<DoctorBioUpdateRequest> getBioRequestDetail(@PathVariable Long requestId) {
+        return Result.success(doctorAccountService.getBioRequestDetail(requestId));
+    }
 }

@@ -106,30 +106,14 @@ public class DoctorController {
      * 医生提交修改擅长领域的申请
      */
     @PostMapping("/bio/request")
-    public Result<String> submitBioRequest(@RequestParam Long doctorId, @RequestParam String newBio) {
+    public Result<String> submitBioRequest(@RequestParam Long userId, @RequestParam String newBio) {
         try {
-            doctorAccountService.submitBioChange(doctorId, newBio);
+            doctorAccountService.submitBioChange(userId, newBio);
             return Result.success("申请提交成功，等待管理员审核");
         } catch (Exception e) {
             return Result.error(e.getMessage());
         }
     }
-
-    //---管理端---//
-    @PostMapping("/bio/review/{requestId}")
-    public Result<String> review(
-            @PathVariable Long requestId,
-            @RequestParam boolean approved,
-            @RequestParam(required = false) String reason
-    ) {
-        try {
-            doctorAccountService.reviewRequest(requestId, approved, reason);
-            return Result.success(approved ? "审核通过" : "已拒绝");
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
-        }
-    }
-
 
 }
 
