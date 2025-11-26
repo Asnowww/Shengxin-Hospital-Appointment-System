@@ -1,9 +1,7 @@
-
 <template>
   <Navigation ref="navRef" />
   <div class="page-container" :style="{ paddingTop: navHeight + 'px' }">
     <div class="profile-layout">
-      <!-- 左侧边栏导航 -->
       <aside class="sidebar">
         <div class="sidebar-header">
           <div class="avatar">
@@ -51,10 +49,8 @@
         </nav>
       </aside>
 
-      <!-- 右侧主内容区 -->
       <main class="main-content">
         <div class="doctor-management">
-          <!-- 头部操作区 -->
           <div class="header-section">
             <div class="title-group">
               <h2>医生管理</h2>
@@ -69,14 +65,12 @@
             </button>
           </div>
 
-          <!-- 新建表单 -->
           <transition name="expand">
             <div v-if="toggleCreate" class="create-panel">
               <CreateDocAccount @created="fetchDoctors" />
             </div>
           </transition>
 
-          <!-- 筛选区 -->
           <div class="filter-section">
             <div class="filter-group">
               <label class="filter-label">科室</label>
@@ -129,7 +123,6 @@
             </button>
           </div>
 
-          <!-- 列表 -->
           <div v-if="loading" class="loading-state">
             <div class="spinner"></div>
             <p>加载医生账号中...</p>
@@ -203,12 +196,38 @@
               </div>
             </div>
           </div>
+
+          <div v-if="doctors.length > 0 && pagination.totalPages > 1" class="pagination-controls">
+              <div class="pagination-info">
+                  显示第 {{ ((pagination.pageNum - 1) * pagination.pageSize) + 1 }} - {{ Math.min(pagination.pageNum * pagination.pageSize, pagination.total) }} 条，共 {{ pagination.total }} 条
+              </div>
+              <div class="pagination-buttons">
+                  <button 
+                      :disabled="pagination.pageNum === 1" 
+                      @click="handlePageChange(pagination.pageNum - 1)" 
+                      class="page-btn"
+                  >
+                      &larr; 上一页
+                  </button>
+                  
+                  <span class="page-num-display">
+                      {{ pagination.pageNum }} / {{ pagination.totalPages }}
+                  </span>
+                  
+                  <button 
+                      :disabled="pagination.pageNum === pagination.totalPages" 
+                      @click="handlePageChange(pagination.pageNum + 1)" 
+                      class="page-btn"
+                  >
+                      下一页 &rarr;
+                  </button>
+              </div>
+          </div>
         </div>
       </main>
     </div>
   </div>
 
-  <!-- 编辑医生信息弹窗组件 -->
   <EditDoctorModal 
     v-model="showEditModal" 
     :doctor="editingDoctor" 
@@ -234,6 +253,14 @@ const dropdownVisible = ref(false)
 const departments = ref([])
 const doctors = ref([])
 
+// 改造点 1: 新增分页相关状态
+const pagination = reactive({
+  pageNum: 1, // 当前页码
+  pageSize: 10, // 每页数量 (默认 10)
+  total: 0, // 总记录数
+  totalPages: 0, // 总页数
+})
+
 // 编辑相关状态
 const showEditModal = ref(false)
 const editingDoctor = ref(null)
@@ -252,6 +279,8 @@ function selectChild(child) {
   selectedDeptName.value = child.deptName
   filters.department = child.deptId
   dropdownVisible.value = false
+  // 筛选条件变化时，重置页码为 1
+  pagination.pageNum = 1
   fetchDoctors()
 }
 
@@ -277,20 +306,29 @@ async function fetchDoctors() {
     const params = {}
 
     if ((filters.keyword || '').trim()) {
+      // 对应后端 DoctorQueryDTO 的 username 字段
       params.username = filters.keyword.trim()
     }
 
     if (filters.department) {
+      // 对应后端 DoctorQueryDTO 的 deptId 字段
       params.deptId = filters.department
     }
+    
+    // 改造点 2: 添加分页参数
+    params.pageNum = pagination.pageNum
+    params.pageSize = pagination.pageSize
 
     const { data } = await axios.get('/api/admin/doctors/list', {
       params,
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
 
-    if (data && data.code === 200) {
-      doctors.value = (data.data || []).map(d => ({
+    if (data && data.code === 200 && data.data) {
+      // 改造点 3: 处理 PageResult 结构
+      const pageResult = data.data
+      
+      doctors.value = (pageResult.records || []).map(d => ({
         id: d.doctorId,
         name: d.username,
         departmentName: d.deptName,
@@ -301,26 +339,63 @@ async function fetchDoctors() {
         email: d.email,
         specialty: d.specialty,
         bio: d.bio,
+        // 根据后端字段判断状态，确保逻辑不变
         enabled: (d.doctorStatus === 'active') && (d.userStatus === 'verified')
       }))
+      
+      // 更新分页状态
+      pagination.total = pageResult.total || 0
+      pagination.pageNum = pageResult.pageNum || 1
+      pagination.pageSize = pageResult.pageSize || 10
+      // 计算总页数
+      pagination.totalPages = Math.ceil(pagination.total / pagination.pageSize)
+      
     } else {
       doctors.value = []
+      // 错误时重置分页信息
+      pagination.total = 0
+      pagination.pageNum = 1
+      pagination.totalPages = 0
     }
   } catch (e) {
     console.error('获取医生账号失败', e)
     alert('获取医生账号失败')
+    doctors.value = []
+    pagination.total = 0
+    pagination.pageNum = 1
+    pagination.totalPages = 0
   } finally {
     loading.value = false
   }
 }
 
+// 改造点 4: 重置筛选条件时，将页码重置为 1
 function resetFilters() {
   filters.department = ''
   filters.keyword = ''
   selectedDeptName.value = ''
   selectedDeptId.value = ''
+  pagination.pageNum = 1 // 重置页码
   fetchDoctors()
 }
+
+// 改造点 5: 新增处理页码变化
+function handlePageChange(newPage) {
+  if (newPage > 0 && newPage <= pagination.totalPages && newPage !== pagination.pageNum) {
+    // 滚动到顶部或表格顶部，提供更好的用户体验
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    pagination.pageNum = newPage
+    fetchDoctors()
+  }
+}
+
+// 保持不变：查找科室名称的逻辑 (如果需要)
+function getDepartmentName(deptId) {
+    // 假设这个函数遍历 departments 查找名称，如果不需要可以移除
+    // 由于后端返回的 DTO 中已经包含了 deptName，此处可能不再需要
+    return deptId
+}
+
 
 async function viewDoctor(doc) {
   try {
@@ -408,6 +483,7 @@ onMounted(async () => {
   updateNavHeight()
   window.addEventListener('resize', handleResize)
   await fetchDepartments()
+  // 初始加载时，pageNum 默认为 1
   fetchDoctors()
 })
 
@@ -420,6 +496,59 @@ onUnmounted(() => {
 <style scoped>
 .page-container {
   min-height: 100vh;
+}
+/* ---------------------------------- */
+/* 新增：分页控制样式 */
+/* ---------------------------------- */
+.pagination-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  padding: 1rem 1.5rem;
+  background: #fff;
+  border-top: 2px solid #f0f0f0;
+  border-radius: 0 0 16px 16px; /* 确保底部圆角在 main-content 中正确显示 */
+}
+
+.pagination-info {
+  font-size: 0.9rem;
+  color: #718096;
+  font-weight: 500;
+}
+
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.page-btn {
+  padding: 0.5rem 1rem;
+  background: #f7fafc;
+  color: #4a5568;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-num-display {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d3748;
 }
 
 /* 下拉框容器 */
@@ -615,7 +744,10 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.doctor-management { padding: 2.5rem; }
+.doctor-management { 
+  padding: 2.5rem; 
+  padding-bottom: 0; /* 移除底部 padding */
+}
 
 .header-section {
   display: flex;
@@ -651,10 +783,15 @@ onUnmounted(() => {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .doctor-table { display: flex; flex-direction: column; gap: 0.5rem; }
+.doctor-table { 
+  padding-bottom: 1.5rem; /* 在列表下方增加一些间隔 */
+}
 .table-header { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 0.8fr 1.5fr; gap: 1rem; padding: 1rem; background: #f7fafc; border-radius: 10px; font-weight: 600; color: #4a5568; font-size: 0.9rem; }
 .table-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 0.8fr 1.5fr; gap: 1rem; padding: 1rem; background: white; border: 2px solid #e2e8f0; border-radius: 10px; align-items: center; transition: all 0.3s; }
 .table-row:hover { border-color: #f093fb; box-shadow: 0 2px 8px rgba(240, 147, 251, 0.2); }
-
+.table-row {
+    margin-bottom: 0;
+}
 .doctor-name { font-weight: 600; color: #2d3748; }
 .department-badge { display: inline-block; padding: 0.25rem 0.75rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #fff; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
 
