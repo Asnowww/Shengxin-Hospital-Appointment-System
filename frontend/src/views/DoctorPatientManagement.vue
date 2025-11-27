@@ -3,20 +3,15 @@
   <div class="page" :style="{ paddingTop: navHeight + 'px' }">
     <div class="page-head">
       <div>
-        <h1>患者管理</h1>
-        <p class="sub">查看当日及未来的挂号患者列表，提前为接诊做准备</p>
+        <h1>患者管理 - 当日就诊队列</h1>
+        <p class="sub">实时显示今日挂号患者列表，每30秒自动刷新</p>
       </div>
       <div class="filters">
-        <label class="filter-item">
-          <span>开始日期</span>
-          <input type="date" v-model="startDate" />
-        </label>
-        <label class="filter-item">
-          <span>结束日期</span>
-          <input type="date" v-model="endDate" />
-        </label>
+        <div class="refresh-info">
+          <span class="auto-refresh-badge">自动刷新中</span>
+        </div>
         <button class="btn primary" :disabled="loading" @click="refresh">
-          {{ loading ? '加载中...' : '查询' }}
+          {{ loading ? '加载中...' : '立即刷新' }}
         </button>
       </div>
     </div>
@@ -28,7 +23,7 @@
     <div v-else class="content">
       <div v-if="error" class="alert error">{{ error }}</div>
       <div v-if="loading" class="loading">数据加载中，请稍候...</div>
-      <div v-else-if="cards.length === 0" class="empty">所选日期内暂无患者预约</div>
+      <div v-else-if="cards.length === 0" class="empty">今日暂无患者预约</div>
       <div v-else class="grid">
         <div v-for="card in cards" :key="card.key" class="card">
           <div class="card-head">
@@ -57,67 +52,73 @@
               <div class="actions-col">操作</div>
             </div>
 
-            <div v-for="p in card.patients" :key="p.appointmentId" class="row">
-              <div>{{ p.patientName || '未知' }}</div>
-              <div>{{ p.gender === 'M' ? '男' : p.gender === 'F' ? '女' : '未知' }}</div>
-              <div>{{ p.age ?? '—' }}</div>
-              <div>{{ p.phone || '—' }}</div>
-              <div>{{ p.queueNumber ?? '—' }}</div>
-              <div>{{ p.waitingNumber || 0 }}</div>
-              <div>{{ p.appointmentTypeName || '—' }}</div>
-              <div>
-                <span :class="['status', statusClass(p.appointmentStatus)]">
-                  {{ statusLabel(p.appointmentStatus) }}
-                </span>
+            <template v-for="p in card.patients" :key="p.appointmentId">
+              <div class="row">
+                <div>{{ p.patientName || '未知' }}</div>
+                <div>{{ p.gender === 'M' ? '男' : p.gender === 'F' ? '女' : '未知' }}</div>
+                <div>{{ p.age ?? '—' }}</div>
+                <div>{{ p.phone || '—' }}</div>
+                <div>{{ p.queueNumber ?? '—' }}</div>
+                <div>
+                  <span class="queue-position" :class="{ 'first-in-queue': p.waitingNumber === 1 }">
+                    {{ p.waitingNumber || 0 }}
+                  </span>
+                </div>
+                <div>{{ p.appointmentTypeName || '—' }}</div>
+                <div>
+                  <span :class="['status', statusClass(p.appointmentStatus)]">
+                    {{ statusLabel(p.appointmentStatus) }}
+                  </span>
+                </div>
+                <div class="actions-col actions">
+                  <button
+                      class="mini-btn primary"
+                      :disabled="actionLoading === p.appointmentId || disableCall(p.appointmentStatus, p.waitingNumber === 1)"
+                      :title="p.waitingNumber !== 1 ? '仅能对第一位患者叫号' : ''"
+                      @click="callPatient(p)"
+                  >
+                    叫号
+                  </button>
+                  <button
+                      class="mini-btn success"
+                      :disabled="actionLoading === p.appointmentId || disableMark(p.appointmentStatus, p.waitingNumber === 1)"
+                      :title="p.waitingNumber !== 1 ? '仅能对第一位患者操作' : ''"
+                      @click="markCompleted(p, card.workDate)"
+                  >
+                    已就诊
+                  </button>
+                  <button
+                      class="mini-btn ghost"
+                      :disabled="historyLoading === p.patientId"
+                      @click="toggleHistory(p.patientId)"
+                  >
+                    {{ historyVisible[p.patientId] ? '收起历史' : '查看历史' }}
+                  </button>
+                </div>
               </div>
-              <div class="actions-col actions">
-                <button
-                    class="mini-btn primary"
-                    :disabled="actionLoading === p.appointmentId || disableCall(p.appointmentStatus)"
-                    @click="callPatient(p)"
-                >
-                  叫号
-                </button>
-                <button
-                  class="mini-btn success"
-                  :disabled="actionLoading === p.appointmentId || disableMark(p.appointmentStatus)"
-                  @click="markCompleted(p, card.workDate)"
-                >
-                  已就诊
-                </button>
-                <button
-                  class="mini-btn ghost"
-                  :disabled="historyLoading === p.patientId"
-                  @click="toggleHistory(p.patientId)"
-                >
-                  {{ historyVisible[p.patientId] ? '收起历史' : '查看历史' }}
-                </button>
-              </div>
-            </div>
-          </div>
 
-          <div
-            v-for="p in card.patients"
-            :key="`${p.appointmentId}-history`"
-            v-show="historyVisible[p.patientId]"
-            class="history"
-          >
-            <div class="history-head">
-              <div>历史就诊记录（最多 50 条）</div>
-              <div v-if="historyLoading === p.patientId" class="loading small">加载中...</div>
-            </div>
-            <div v-if="historyError[p.patientId]" class="alert warn">{{ historyError[p.patientId] }}</div>
-            <div v-else-if="!historyCache[p.patientId] || historyCache[p.patientId].length === 0" class="empty">
-              暂无历史记录
-            </div>
-            <div v-else class="history-list">
-              <div v-for="item in historyCache[p.patientId]" :key="item.appointmentId" class="history-row">
-                <div class="title">{{ item.deptName }} · {{ item.doctorName }} {{ item.doctorTitle }}</div>
-                <div class="time">{{ item.appointmentTime }}</div>
-                <div class="status-tag">{{ historyStatusLabel(item.status) }}</div>
-                <div class="note">{{ item.typeName }} | 费用 ¥{{ item.feeFinal ?? 0 }}</div>
+              <!-- 历史记录紧跟在当前患者行后面 -->
+              <div v-show="historyVisible[p.patientId]" class="history-row-wrapper">
+                <div class="history">
+                  <div class="history-head">
+                    <div>历史就诊记录（最多 50 条）</div>
+                    <div v-if="historyLoading === p.patientId" class="loading small">加载中...</div>
+                  </div>
+                  <div v-if="historyError[p.patientId]" class="alert warn">{{ historyError[p.patientId] }}</div>
+                  <div v-else-if="!historyCache[p.patientId] || historyCache[p.patientId].length === 0" class="empty">
+                    暂无历史记录
+                  </div>
+                  <div v-else class="history-list">
+                    <div v-for="item in historyCache[p.patientId]" :key="item.appointmentId" class="history-item">
+                      <div class="title">{{ item.deptName }} · {{ item.doctorName }} {{ item.doctorTitle }}</div>
+                      <div class="time">{{ item.appointmentTime }}</div>
+                      <div class="status-tag">{{ historyStatusLabel(item.status) }}</div>
+                      <div class="note">{{ item.typeName }} | 费用 ¥{{ item.feeFinal ?? 0 }}</div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            </template>
           </div>
         </div>
       </div>
@@ -126,17 +127,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import axios from 'axios'
 import Navigation from '@/components/Navigation.vue'
 
 const navRef = ref(null)
 const navHeight = ref(110)
 const token = ref(localStorage.getItem('token'))
-
-const today = new Date()
-const startDate = ref(formatInputDate(today))
-const endDate = ref(formatInputDate(addDays(today, 29)))
 
 const loading = ref(false)
 const error = ref('')
@@ -148,14 +145,12 @@ const historyVisible = reactive({})
 const historyLoading = ref(null)
 const historyError = reactive({})
 
+// 自动刷新定时器
+const autoRefreshTimer = ref(null)
+const AUTO_REFRESH_INTERVAL = 30000 // 30秒自动刷新
+
 function formatInputDate(date) {
   return date.toISOString().split('T')[0]
-}
-
-function addDays(date, delta) {
-  const d = new Date(date)
-  d.setDate(d.getDate() + delta)
-  return d
 }
 
 function updateNavHeight() {
@@ -165,7 +160,6 @@ function updateNavHeight() {
 }
 
 const cards = computed(() => {
-  // 排序：日期升序，时间段升序
   return [...schedules.value].sort((a, b) => {
     const da = new Date(a.workDate)
     const db = new Date(b.workDate)
@@ -201,14 +195,13 @@ function historyStatusLabel(status) {
   return status || '未知'
 }
 
-function disableMark(status) {
-  return status === 'completed' || status === 'no_show' || status === 'cancelled'
+function disableMark(status, isFirst) {
+  return !isFirst || status === 'completed' || status === 'no_show' || status === 'cancelled'
 }
 
-function disableCall(status) {
-  return status === 'completed' || status === 'no_show' || status === 'cancelled'
+function disableCall(status, isFirst) {
+  return !isFirst || status === 'completed' || status === 'no_show' || status === 'cancelled'
 }
-
 
 function formatDate(dateStr) {
   const d = new Date(dateStr)
@@ -235,38 +228,15 @@ async function refresh() {
     error.value = '未登录或登录已过期，请先登录医生账号'
     return
   }
-  if (!startDate.value || !endDate.value) {
-    error.value = '请先选择起止日期'
-    return
-  }
-  const start = new Date(startDate.value)
-  const end = new Date(endDate.value)
-  if (start > end) {
-    error.value = '开始日期不能晚于结束日期'
-    return
-  }
-  const dayCount = Math.floor((end - start) / (24 * 3600 * 1000)) + 1
-  if (dayCount > 60) {
-    error.value = '查询范围过大，请将时间范围控制在 60 天内'
-    return
-  }
+
+  const todayStr = formatInputDate(new Date())
 
   loading.value = true
   error.value = ''
   schedules.value = []
   try {
-    const dates = []
-    for (let i = 0; i < dayCount; i++) {
-      dates.push(formatInputDate(addDays(start, i)))
-    }
-    const results = await Promise.allSettled(dates.map(d => fetchSchedulesForDate(d)))
-    const merged = []
-    results.forEach(res => {
-      if (res.status === 'fulfilled' && Array.isArray(res.value)) {
-        merged.push(...res.value)
-      }
-    })
-    schedules.value = merged
+    const dayData = await fetchSchedulesForDate(todayStr)
+    schedules.value = dayData
   } catch (e) {
     error.value = e?.message || '数据加载失败'
   } finally {
@@ -299,15 +269,12 @@ async function callPatient(p) {
   actionLoading.value = p.appointmentId
   try {
     const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
-
     const { data } = await axios.post(
         `/api/doctor/patient/${p.appointmentId}/call`,
         null,
         { headers }
     )
-
     if (data?.code !== 200) throw new Error(data?.message || '叫号失败')
-
     alert('已叫号，15分钟内未就诊将自动过号')
   } catch (e) {
     alert(e?.response?.data?.message || e?.message || '叫号失败')
@@ -315,7 +282,6 @@ async function callPatient(p) {
     actionLoading.value = null
   }
 }
-
 
 async function refreshSingleDate(workDate) {
   if (!workDate) return refresh()
@@ -325,8 +291,23 @@ async function refreshSingleDate(workDate) {
     const others = schedules.value.filter(item => formatInputDate(new Date(item.workDate)) !== dateStr)
     schedules.value = [...others, ...dayData]
   } catch (e) {
-    // 回退到完整刷新
     await refresh()
+  }
+}
+
+function startAutoRefresh() {
+  stopAutoRefresh()
+  autoRefreshTimer.value = setInterval(() => {
+    if (token.value) {
+      refresh()
+    }
+  }, AUTO_REFRESH_INTERVAL)
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer.value) {
+    clearInterval(autoRefreshTimer.value)
+    autoRefreshTimer.value = null
   }
 }
 
@@ -359,6 +340,11 @@ onMounted(async () => {
   await nextTick()
   updateNavHeight()
   await refresh()
+  startAutoRefresh()
+})
+
+onUnmounted(() => {
+  stopAutoRefresh()
 })
 </script>
 
@@ -368,6 +354,9 @@ onMounted(async () => {
 .page-head h1 { margin: 0; font-size: 24px; }
 .sub { margin: 4px 0 0; color: #6b7280; }
 .filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.refresh-info { display: flex; align-items: center; gap: 8px; }
+.auto-refresh-badge { background: #dcfce7; color: #15803d; padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
 .filter-item { display: flex; flex-direction: column; font-size: 14px; color: #374151; }
 .filter-item input { padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; }
 .btn { border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
@@ -397,6 +386,9 @@ onMounted(async () => {
 .mini-btn.primary { background: #fff7ed; color: #c2410c; }
 .mini-btn.ghost { background: #f3f4f6; color: #374151; }
 .mini-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.queue-position { padding: 4px 10px; border-radius: 999px; font-weight: 600; background: #f3f4f6; color: #374151; }
+.queue-position.first-in-queue { background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); color: #fff; animation: glow 1.5s ease-in-out infinite; }
+@keyframes glow { 0%, 100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); } 50% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.8); } }
 .status { padding: 4px 8px; border-radius: 999px; font-size: 12px; }
 .status.booked { background: #e0f2fe; color: #0369a1; }
 .status.completed { background: #dcfce7; color: #15803d; }
@@ -404,17 +396,19 @@ onMounted(async () => {
 .status.pending { background: #fef9c3; color: #92400e; }
 .status.missed { background: #fee2e2; color: #b91c1c; }
 .status.unknown { background: #e5e7eb; color: #4b5563; }
-.history { background: #f9fafb; border-radius: 12px; padding: 12px; margin-top: 8px; }
-.history-head { display: flex; justify-content: space-between; align-items: center; font-weight: 600; color: #374151; }
-.history-list { display: grid; gap: 8px; margin-top: 8px; }
-.history-row { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; display: grid; gap: 6px; }
-.history-row .title { font-weight: 600; color: #111827; }
-.history-row .time { color: #6b7280; font-size: 13px; }
-.history-row .status-tag { display: inline-block; padding: 2px 8px; background: #eef2ff; color: #4338ca; border-radius: 999px; font-size: 12px; width: fit-content; }
-.history-row .note { color: #6b7280; font-size: 13px; }
+.history-row-wrapper { grid-column: 1 / -1; }
+.history { background: #f9fafb; border-radius: 12px; padding: 12px; margin: 8px 0; }
+.history-head { display: flex; justify-content: space-between; align-items: center; font-weight: 600; color: #374151; margin-bottom: 8px; }
+.history-list { display: grid; gap: 8px; }
+.history-item { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; display: grid; gap: 6px; }
+.history-item .title { font-weight: 600; color: #111827; }
+.history-item .time { color: #6b7280; font-size: 13px; }
+.history-item .status-tag { display: inline-block; padding: 2px 8px; background: #eef2ff; color: #4338ca; border-radius: 999px; font-size: 12px; width: fit-content; }
+.history-item .note { color: #6b7280; font-size: 13px; }
 .hint { background: #fff7ed; color: #9a3412; padding: 12px; border-radius: 10px; }
 @media (max-width: 900px) {
   .thead, .row { grid-template-columns: repeat(3, 1fr); grid-auto-rows: minmax(20px, auto); }
   .actions-col { grid-column: 1 / -1; }
+  .history-row-wrapper { grid-column: 1 / -1; }
 }
 </style>
