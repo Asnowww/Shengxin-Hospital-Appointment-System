@@ -23,9 +23,18 @@
           <span class="content-label">类型</span>
           <span class="content-value">{{ record.typeName }}</span>
         </div>
-        <div class="content-item">
+        <div class="content-item location-item">
           <span class="content-label">地点</span>
-          <span class="content-value">{{ record.building }}</span>
+          <div class="location-row">
+            <span class="content-value">{{ record.building }}</span>
+            <button 
+              class="nav-chip" 
+              @click.stop="handleNavigate"
+              type="button"
+            >
+              导航
+            </button>
+          </div>
         </div>
         <div class="content-item">
           <span class="content-label">费用</span>
@@ -64,6 +73,10 @@ const props = defineProps({
   onRecordClick: {
     type: Function,
     default: null
+  },
+  onNavigate: {
+    type: Function,
+    default: null
   }
 })
 
@@ -83,6 +96,12 @@ function getStatusLabel(status) {
 function onCardClick() {
   if (props.onRecordClick) {
     props.onRecordClick(props.record)
+  }
+}
+
+function handleNavigate() {
+  if (props.onNavigate) {
+    props.onNavigate(props.record)
   }
 }
 </script>
@@ -253,6 +272,30 @@ function onCardClick() {
   color: #667eea;
   font-weight: 700;
   font-size: 0.95rem;
+}
+
+.location-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nav-chip {
+  padding: 0.25rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #2563eb;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.nav-chip:hover {
+  background: #e0ecff;
+  border-color: #bfdbfe;
 }
 
 .time-row {
