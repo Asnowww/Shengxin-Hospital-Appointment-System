@@ -32,6 +32,7 @@
           :key="appt.appointmentId"
           :record="formatRecordData(appt)"
           :onRecordClick="handleRecordClick"
+          :onNavigate="openNavigator"
         />
       </transition-group>
     </div>
@@ -59,11 +60,16 @@
               <span class="label">科室：</span>
               <span class="value">{{ selectedRecord.deptName }}</span>
             </div>
-            <div class="detail-row">
-              <span class="label">地点：</span>
-              <span class="value">{{ selectedRecord.building }}</span>
-            </div>
+          <div class="detail-row">
+            <span class="label">地点：</span>
+            <span class="value location-value">
+              <span class="location-text">{{ selectedRecord.building }}</span>
+              <button class="nav-link" @click="openNavigator(selectedRecord)">
+                导航
+              </button>
+            </span>
           </div>
+        </div>
 
           <div class="detail-section">
             <h4>预约信息</h4>
@@ -137,6 +143,13 @@
   @payment-success="handlePaymentSuccess"
   @payment-error="handlePaymentError"
 />
+    <HospitalNavigator
+      v-if="navigatorVisible"
+      :visible="navigatorVisible"
+      :default-destination="navigatorDestination"
+      :appointment-info="navigatorInfo"
+      @close="navigatorVisible = false"
+    />
   </div>
   
 
@@ -147,9 +160,13 @@ import { ref, computed, onMounted,nextTick} from 'vue'
 import axios from 'axios'
 import AppointmentRecordCard from './AppointmentRecordCard.vue'
 import Payment from './Payment.vue'
+import HospitalNavigator from './HospitalNavigator.vue'
 
 const payDialogVisible = ref(false)
 const payInfo = ref({ appointmentId: null })
+const navigatorVisible = ref(false)
+const navigatorDestination = ref('')
+const navigatorInfo = ref({})
 
 async function handlePay(record) {
   if (!record || !record.appointmentId) {
@@ -271,6 +288,11 @@ function formatRecordData(appt) {
     appt.roomName || appt.room_name
   ].filter(Boolean)
   const location = locationParts.join(' ')
+  const roomId =
+    appt.roomId ||
+    appt.room_id ||
+    (appt.roomName || appt.room_name || '').match(/\d{3}/)?.[0] ||
+    ''
 
   return {
     appointmentId: appt.appointmentId,
@@ -280,6 +302,7 @@ function formatRecordData(appt) {
     deptName: appt.deptName || '科室',
     building: location || appt.building || '医院',
     roomName: appt.roomName || appt.room_name || '',
+    roomId,
     typeName: appt.typeName || '普通',
     appointmentTime: appt.appointmentTime || '未指定时间',
     bookingTime: appt.bookingTime,
@@ -337,6 +360,16 @@ function closeDetailDrawer() {
 function handleChangeAppointment(record) {
   // 可添加改约逻辑
   alert('改约功能暂未实现')
+}
+
+function openNavigator(record) {
+  navigatorDestination.value = record.roomId || ''
+  navigatorInfo.value = {
+    deptName: record.deptName,
+    roomName: record.roomName,
+    building: record.building
+  }
+  navigatorVisible.value = true
 }
 // 取消预约
 async function handleCancelAppointment(record) {
@@ -605,6 +638,34 @@ h2 {
 .value.fee {
   color: #667eea;
   font-weight: 600;
+}
+
+.location-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.location-text {
+  flex: 1;
+}
+
+.nav-link {
+  padding: 0.35rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #2563eb;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+  background: #e0ecff;
+  border-color: #bfdbfe;
 }
 
 .value.status-pending {
