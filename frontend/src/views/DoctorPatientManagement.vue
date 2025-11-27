@@ -3,8 +3,8 @@
   <div class="page" :style="{ paddingTop: navHeight + 'px' }">
     <div class="page-head">
       <div>
-        <h1>患者管理 - 当日就诊队列</h1>
-        <p class="sub">实时显示今日挂号患者列表，每30秒自动刷新</p>
+        <h1>今日就诊队列</h1>
+        <p class="sub">每30秒自动刷新</p>
       </div>
       <div class="filters">
         <div class="refresh-info">
