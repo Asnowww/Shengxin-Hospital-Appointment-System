@@ -778,26 +778,28 @@ Authorization: Bearer <token>
 ```json
 {
   "code": 200,
-  "message": "success",
+  "message": "操作成功",
   "data": [
     {
-      "id": 1,
-      "doctorId": 101,
-      "oldBio": "心血管疾病",
-      "newBio": "心血管疾病, 高血压",
+      "id": 2,
+      "doctorId": 3,
+      "doctorName": "梁伟",
+      "oldBio": "血脂紊乱，高血压病，冠状动脉粥样硬化性心脏病。\n\n",
+      "newBio": "血脂紊乱，高血压病，冠状动脉粥样硬化性心脏病。\n555\n",
       "status": "pending",
       "reason": null,
-      "createdAt": "2025-11-21T07:30:00",
+      "createdAt": "2025-11-28T13:03:26",
       "reviewedAt": null
     },
     {
-      "id": 2,
-      "doctorId": 102,
-      "oldBio": "内分泌",
-      "newBio": "内分泌, 糖尿病",
+      "id": 1,
+      "doctorId": 1,
+      "doctorName": "徐志红",
+      "oldBio": "老年呼吸系统及心血管常见病，包括肺部感染，慢阻肺，慢支，肺结节，睡眠呼吸暂停，高血压，冠心病及体检报告的分析解读等。",
+      "newBio": "老年呼吸系统及心血管常见病，包括肺部感染，慢阻肺，慢支，肺结节，睡眠呼吸暂停，高血压，冠心病及体检报告的分析解读等。..",
       "status": "pending",
       "reason": null,
-      "createdAt": "2025-11-21T07:32:00",
+      "createdAt": "2025-11-28T12:57:12",
       "reviewedAt": null
     }
   ]
@@ -831,15 +833,16 @@ Authorization: Bearer <token>
 ```json
 {
   "code": 200,
-  "message": "success",
+  "message": "操作成功",
   "data": {
-    "id": 1,
-    "doctorId": 101,
-    "oldBio": "心血管疾病",
-    "newBio": "心血管疾病, 高血压",
+    "id": 2,
+    "doctorId": 3,
+    "doctorName": "梁伟",
+    "oldBio": "血脂紊乱，高血压病，冠状动脉粥样硬化性心脏病。\n\n",
+    "newBio": "血脂紊乱，高血压病，冠状动脉粥样硬化性心脏病。\n555\n",
     "status": "pending",
     "reason": null,
-    "createdAt": "2025-11-21T07:30:00",
+    "createdAt": "2025-11-28T13:03:26",
     "reviewedAt": null
   }
 }

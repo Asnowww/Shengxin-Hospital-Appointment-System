@@ -14,13 +14,26 @@ public interface DoctorBioUpdateRequestMapper extends BaseMapper<DoctorBioUpdate
     /**
      * 查询所有待审批的 bio 修改申请
      */
-    @Select("SELECT * FROM doctor_bio_update_request WHERE status = 'pending' ORDER BY created_at ")
+    @Select("""
+    SELECT r.*, u.username AS doctorName
+    FROM doctor_bio_update_request r
+    JOIN doctors d ON r.doctor_id = d.doctor_id
+    JOIN users u ON d.user_id = u.user_id
+    WHERE r.status = 'pending'
+    ORDER BY r.created_at DESC
+    """)
     List<DoctorBioUpdateRequest> selectPendingRequests();
 
     /**
      * 根据 requestId 查询申请详情
      */
-    @Select("SELECT * FROM doctor_bio_update_request WHERE id = #{requestId}")
+    @Select("""
+    SELECT r.*, u.username AS doctorName
+    FROM doctor_bio_update_request r
+    JOIN doctors d ON r.doctor_id = d.doctor_id
+    JOIN users u ON d.user_id = u.user_id
+    WHERE r.id = #{requestId}
+    """)
     DoctorBioUpdateRequest selectById(Long requestId);
 
 }

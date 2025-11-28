@@ -15,6 +15,9 @@ public class DoctorBioUpdateRequest {
     @TableField("doctor_id")
     private Long doctorId;
 
+    @TableField(exist = false)
+    private String doctorName;
+
     @TableField("old_bio")
     private String oldBio;
 
