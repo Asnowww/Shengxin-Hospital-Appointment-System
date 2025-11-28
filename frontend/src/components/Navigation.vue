@@ -11,6 +11,12 @@
         预约挂号
       </router-link>
 
+      <router-link 
+      v-if="isLoggedIn && currentRole === 'patient'"
+      to="/consultation" class="nav-item" :class="{ active: isActive('/consultation') }">
+        智能问诊
+      </router-link>
+
       <!-- 患者端：我的候补 -->
       <!-- <router-link
         v-if="isLoggedIn && currentRole === 'patient'"

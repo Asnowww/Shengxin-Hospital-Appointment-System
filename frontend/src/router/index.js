@@ -45,6 +45,10 @@ const routes = [
   { path: '/admin/statistics', name: 'adminStatistics', component: () => import('@/views/AdminStatistics.vue') }, // 数据统计与分析
   { path: '/admin/fee', name: 'feeManagement', component: () => import('@/views/AdminFee.vue') }, //费用管理页
   { path: '/reminder', name: 'reminder', component: () => import('@/components/Reminder.vue') }, // 提醒页
+
+  // AI Consultation
+  { path: '/consultation', name: 'AIConsultation', component: () => import('../views/AIConsultation.vue') },
+
   { path: '/:pathMatch(.*)*', redirect: '/home' } // 其他未定义路由定向到首页
 ]
 
