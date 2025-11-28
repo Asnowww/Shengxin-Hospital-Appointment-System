@@ -19,7 +19,7 @@
         <div v-else class="table">
           <div class="thead">
             <div>申请ID</div>
-            <div>医生ID</div>
+            <div>医生姓名</div>
             <div>原简介</div>
             <div>新简介</div>
             <div>申请时间</div>
@@ -27,7 +27,7 @@
           </div>
           <div class="row" v-for="req in requests" :key="req.id">
             <div class="cell-strong">#{{ req.id }}</div>
-            <div>{{ req.doctorId }}</div>
+            <div>{{ req.doctorName }}</div>
             <div class="bio-cell" :title="req.oldBio">{{ truncate(req.oldBio, 20) }}</div>
             <div class="bio-cell highlight" :title="req.newBio">{{ truncate(req.newBio, 20) }}</div>
             <div>{{ formatDate(req.createdAt) }}</div>
@@ -48,8 +48,8 @@
           </div>
           <div class="detail-content" v-if="currentRequest">
             <div class="info-group">
-              <label>医生ID</label>
-              <div class="info-value">{{ currentRequest.doctorId }}</div>
+              <label>医生姓名</label>
+              <div class="info-value">{{ currentRequest.doctorName }}</div>
             </div>
             <div class="info-group">
               <label>原简介</label>

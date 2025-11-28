@@ -5,8 +5,10 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.example.backend.dto.*;
 import org.example.backend.pojo.Appointment;
+import org.example.backend.pojo.Doctor;
 import org.example.backend.pojo.Patient;
 import org.example.backend.service.AppointmentService;
+import org.example.backend.service.DoctorService;
 import org.example.backend.service.PatientService;
 import org.example.backend.service.ScheduleService;
 import org.example.backend.util.TokenUtil;
@@ -32,6 +34,9 @@ public class PatientAppointmentController {
 
     @Resource
     private ScheduleService scheduleService;
+
+    @Resource
+    private DoctorService doctorService;
 
     /**
      * 创建预约（患者挂号）
@@ -243,6 +248,13 @@ public class PatientAppointmentController {
             endDate = startDate.plusDays(7);
         }
 
+        if (doctorId != null) {
+            Doctor doctor = doctorService.getById(doctorId); // 或者 doctorMapper.selectById(doctorId)
+            if (doctor == null) {
+                return Result.error("医生不存在，doctorId=" + doctorId);
+            }
+        }
+
         // 查询所有状态为open且有剩余号源的排班
         List<ScheduleDetailVO> schedules = scheduleService.getAllSchedules(
                 deptId, doctorId, startDate, endDate, "open");
@@ -304,7 +316,7 @@ public class PatientAppointmentController {
             endDate = startDate.plusDays(14);
         }
 
-        List<ScheduleDetailVO> schedules = scheduleService.getDoctorSchedules(
+        List<ScheduleDetailVO> schedules = scheduleService.getDoctorSchedulesByDoctorId(
                 doctorId, startDate, endDate);
 
         return Result.success(schedules);
