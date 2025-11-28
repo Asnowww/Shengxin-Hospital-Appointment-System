@@ -43,6 +43,11 @@ public class DoctorController {
         return doctorService.getDoctorById(id);
     }
 
+    @GetMapping("/doctorId/{id}")
+    public DoctorVO getDoctorByDoctorId(@PathVariable Long id) {
+        return doctorService.getDoctorByDoctorId(id);
+    }
+
     /**
      * 新增医生
      */

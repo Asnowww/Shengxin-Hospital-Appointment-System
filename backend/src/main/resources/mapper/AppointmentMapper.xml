@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.example.backend.mapper.AppointmentMapper">
+
+    <!-- 科室挂号统计 -->
+    <select id="selectDepartmentAppointmentStats" resultType="org.example.backend.dto.DepartmentAppointmentStats">
+        SELECT dept.dept_id,
+               dept.dept_name,
+               COUNT(a.appointment_id)                            AS appointment_count,
+               SUM(IF(a.appointment_status = 'completed', 1, 0))  AS completed_count,
+               SUM(IF(a.appointment_status = 'cancelled', 1, 0))  AS cancelled_count,
+               SUM(IF(a.payment_status = 'paid', a.fee_final, 0)) AS total_revenue
+        FROM appointments a
+                 INNER JOIN schedules s ON a.schedule_id = s.schedule_id
+                 INNER JOIN departments dept ON a.dept_id = dept.dept_id
+        WHERE s.work_date BETWEEN #{startDate} AND #{endDate}
+        GROUP BY dept.dept_id, dept.dept_name
+        ORDER BY appointment_count DESC
+    </select>
+
+    <!-- 每日新增患者统计 -->
+    <select id="selectDailyNewPatientStats" resultType="org.example.backend.dto.DailyNewPatientStats">
+        SELECT
+            DATE(a.booking_time) AS date,
+            COUNT(DISTINCT a.patient_id) AS new_patient_count
+        FROM appointments a
+        WHERE DATE(a.booking_time) BETWEEN #{startDate} AND #{endDate}
+          AND NOT EXISTS (
+            SELECT 1
+            FROM appointments a2
+            WHERE a2.patient_id = a.patient_id
+              AND DATE(a2.booking_time) &lt; DATE(#{startDate})
+        )
+        GROUP BY DATE(a.booking_time)
+        ORDER BY date
+    </select>
+
+
+    <!-- 医生挂号统计 -->
+    <select id="selectDoctorAppointmentStats" resultType="org.example.backend.dto.DoctorAppointmentStats">
+        SELECT d.doctor_id,
+               u.username                                         AS doctor_name,
+               d.dept_id,
+               dept.dept_name,
+               COUNT(a.appointment_id)                            AS appointment_count,
+               SUM(IF(a.appointment_status = 'completed', 1, 0))  AS completed_count,
+               SUM(IF(a.appointment_status = 'cancelled', 1, 0))  AS cancelled_count,
+               SUM(IF(a.payment_status = 'paid', a.fee_final, 0)) AS total_revenue
+        FROM appointments a
+                 INNER JOIN schedules s ON a.schedule_id = s.schedule_id
+                 INNER JOIN doctors d ON s.doctor_id = d.doctor_id
+                 INNER JOIN users u ON d.user_id = u.user_id
+                 INNER JOIN departments dept ON d.dept_id = dept.dept_id
+        WHERE s.work_date BETWEEN #{startDate} AND #{endDate}
+        GROUP BY d.doctor_id, u.username, d.dept_id, dept.dept_name
+        ORDER BY appointment_count DESC
+    </select>
+
+
+</mapper>

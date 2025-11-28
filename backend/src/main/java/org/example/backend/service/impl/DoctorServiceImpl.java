@@ -224,9 +224,45 @@ public class DoctorServiceImpl extends ServiceImpl<DoctorMapper, Doctor> impleme
         vo.setBioStatus(latestRequest != null ? latestRequest.getStatus() : null);
 
         return vo;
+
+
     }
 
+    @Override
+    public DoctorVO getDoctorByDoctorId(Long doctorId) {
 
+    Doctor doctor = doctorMapper.selectById(doctorId);
+
+        // 3. 查询科室信息
+        Department dept = departmentMapper.selectById(doctor.getDeptId());
+
+        DoctorBioUpdateRequest latestRequest = doctorBioUpdateRequestMapper.selectOne(
+                new LambdaQueryWrapper<DoctorBioUpdateRequest>()
+                        .eq(DoctorBioUpdateRequest::getDoctorId, doctorId)
+                        .orderByDesc(DoctorBioUpdateRequest::getCreatedAt)
+                        .last("LIMIT 1")
+        );
+
+
+        // 5. 组装 VO
+        DoctorVO vo = new DoctorVO();
+        vo.setDoctorId(doctorId);
+        vo.setDeptId(doctor.getDeptId());
+
+//        vo.setDoctorName(doctor : null);
+        vo.setDeptName(dept != null ? dept.getDeptName() : null);
+        vo.setTitle(doctor.getTitle());
+        vo.setBio(doctor.getBio());
+//        vo.setStatus(user != null ? user.getStatus() : null);
+
+        // 新增：返回最新审核状态
+        // 若没有记录，则设为 null 或自定义值（例如 -1 表示无申请）
+        vo.setBioStatus(latestRequest != null ? latestRequest.getStatus() : null);
+
+        return vo;
+
+
+    }
 
 
 

@@ -54,6 +54,9 @@
           <div class="spinner"></div>
           <p>加载中...</p>
         </div>
+          <div v-if="dayOverMessage" class="empty-state">
+    <p>{{ dayOverMessage }}</p>
+  </div>
         <div v-else-if="filteredSchedules.length > 0" class="schedules-grid">
           <div v-for="schedule in filteredSchedules" :key="schedule.scheduleId" class="schedule-card">
             <!-- 预约类型标签和费用 -->
@@ -203,6 +206,8 @@ const showPaymentModal = ref(false)
 const selectedSchedule = ref(null)
 const paymentData = ref({ appointmentId: null })
 
+
+
 /* ============ 医生信息 ============ */
 const doctorInfo = ref({
   name: '',
@@ -230,7 +235,7 @@ function handlePaymentError(errorMsg) {
 
 async function fetchDoctorInfo() {
   try {
-    const response = await axios.get(`/api/doctor/${doctorId.value}`)
+    const response = await axios.get(`/api/doctor/doctorId/${doctorId.value}`)
     const resData = response.data
     const data = resData
     doctorInfo.value = {
@@ -331,10 +336,30 @@ function getStatusText(schedule) {
 }
 
 /* =============================== 当前日期的排班过滤 =============================== */
+/* =============================== 当前日期的排班过滤 =============================== */
+const dayOverMessage = ref('') // 当天已过预约时间段提示
+
 const filteredSchedules = computed(() => {
-  
-  return schedules.value.filter(s => s.workDate === selectedDate.value)
+  const todayStr = new Date().toISOString().split('T')[0]
+  const now = new Date()
+  dayOverMessage.value = '' // 重置提示
+
+  let filtered = schedules.value.filter(s => s.workDate === selectedDate.value)
+
+  if (selectedDate.value === todayStr) {
+    const hours = now.getHours()
+    if (hours >= 17) {
+      filtered = []
+      dayOverMessage.value = '已过当天可预约时间段'
+    } else if (hours >= 12) {
+      // 只显示下午排班，假设 timeSlotName 包含 “下午”
+      filtered = filtered.filter(s => /下午|PM/i.test(s.timeSlotName))
+    }
+  }
+
+  return filtered
 })
+
 
 /* =============================== 预约逻辑 =============================== */
 function handleAppointment(schedule) {

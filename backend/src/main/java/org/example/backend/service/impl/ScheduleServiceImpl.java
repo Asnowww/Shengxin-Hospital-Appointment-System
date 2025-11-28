@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -294,6 +295,36 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         return convertToDetailVO(schedule);
     }
+
+    @Override
+    public List<ScheduleDetailVO> getDoctorSchedulesByDoctorId(Long doctorId, LocalDate startDate, LocalDate endDate) {
+        // 查询医生信息
+        Doctor doctor = doctorMapper.selectById(doctorId);
+        if (doctor == null) {
+            // 医生不存在，直接返回空列表，避免 NPE
+            return Collections.emptyList();
+        }
+
+        // 构建查询条件
+        QueryWrapper<Schedule> wrapper = new QueryWrapper<>();
+        wrapper.eq("doctor_id", doctorId);
+        if (startDate != null) {
+            wrapper.ge("work_date", startDate);
+        }
+        if (endDate != null) {
+            wrapper.le("work_date", endDate);
+        }
+        wrapper.orderByAsc("work_date", "time_slot");
+
+        // 查询排班
+        List<Schedule> schedules = scheduleMapper.selectList(wrapper);
+
+        // 转换为 VO 返回
+        return schedules.stream()
+                .map(this::convertToDetailVO)
+                .collect(Collectors.toList());
+    }
+
 
     @Override
     public List<ScheduleDetailVO> getDoctorSchedules(Long userId, LocalDate startDate, LocalDate endDate) {

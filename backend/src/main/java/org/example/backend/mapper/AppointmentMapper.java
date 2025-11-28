@@ -92,35 +92,16 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
      * @param date 日期
      * @return 当日预约列表
      */
-    @Select("SELECT a.* FROM appointment a " +
+    @Select("SELECT a.* FROM appointments a " +
             "INNER JOIN schedules s ON a.schedule_id = s.schedule_id " +
             "WHERE a.payment_status = 'paid' " +
             "AND a.appointment_status = 'booked' " +
-            "AND DATE(s.schedule_date) = #{date}")
+            "AND DATE(s.work_date) = #{date}")
     List<Appointment> selectTodayPaidAppointments(@Param("date") LocalDate date);
 
     /**
      * 统计医生挂号数量
      */
-    @Select("<script>" +
-            "SELECT " +
-            "    d.doctor_id, " +
-            "    u.username AS doctor_name, " +
-            "    d.dept_id, " +
-            "    dept.dept_name, " +
-            "    COUNT(a.appointment_id) AS appointment_count, " +
-            "    SUM(CASE WHEN a.appointment_status = 'completed' THEN 1 ELSE 0 END) AS completed_count, " +
-            "    SUM(CASE WHEN a.appointment_status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_count, " +
-            "    SUM(CASE WHEN a.payment_status = 'paid' THEN a.fee_final ELSE 0 END) AS total_revenue " +
-            "FROM appointments a " +
-            "INNER JOIN schedules s ON a.schedule_id = s.schedule_id " +
-            "INNER JOIN doctors d ON s.doctor_id = d.doctor_id " +
-            "INNER JOIN users u ON d.user_id = u.user_id " +
-            "INNER JOIN departments dept ON d.dept_id = dept.dept_id " +
-            "WHERE s.work_date BETWEEN #{startDate} AND #{endDate} " +
-            "GROUP BY d.doctor_id, u.username, d.dept_id, dept.dept_name " +
-            "ORDER BY appointment_count DESC" +
-            "</script>")
     List<DoctorAppointmentStats> selectDoctorAppointmentStats(
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
@@ -129,21 +110,6 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     /**
      * 统计科室挂号数量
      */
-    @Select("<script>" +
-            "SELECT " +
-            "    dept.dept_id, " +
-            "    dept.dept_name, " +
-            "    COUNT(a.appointment_id) AS appointment_count, " +
-            "    SUM(CASE WHEN a.appointment_status = 'completed' THEN 1 ELSE 0 END) AS completed_count, " +
-            "    SUM(CASE WHEN a.appointment_status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_count, " +
-            "    SUM(CASE WHEN a.payment_status = 'paid' THEN a.fee_final ELSE 0 END) AS total_revenue " +
-            "FROM appointments a " +
-            "INNER JOIN schedules s ON a.schedule_id = s.schedule_id " +
-            "INNER JOIN departments dept ON a.dept_id = dept.dept_id " +
-            "WHERE s.work_date BETWEEN #{startDate} AND #{endDate} " +
-            "GROUP BY dept.dept_id, dept.dept_name " +
-            "ORDER BY appointment_count DESC" +
-            "</script>")
     List<DepartmentAppointmentStats> selectDepartmentAppointmentStats(
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
@@ -152,20 +118,6 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     /**
      * 统计每日新增患者
      */
-    @Select("<script>" +
-            "SELECT " +
-            "    DATE(a.booking_time) AS date, " +
-            "    COUNT(DISTINCT a.patient_id) AS new_patient_count " +
-            "FROM appointments a " +
-            "WHERE DATE(a.booking_time) BETWEEN #{startDate} AND #{endDate} " +
-            "AND NOT EXISTS (" +
-            "    SELECT 1 FROM appointments a2 " +
-            "    WHERE a2.patient_id = a.patient_id " +
-            "    AND DATE(a2.booking_time) &lt; DATE(#{startDate})" +  // 修复这里：< 改为 &lt;
-            ") " +
-            "GROUP BY DATE(a.booking_time) " +
-            "ORDER BY date" +
-            "</script>")
     List<DailyNewPatientStats> selectDailyNewPatientStats(
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate

@@ -38,6 +38,7 @@ public interface ScheduleService {
      */
     List<ScheduleDetailVO> getDoctorSchedules(Long userId, LocalDate startDate, LocalDate endDate);
 
+    List<ScheduleDetailVO> getDoctorSchedulesByDoctorId(Long doctorId, LocalDate startDate, LocalDate endDate);
     /**
      * 查询科室的排班列表
      */
