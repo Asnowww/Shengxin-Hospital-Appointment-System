@@ -13,4 +13,5 @@ public class DoctorVO {
     private String title;
     private String bio;
     private String status;
+    private String bioStatus;
 }

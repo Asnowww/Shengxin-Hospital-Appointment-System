@@ -106,19 +106,26 @@
 
           <div class="form-group full-width">
 
-  <div class="label-inline">
-    <label>擅长领域</label>
-    <button class="edit-btn-small" type="button" @click="openBioEditor">
-      申请修改
-    </button>
-  </div>
+<div class="label-inline">
+  <label>擅长领域</label>
 
-  <textarea
-    :value="pendingBio ? '审核中' : profile.bio"
-    disabled
-    class="form-control textarea"
-    rows="4"
-  ></textarea>
+  <button 
+    class="edit-btn-small" 
+    type="button"
+    @click="openBioEditor"
+    :disabled="profile.bioStatus === 'pending'"
+  >
+    {{ profile.bioStatus === 'pending' ? '审核中' : '申请修改' }}
+  </button>
+</div>
+
+
+<textarea
+  :value="profile.bioStatus === 'pending' ? '审核中' : profile.bio"
+  disabled
+  class="form-control textarea"
+  rows="4"
+></textarea>
 
 </div>
 
@@ -139,7 +146,6 @@
 :currentBio="pendingBio ? '' : (profile?.bio || '')"
 
   @close="showBioEditor = false"
-  @submitted="onBioSubmitted"
 />
 
           </div>
@@ -172,9 +178,6 @@ function openBioEditor() {
   showBioEditor.value = true
 }
 
-function onBioSubmitted() {
-  pendingBio.value = true
-}
 
 const profile = reactive({
   doctorName: '',
@@ -184,7 +187,8 @@ const profile = reactive({
   phone: '',
   email: '',
   bio:'',
-  status: ''
+  status: '',
+  bioStatus: ''  // 新增字段，表示擅长领域修改状态
 })
 
 function startEdit() {

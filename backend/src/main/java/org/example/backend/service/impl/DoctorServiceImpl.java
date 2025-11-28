@@ -7,12 +7,10 @@ import jakarta.annotation.Resource;
 import org.example.backend.dto.DoctorAttendanceStats;
 import org.example.backend.dto.DoctorVO;
 import org.example.backend.dto.DoctorWorkloadStats;
-import org.example.backend.mapper.DepartmentMapper;
-import org.example.backend.mapper.DoctorMapper;
-import org.example.backend.mapper.ScheduleMapper;
-import org.example.backend.mapper.UserMapper;
+import org.example.backend.mapper.*;
 import org.example.backend.pojo.Department;
 import org.example.backend.pojo.Doctor;
+import org.example.backend.pojo.DoctorBioUpdateRequest;
 import org.example.backend.pojo.User;
 import org.example.backend.service.DoctorService;
 import org.springframework.stereotype.Service;
@@ -38,6 +36,9 @@ public class DoctorServiceImpl extends ServiceImpl<DoctorMapper, Doctor> impleme
 
     @Resource
     private ScheduleMapper scheduleMapper;
+
+    @Resource
+    private DoctorBioUpdateRequestMapper doctorBioUpdateRequestMapper;
 
     @Override
     public List<DoctorVO> getAllDoctorsWithNameAndDept() {
@@ -190,15 +191,25 @@ public class DoctorServiceImpl extends ServiceImpl<DoctorMapper, Doctor> impleme
         );
         if (doctor == null) return null;
 
+        Long doctorId = doctor.getDoctorId();
+
         // 2. 查询用户信息
         User user = userMapper.selectById(userId);
 
         // 3. 查询科室信息
         Department dept = departmentMapper.selectById(doctor.getDeptId());
 
-        // 4. 组装 VO
+        DoctorBioUpdateRequest latestRequest = doctorBioUpdateRequestMapper.selectOne(
+                new LambdaQueryWrapper<DoctorBioUpdateRequest>()
+                        .eq(DoctorBioUpdateRequest::getDoctorId, doctorId)
+                        .orderByDesc(DoctorBioUpdateRequest::getCreatedAt)
+                        .last("LIMIT 1")
+        );
+
+
+        // 5. 组装 VO
         DoctorVO vo = new DoctorVO();
-        vo.setDoctorId(doctor.getDoctorId());
+        vo.setDoctorId(doctorId);
         vo.setDeptId(doctor.getDeptId());
         vo.setEmail(user != null ? user.getEmail() : null);
         vo.setPhone(user != null ? user.getPhone() : null);
@@ -208,8 +219,13 @@ public class DoctorServiceImpl extends ServiceImpl<DoctorMapper, Doctor> impleme
         vo.setBio(doctor.getBio());
         vo.setStatus(user != null ? user.getStatus() : null);
 
+        // 新增：返回最新审核状态
+        // 若没有记录，则设为 null 或自定义值（例如 -1 表示无申请）
+        vo.setBioStatus(latestRequest != null ? latestRequest.getStatus() : null);
+
         return vo;
     }
+
 
 
 
