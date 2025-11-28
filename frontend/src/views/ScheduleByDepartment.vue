@@ -51,15 +51,21 @@
       <!-- 内容区域 -->
       <div class="content-section">
         <!-- 时间段筛选 -->
-        <div class="time-filter">
-          <button 
-            v-for="slot in timeSlots" 
-            :key="slot.id"
-            :class="['time-btn', { active: selectedTimeSlot === slot.id }]"
-            @click="selectedTimeSlot = slot.id">
-            {{ slot.name }}
-          </button>
-        </div>
+<div class="time-filter">
+  <button 
+    v-for="slot in availableTimeSlots" 
+    :key="slot.id"
+    :class="['time-btn', { active: selectedTimeSlot === slot.id }]"
+    @click="selectedTimeSlot = slot.id">
+    {{ slot.name }}
+  </button>
+</div>
+
+<!-- 当天过期提示 -->
+<div v-if="scheduleNotice" class="schedule-notice">
+  {{ scheduleNotice }}
+</div>
+
 
         <!-- 排班卡片 -->
         <div class="schedules-grid">
@@ -217,7 +223,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick ,watch} from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import Navigation from '@/components/Navigation.vue'
@@ -245,6 +251,8 @@ const loading = ref(false)
 const isSubmitting = ref(false)
 const showAppointModal = ref(false)
 const selectedSchedule = ref(null)
+
+const scheduleNotice = ref('') // 提示信息
 
 const appointmentTabs = [
   { id: 'general', label: '普通门诊', typeId: 1 },
@@ -311,10 +319,6 @@ function formatDateTime(date, timeSlot) {
   return `${dateStr} ${timeSlot}`
 }
 
-function formatDate(date) {
-  const d = new Date(date)
-  return d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', weekday: 'short' })
-}
 
 function formatFullDate(date) {
   const d = new Date(date)
@@ -352,23 +356,53 @@ function getCurrentTypeId() {
   return currentTab?.typeId
 }
 
+const availableTimeSlots = computed(() => {
+  const now = new Date()
+  const hour = now.getHours()
+  const todayStr = new Date().toISOString().split('T')[0]
+  const isToday = selectedDate.value === todayStr
+
+  scheduleNotice.value = '' // 默认无提示
+
+  // 当天17点以后不可预约
+  if (isToday && hour >= 17) {
+    scheduleNotice.value = '已过当天可预约时间'
+    return [] // 不显示按钮
+  }
+
+  // 按钮列表动态过滤
+  return timeSlots.filter(slot => {
+    if (!isToday) return true // 非今天全显示
+
+    if (slot.id === 'morning' && hour >= 12) return false // 上午过了不显示
+    if (slot.id === 'all' && hour >= 12) return false // 全天过了不显示上午+下午的“全天”
+    return true
+  })
+})
+
 // 过滤排班
 const filteredSchedules = computed(() => {
   const typeId = getCurrentTypeId()
-  
+  const now = new Date()
+  const hour = now.getHours()
+  const todayStr = now.toISOString().split('T')[0]
+  const isToday = selectedDate.value === todayStr
+
+  scheduleNotice.value = ''
+
   return schedules.value.filter(s => {
-    if (s.status === 'cancelled') return false 
-    const typeMatch = s.appointmentTypeId === typeId
-    const dateMatch = selectedDate.value === '' || s.workDate === selectedDate.value
-    
-    let timeMatch = true
-    if (selectedTimeSlot.value === 'morning') {
-      timeMatch = s.timeSlotName.includes('上午') || s.timeSlot === 0
-    } else if (selectedTimeSlot.value === 'afternoon') {
-      timeMatch = s.timeSlotName.includes('下午') || s.timeSlot === 1
+    if (s.status === 'cancelled') return false
+    if (s.appointmentTypeId !== typeId) return false
+    if (selectedDate.value && s.workDate !== selectedDate.value) return false
+
+    if (isToday && hour >= 17) {
+      scheduleNotice.value = '已过当天可预约时间'
+      return false
     }
-    
-    return typeMatch && dateMatch && timeMatch
+
+    if (selectedTimeSlot.value === 'morning') return s.timeSlotName.includes('上午') || s.timeSlot === 0
+    if (selectedTimeSlot.value === 'afternoon') return s.timeSlotName.includes('下午') || s.timeSlot === 1
+    return true // all
   })
 })
 
@@ -504,6 +538,30 @@ function updateNavHeight() {
     navHeight.value = height + 30
   }
 }
+
+function initializeTimeSlot() {
+  const now = new Date()
+  const hour = now.getHours()
+  const todayStr = new Date().toISOString().split('T')[0]
+
+  if (selectedDate.value === todayStr) {
+    if (hour >= 17) {
+      selectedTimeSlot.value = '' // 不可用
+      scheduleNotice.value = '已过当天可预约时间'
+    } else if (hour >= 12) {
+      selectedTimeSlot.value = 'afternoon' // 下午默认选中
+    } else {
+      selectedTimeSlot.value = 'all' // 全天默认选中
+    }
+  } else {
+    selectedTimeSlot.value = 'all'
+  }
+}
+
+watch(selectedDate, (newDate) => {
+  initializeTimeSlot()
+})
+
 
 function handleResize() {
   updateNavHeight()
