@@ -4,7 +4,6 @@
       <h2 class="modal-title">擅长领域修改申请</h2>
       <p class="modal-sub">提交后将进入管理员审核流程</p>
 
-      <!-- 文本输入 -->
       <textarea
         v-model="form.bio"
         rows="5"
@@ -12,7 +11,6 @@
         placeholder="请输入修改后的擅长领域"
       ></textarea>
 
-      <!-- 按钮 -->
       <div class="actions">
         <button class="btn cancel" @click="close">取消</button>
         <button class="btn primary" @click="submit">提交申请</button>
@@ -25,10 +23,10 @@
 import { ref, watch } from 'vue'
 import axios from 'axios'
 
-// 接收父组件传参
+
 const props = defineProps({
   visible: Boolean,
-  doctorId: Number,
+  userId: String,
   currentBio: String
 })
 
@@ -38,7 +36,7 @@ const form = ref({
   bio: ''
 })
 
-// 打开弹窗时自动载入当前擅长领域（如果是 pending 不会传真实内容）
+// 弹窗开启时载入当前擅长领域（如果是 pending 则为空）
 watch(
   () => props.visible,
   (v) => {
@@ -53,29 +51,36 @@ function close() {
 }
 
 async function submit() {
-  if (!props.doctorId) {
-    alert('无法识别医生身份')
+  if (!props.userId) {
+    alert('无法识别用户身份')
     return
   }
 
   try {
     const token = localStorage.getItem('token')
 
-    // await axios.put(
-    //   `/api/admin/doctors/update/submit/${props.doctorId}`,
-    //   { bio: form.value.bio }, 
-    //   { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-    // )
+    // form-urlencoded 构建
+    const payload = new URLSearchParams()
+    payload.append('userId', props.userId)
+    payload.append('newBio', form.value.bio)
+
+    await axios.post('/api/doctor/bio/request', payload, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    })
 
     alert('已提交修改申请，等待管理员审核')
     emit('submitted')
     close()
   } catch (e) {
-    alert('提交失败')
+    alert('提交失败，请稍后再试')
     console.error(e)
   }
 }
 </script>
+
 
 <style scoped>
 .modal-mask {

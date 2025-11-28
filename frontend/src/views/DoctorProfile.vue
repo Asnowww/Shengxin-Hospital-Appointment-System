@@ -124,14 +124,6 @@
 
 
 
-<DoctorInfoChangeApply
-  :visible="showBioEditor"
-  :doctorId="profile.doctorId"
-  :currentSpecialization="pendingBio ? '' : profile.bio"
-  @close="showBioEditor = false"
-  @submitted="onBioSubmitted"
-/>
-
 
               </div>
 
@@ -140,6 +132,16 @@
                 <button type="submit" class="submit-btn">保存修改</button>
               </div>
             </form>
+            
+<DoctorInfoChangeApply
+  :visible="showBioEditor"
+:userId="userId"
+:currentBio="pendingBio ? '' : (profile?.bio || '')"
+
+  @close="showBioEditor = false"
+  @submitted="onBioSubmitted"
+/>
+
           </div>
         </transition>
       </main>
@@ -162,6 +164,9 @@ const originalProfile = ref({})
 
 const showBioEditor = ref(false)
 const pendingBio = ref(false)
+
+const userId = localStorage.getItem('userId')
+
 
 function openBioEditor() {
   showBioEditor.value = true

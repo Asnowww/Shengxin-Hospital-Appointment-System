@@ -197,8 +197,7 @@ const loadDoctorDetail = async (doctorId) => {
       formData.gender = detail.gender || ''
       formData.phone = detail.phone || ''
       formData.email = detail.email || ''
-      formData.specialty = detail.specialty || ''
-      formData.intro = detail.intro || ''
+      formData.bio = detail.bio || ''
     }
   } catch (e) {
     console.error('加载医生详情失败', e)
