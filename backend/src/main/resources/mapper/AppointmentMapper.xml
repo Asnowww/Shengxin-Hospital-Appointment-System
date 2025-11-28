@@ -12,7 +12,7 @@
                COUNT(a.appointment_id)                            AS appointment_count,
                SUM(IF(a.appointment_status = 'completed', 1, 0))  AS completed_count,
                SUM(IF(a.appointment_status = 'cancelled', 1, 0))  AS cancelled_count,
-               SUM(IF(a.payment_status = 'paid', a.fee_final, 0)) AS total_revenue
+               SUM(IF(a.payment_status = 'paid', a.fee_original, 0)) AS total_revenue
         FROM appointments a
                  INNER JOIN schedules s ON a.schedule_id = s.schedule_id
                  INNER JOIN departments dept ON a.dept_id = dept.dept_id
@@ -48,7 +48,7 @@
                COUNT(a.appointment_id)                            AS appointment_count,
                SUM(IF(a.appointment_status = 'completed', 1, 0))  AS completed_count,
                SUM(IF(a.appointment_status = 'cancelled', 1, 0))  AS cancelled_count,
-               SUM(IF(a.payment_status = 'paid', a.fee_final, 0)) AS total_revenue
+               SUM(IF(a.payment_status = 'paid', a.fee_original, 0)) AS total_revenue
         FROM appointments a
                  INNER JOIN schedules s ON a.schedule_id = s.schedule_id
                  INNER JOIN doctors d ON s.doctor_id = d.doctor_id
