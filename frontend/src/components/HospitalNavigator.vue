@@ -23,39 +23,75 @@
           <div class="nav-panel">
             <div class="panel-section">
               <p class="section-title">当前位置</p>
-              <div class="input-shell muted">
-                <svg xmlns="http://www.w3.org/2000/svg" class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 10c0 7-9 12-9 12S3 17 3 10a9 9 0 0 1 18 0" />
-                  <circle cx="12" cy="10" r="3" />
-                </svg>
-                <select v-model="startPoint" class="input-field" aria-label="起点">
-                  <option value="entrance">医院大门（默认）</option>
-                </select>
+              <div class="search-box">
+                <div class="input-shell accent" @click.stop="openStartDropdown">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 10c0 7-9 12-9 12S3 17 3 10a9 9 0 0 1 18 0" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  <input
+                    v-model="startSearch"
+                    type="text"
+                    class="input-field"
+                    placeholder="选择/搜索当前位置"
+                    aria-label="起点"
+                    @focus="openStartDropdown"
+                    @input="handleStartSearch"
+                    @keydown.enter.prevent="selectFirstStartOption"
+                    @blur="delayedCloseStartDropdown"
+                  />
+                </div>
+                <div v-if="startDropdownOpen" class="dropdown-panel">
+                  <div class="dropdown-scroll">
+                    <button
+                      v-for="option in filteredStartOptions"
+                      :key="option.value"
+                      type="button"
+                      class="dropdown-option"
+                      @click="selectStartOption(option)"
+                    >
+                      <span class="option-label">{{ option.label }}</span>
+                      <span class="option-meta">{{ option.dept || option.desc || '' }}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
             <div class="panel-section">
               <p class="section-title">前往科室</p>
-              <div class="input-shell accent">
-                <svg xmlns="http://www.w3.org/2000/svg" class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.35-4.35" />
-                </svg>
-                <select
-                  v-model="endPoint"
-                  @change="clearNav"
-                  class="input-field"
-                  aria-label="选择目的地"
-                >
-                  <option value="">请选择目的地...</option>
-                  <option
-                    v-for="dest in destinations"
-                    :key="dest.value"
-                    :value="dest.value"
-                  >
-                    {{ dest.label }}
-                  </option>
-                </select>
+              <div class="search-box">
+                <div class="input-shell accent" @click.stop="openEndDropdown">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                  </svg>
+                  <input
+                    v-model="endSearch"
+                    type="text"
+                    class="input-field"
+                    placeholder="选择/搜索目的地"
+                    aria-label="选择目的地"
+                    @focus="openEndDropdown"
+                    @input="handleEndSearch"
+                    @keydown.enter.prevent="selectFirstEndOption"
+                    @blur="delayedCloseEndDropdown"
+                  />
+                </div>
+                <div v-if="endDropdownOpen" class="dropdown-panel">
+                  <div class="dropdown-scroll">
+                    <button
+                      v-for="dest in filteredEndOptions"
+                      :key="dest.value"
+                      type="button"
+                      class="dropdown-option"
+                      @click="selectEndOption(dest)"
+                    >
+                      <span class="option-label">{{ dest.label }}</span>
+                      <span class="option-meta">{{ dest.dept || dest.desc || '' }}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
               <p v-if="appointmentInfoText" class="hint-line">
                 本次预约：{{ appointmentInfoText }}
@@ -193,6 +229,10 @@ const initialized = ref(false)
 const startPoint = ref('entrance')
 const endPoint = ref(props.defaultDestination || '')
 const isNavigating = ref(false)
+const startSearch = ref('')
+const endSearch = ref('')
+const startDropdownOpen = ref(false)
+const endDropdownOpen = ref(false)
 
 const animationState = reactive({
   curve: null,
@@ -220,6 +260,48 @@ const destinations = computed(() => {
   return list
 })
 
+const findOptionByValue = (value, list) => list.find(item => item.value === value)
+
+const locationOptions = computed(() => [
+  {
+    value: 'entrance',
+    label: '医院大门（默认）',
+    floor: 1,
+    x: ENTRANCE_POS.x,
+    z: ENTRANCE_POS.z,
+    desc: '入口'
+  },
+  ...destinations.value
+])
+
+const currentStartLabel = computed(() => findOptionByValue(startPoint.value, locationOptions.value)?.label || '')
+const currentEndLabel = computed(() => findOptionByValue(endPoint.value, destinations.value)?.label || '')
+
+const filterOptions = (options, keyword) => {
+  const key = (keyword || '').trim().toLowerCase()
+  if (!key) return options
+  return options.filter(opt => {
+    const combined = [opt.label, opt.name, opt.dept, opt.desc, opt.id]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+    return combined.includes(key)
+  })
+}
+
+const filteredStartOptions = computed(() => filterOptions(locationOptions.value, startSearch.value))
+const filteredEndOptions = computed(() => filterOptions(destinations.value, endSearch.value))
+
+const syncStartSearchLabel = () => {
+  startSearch.value = currentStartLabel.value || locationOptions.value[0]?.label || ''
+}
+const syncEndSearchLabel = () => {
+  endSearch.value = currentEndLabel.value || ''
+}
+
+syncStartSearchLabel()
+syncEndSearchLabel()
+
 const appointmentInfoText = computed(() => {
   const room = props.appointmentInfo?.roomName || props.appointmentInfo?.room
   const dept = props.appointmentInfo?.deptName || props.appointmentInfo?.department
@@ -231,12 +313,80 @@ watch(
   () => props.defaultDestination,
   value => {
     endPoint.value = value || ''
+    syncEndSearchLabel()
     clearNav()
   }
 )
 
+const openStartDropdown = () => {
+  if (startSearch.value === currentStartLabel.value) {
+    startSearch.value = ''
+  }
+  startDropdownOpen.value = true
+}
+
+const openEndDropdown = () => {
+  if (endSearch.value === currentEndLabel.value) {
+    endSearch.value = ''
+  }
+  endDropdownOpen.value = true
+}
+
+const delayedCloseStartDropdown = () => {
+  setTimeout(() => {
+    startDropdownOpen.value = false
+    syncStartSearchLabel()
+  }, 120)
+}
+
+const delayedCloseEndDropdown = () => {
+  setTimeout(() => {
+    endDropdownOpen.value = false
+    syncEndSearchLabel()
+  }, 120)
+}
+
+const handleStartSearch = event => {
+  startSearch.value = event.target.value
+  openStartDropdown()
+}
+
+const handleEndSearch = event => {
+  endSearch.value = event.target.value
+  if (!endSearch.value) {
+    endPoint.value = ''
+  }
+  openEndDropdown()
+}
+
+const selectStartOption = option => {
+  startPoint.value = option.value
+  startSearch.value = option.label
+  startDropdownOpen.value = false
+  clearNav()
+}
+
+const selectEndOption = option => {
+  endPoint.value = option.value
+  endSearch.value = option.label
+  endDropdownOpen.value = false
+  clearNav()
+}
+
+const selectFirstStartOption = () => {
+  const first = filteredStartOptions.value[0]
+  if (first) selectStartOption(first)
+}
+
+const selectFirstEndOption = () => {
+  const first = filteredEndOptions.value[0]
+  if (first) selectEndOption(first)
+}
+
 const handleClose = () => {
   clearNav()
+  startDropdownOpen.value = false
+  endDropdownOpen.value = false
   emit('close')
 }
 
@@ -284,41 +434,38 @@ const clearNav = () => {
 
 const handleNavigate = () => {
   if (!endPoint.value || !sceneState.scene) return
-  isNavigating.value = true
 
-  let targetRoom = null
-  let targetFloor = 1
-  HOSPITAL_DATA.forEach(f => {
-    const room = f.rooms.find(r => r.id === endPoint.value)
-    if (room) {
-      targetRoom = room
-      targetFloor = f.floor
-    }
-  })
+  const startLocation = findOptionByValue(startPoint.value, locationOptions.value) || locationOptions.value[0]
+  const targetRoom = findOptionByValue(endPoint.value, destinations.value)
 
   if (!targetRoom) {
     window.alert('未找到该科室')
     return
   }
 
-  const pathPoints = []
-  const startY = 1
-  pathPoints.push(new THREE.Vector3(ENTRANCE_POS.x, startY, ENTRANCE_POS.z))
-  pathPoints.push(new THREE.Vector3(ENTRANCE_POS.x, startY, 0))
+  isNavigating.value = true
 
-  if (targetFloor > 1) {
+  const startFloor = startLocation?.floor || 1
+  const targetFloor = targetRoom.floor || 1
+  const startY = (startFloor - 1) * FLOOR_HEIGHT + 1
+  const targetY = (targetFloor - 1) * FLOOR_HEIGHT + 1
+  const pathPoints = []
+
+  pathPoints.push(new THREE.Vector3(startLocation.x, startY, startLocation.z))
+  pathPoints.push(new THREE.Vector3(startLocation.x, startY, 0))
+
+  if (startFloor !== targetFloor) {
     pathPoints.push(new THREE.Vector3(ELEVATOR_POS.x, startY, 0))
     pathPoints.push(new THREE.Vector3(ELEVATOR_POS.x, startY, ELEVATOR_POS.z + 5))
-    const targetY = (targetFloor - 1) * FLOOR_HEIGHT + 1
     pathPoints.push(new THREE.Vector3(ELEVATOR_POS.x, targetY, ELEVATOR_POS.z + 5))
     pathPoints.push(new THREE.Vector3(ELEVATOR_POS.x, targetY, 0))
+  } else {
+    pathPoints.push(new THREE.Vector3(targetRoom.x, startY, 0))
   }
 
-  const targetBaseY = (targetFloor - 1) * FLOOR_HEIGHT + 1
-  pathPoints.push(new THREE.Vector3(targetRoom.x, targetBaseY, 0))
   const entryZ = targetRoom.z > 0 ? targetRoom.z - 4 : targetRoom.z + 4
-  pathPoints.push(new THREE.Vector3(targetRoom.x, targetBaseY, entryZ))
-  pathPoints.push(new THREE.Vector3(targetRoom.x, targetBaseY, targetRoom.z))
+  pathPoints.push(new THREE.Vector3(targetRoom.x, targetY, entryZ))
+  pathPoints.push(new THREE.Vector3(targetRoom.x, targetY, targetRoom.z))
 
   if (pathMesh.value) sceneState.scene.remove(pathMesh.value)
   if (avatar.value) sceneState.scene.remove(avatar.value)
@@ -703,6 +850,54 @@ onBeforeUnmount(() => {
   outline: none;
   font-size: 0.95rem;
   color: #0f172a;
+}
+
+.search-box {
+  position: relative;
+}
+
+.dropdown-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  z-index: 5;
+}
+
+.dropdown-scroll {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.dropdown-option {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.dropdown-option:hover {
+  background: #eff6ff;
+}
+
+.option-label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.option-meta {
+  font-size: 0.85rem;
+  color: #64748b;
 }
 
 .hint-line {
