@@ -1,0 +1,10 @@
+target
+.git
+.gitignore
+.idea
+.vscode
+mvnw
+mvnw.cmd
+docker-compose.yml
+node_modules
+*.log
