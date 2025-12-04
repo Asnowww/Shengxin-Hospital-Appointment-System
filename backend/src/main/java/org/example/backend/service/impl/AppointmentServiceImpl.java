@@ -407,7 +407,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         try {
             // === 模拟调用第三方支付接口 ===
             System.out.println("正在调用第三方支付接口，支付方式：" + method);
-            Thread.sleep(1000); // 模拟网络请求
+            Thread.sleep(10); // 模拟网络请求
             String tradeNo = "TRADE-" + System.currentTimeMillis();
 
             // 4. 支付成功，更新支付状态

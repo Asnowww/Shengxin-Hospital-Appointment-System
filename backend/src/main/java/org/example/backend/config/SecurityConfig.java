@@ -10,6 +10,8 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import static org.springframework.security.config.Customizer.withDefaults;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+
 
 @Configuration
 public class SecurityConfig {
@@ -24,6 +26,10 @@ public class SecurityConfig {
                 )
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable);
+        // 强制 HTTPS 的新写法
+        http.requiresChannel(channel ->
+                channel.requestMatchers(request -> true).requiresSecure()
+        );
 
         return http.build();
     }
