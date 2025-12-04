@@ -328,3 +328,24 @@ CREATE TABLE doctor_bio_update_request (
                                                REFERENCES doctors(doctor_id)
                                                ON DELETE CASCADE
 ) COMMENT='医生个人简介修改申请表';
+
+CREATE TABLE medical_records (
+                                 record_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '病历主键ID',
+                                 patient_id BIGINT NOT NULL COMMENT '关联患者ID',
+                                 doctor_id BIGINT NULL COMMENT '记录医生ID，可选，用于追踪是谁填写的',
+                                 appointment_id BIGINT NULL COMMENT '可选，关联某次预约',
+                                 chief_complaint VARCHAR(500) NOT NULL COMMENT '主诉',
+                                 present_illness TEXT COMMENT '现病史',
+                                 physical_exam TEXT COMMENT '体格检查',
+                                 diagnosis TEXT NOT NULL COMMENT '诊断',
+                                 treatment TEXT COMMENT '治疗方案',
+                                 doctor_advice TEXT COMMENT '医嘱',
+                                 fee DECIMAL(10,2) COMMENT '诊疗费用',
+                                 next_visit_date DATE COMMENT '下次复诊日期',
+                                 notes TEXT COMMENT '附加备注',
+                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                                 FOREIGN KEY (patient_id) REFERENCES patients(patient_id),
+                                 FOREIGN KEY (doctor_id) REFERENCES doctors(doctor_id),
+                                 FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id)
+) COMMENT='患者病历表';
