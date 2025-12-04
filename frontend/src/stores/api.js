@@ -51,11 +51,11 @@ export const fetchDoctorsByDept = async (deptId) => {
  * 对应后端：GET /api/chat/session?doctorId=&patientId=&appointmentId=
  * 返回 ChatSession，前端使用 session.id 作为房间 ID
  */
-export const createChatSession = async (userId, doctorId, appointmentId = null) => {
+export const createChatSession = async (patientId, doctorId, appointmentId = null) => {
     const res = await axios.get('/api/chat/session', {
         params: {
             doctorId,
-            userId,
+            patientId,
             appointmentId
         }
     })

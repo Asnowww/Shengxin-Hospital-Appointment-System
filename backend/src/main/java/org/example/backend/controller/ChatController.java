@@ -26,17 +26,9 @@ public class ChatController {
 
     @GetMapping("/session")
     public ChatSession getOrCreateSession(@RequestParam Long doctorId,
-            @RequestParam Long userId,
+            @RequestParam Long patientId,
             @RequestParam(required = false) Long appointmentId) {
-        // 1. 根据 userId 查询医生信息
-        Patient patient = patientService.getOne(
-                new QueryWrapper<Patient>().eq("user_id", userId));
 
-        if (patient == null) {
-            throw new RuntimeException("患者不存在，userId = " + userId);
-        }
-
-        Long patientId = patient.getPatientId();
         return chatSessionService.getOrCreateSession(doctorId, patientId, appointmentId);
     }
 

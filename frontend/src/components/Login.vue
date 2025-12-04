@@ -124,7 +124,11 @@ async function handleLogin() {
       if (res.data.roleType === 'doctor') {
         localStorage.setItem('doctorId', res.data.doctorId)
       }
-      
+
+        if (res.data.roleType === 'patient') {
+        localStorage.setItem('patientId', res.data.patientId)
+      }
+
       alert('登录成功！')
 
       // 根据角色跳转

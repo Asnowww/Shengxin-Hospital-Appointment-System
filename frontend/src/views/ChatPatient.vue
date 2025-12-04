@@ -131,8 +131,7 @@ import {
   fetchDepartments,
   fetchDoctorsByDept,
   createChatSession,
-  fetchChatHistory,
-  closeChatSession
+  fetchChatHistory
 } from '@/stores/api'
 
 // 顶部导航高度处理，与其他页面保持一致
@@ -225,7 +224,7 @@ const startChatWithDoctor = async (doctor) => {
   try {
     if (!currentUserId.value) {
       // 这里简化处理：从本地存储或其他全局登录信息中读取
-      const uid = localStorage.getItem('userId')
+      const uid = localStorage.getItem('patientId')
       if (!uid) {
         alert('请先登录后再使用在线问诊功能。')
         return
@@ -266,17 +265,10 @@ const handleRandomMatch = () => {
   startChatWithDoctor(doctor)
 }
 
-// 结束当前问诊：不立刻刷新/清空，由 ChatRoom 负责关闭连接和提示
-const endSignal = ref(0)
-
-const handleEndChat = async () => {
-  if (!activeRoomId.value) return
-  endSignal.value += 1
-  try {
-    await closeChatSession(activeRoomId.value)
-  } catch (e) {
-    console.error('患者端关闭会话失败', e)
-  }
+// 结束当前问诊
+const handleEndChat = () => {
+  activeRoomId.value = null
+  chatMessages.value = []
 }
 
 // 周期性轮询消息（在使用 WebSocket 的基础上，作为兜底）
