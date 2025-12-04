@@ -1,12 +1,11 @@
 package org.example.backend.controller;
 
-
 import jakarta.annotation.Resource;
 import org.example.backend.dto.DoctorVO;
 import org.example.backend.dto.Result;
+import org.example.backend.service.OnlineStatusService;
 import org.example.backend.mapper.DoctorBioUpdateRequestMapper;
 import org.example.backend.mapper.DoctorMapper;
-import org.example.backend.pojo.Doctor;
 import org.example.backend.service.DoctorAccountService;
 import org.example.backend.service.DoctorService;
 import org.springframework.web.bind.annotation.*;
@@ -29,13 +28,15 @@ public class DoctorController {
     @Resource
     private DoctorBioUpdateRequestMapper requestMapper;
 
+    @Resource
+    private OnlineStatusService onlineStatusService;
+
     // 查询所有医生
     @GetMapping("/list")
     public Result<List<DoctorVO>> getAllDoctors() {
         List<DoctorVO> doctors = doctorService.getAllDoctorsWithNameAndDept();
         return Result.success(doctors);
     }
-
 
     // 根据 ID 查询医生详情
     @GetMapping("/{id}")
@@ -60,7 +61,6 @@ public class DoctorController {
             return Result.error("新增医生失败: " + e.getMessage());
         }
     }
-
 
     /**
      * 修改医生信息
@@ -103,10 +103,15 @@ public class DoctorController {
             return Result.error("科室ID不能为空");
         }
         List<DoctorVO> doctors = doctorService.getDoctorVOByDeptId(deptId);
+        // 注入实时在线状态
+        for (DoctorVO doctor : doctors) {
+            boolean online = onlineStatusService.isDoctorOnline(doctor.getDoctorId());
+            doctor.setOnlineStatus(online ? "online" : "offline");
+        }
         return Result.success(doctors);
     }
 
-    //---医生端---//
+    // ---医生端---//
     /**
      * 医生提交修改擅长领域的申请
      */
@@ -121,4 +126,3 @@ public class DoctorController {
     }
 
 }
-

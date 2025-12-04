@@ -17,14 +17,13 @@
         智能问诊
       </router-link>
 
-      <!-- 患者端：我的候补 -->
-      <!-- <router-link
-        v-if="isLoggedIn && currentRole === 'patient'"
-        to="/waitlist/my"
-        class="nav-item"
-        :class="{ active: isActive('/waitlist/my') }">
-        我的候补
-      </router-link> -->
+      <router-link
+    v-if="isLoggedIn"
+    :to="ChatPath"
+    class="nav-item"
+    :class="{ active: isActive(ChatPath) }">
+    在线问诊
+  </router-link>
 
       <!-- 医生端：仅医生登录后显示 -->
       <router-link
@@ -139,8 +138,19 @@ const isLoggedIn = computed(() => !!token.value && !!currentRole.value)
 const roleRoutes = {
   patient: '/patient/profile',
   doctor: '/doctor/profile',
-  admin: '/admin/profile'
+  admin: '/admin/profhatile'
 }
+
+const ChatPath = computed(() => {
+  switch (currentRole.value) {
+    case 'doctor':
+      return '/doctor/chat'
+    case 'patient':
+      return '/patient/chat'
+    default:
+      return '/home'
+  }
+})
 
 // 退出登录
 function handleLogout() {
