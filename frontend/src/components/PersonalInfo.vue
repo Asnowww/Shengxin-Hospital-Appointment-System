@@ -96,8 +96,8 @@
             :disabled="!isEditing"
             class="form-control">
             <option value="">请选择</option>
-            <option value="male">男</option>
-            <option value="female">女</option>
+            <option value="M">男</option>
+            <option value="F">女</option>
           </select>
         </div>
 
@@ -313,19 +313,33 @@ async function fetchProfile() {
 async function handleSave() {
   if (!validateForm()) return
 
-  try {
-    const token = localStorage.getItem('token')
-    await axios.put('/api/patient/profile/update', profile, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    })
-    alert('保存成功！')
-    isEditing.value = false
-  } catch (err) {
-    console.error(err)
+try {
+  const token = localStorage.getItem('token')
+  const res = await axios.put('/api/patient/profile/update', profile, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  })
+
+  // 根据后端返回值显示 message
+  if (res.data && res.data.message) {
+    alert(res.data.message)
+  } else {
+    alert('操作成功')
+  }
+
+  isEditing.value = false
+} catch (err) {
+  console.error(err)
+
+  // 如果后端也返回了 message（错误情况）
+  if (err.response && err.response.data && err.response.data.message) {
+    alert(err.response.data.message)
+  } else {
     alert('保存失败，请稍后再试')
   }
+}
+
 }
 
 // 认证成功回调

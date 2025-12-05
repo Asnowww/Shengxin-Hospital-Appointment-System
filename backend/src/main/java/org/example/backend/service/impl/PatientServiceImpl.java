@@ -40,6 +40,8 @@ public class PatientServiceImpl extends ServiceImpl<PatientMapper, Patient> impl
     @Override
     @Transactional
     public Result<Void> updatePatientInfo(Long userId, PatientUpdateParam param) {
+        System.out.println("Received param = " + param);
+
         // 1. 验证用户是否存在且为患者角色
         User user = userService.getById(userId);
         if (user == null) {
