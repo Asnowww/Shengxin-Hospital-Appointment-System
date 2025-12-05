@@ -16,6 +16,7 @@ DROP TABLE IF EXISTS appointment_audit;
 DROP TABLE IF EXISTS appointment_rules;
 DROP TABLE IF EXISTS user_verifications;
 DROP TABLE IF EXISTS schedule_exceptions;
+DROP TABLE IF EXISTS chat_message;
 
 -- 再删除主表（父表）
 DROP TABLE IF EXISTS doctors;
@@ -24,6 +25,7 @@ DROP TABLE IF EXISTS consultation_rooms;
 DROP TABLE IF EXISTS departments;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS appointment_types;
+DROP TABLE IF EXISTS chat_session;
 
 -- 恢复外键检查
 SET FOREIGN_KEY_CHECKS = 1;
@@ -349,3 +351,47 @@ CREATE TABLE medical_records (
                                  FOREIGN KEY (doctor_id) REFERENCES doctors(doctor_id),
                                  FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id)
 ) COMMENT='患者病历表';
+
+CREATE TABLE if not exists chat_session (
+                                            id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+                                            doctor_id       BIGINT NOT NULL,
+                                            patient_id      BIGINT NOT NULL,
+                                            appointment_id  BIGINT NULL,
+                                            status          ENUM('active', 'closed') DEFAULT 'active',
+                                            created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                            updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+                                            INDEX idx_doctor_id (doctor_id),
+                                            INDEX idx_patient_id (patient_id),
+                                            INDEX idx_appointment_id (appointment_id),
+                                            INDEX idx_status (status),
+
+                                            CONSTRAINT fk_chat_session_doctor
+                                                FOREIGN KEY (doctor_id) REFERENCES doctors(doctor_id),
+
+                                            CONSTRAINT fk_chat_session_patient
+                                                FOREIGN KEY (patient_id) REFERENCES patients(patient_id),
+
+                                            CONSTRAINT fk_chat_session_appointment
+                                                FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id)
+)COMMENT='会话记录表';;
+
+CREATE TABLE if NOT EXISTS chat_message (
+                                            id             BIGINT PRIMARY KEY AUTO_INCREMENT,
+                                            session_id     BIGINT NOT NULL,
+                                            sender_type    ENUM('doctor', 'patient', 'system') NOT NULL,
+                                            sender_id      BIGINT NOT NULL,
+                                            content        TEXT NULL,
+                                            content_type   ENUM('text', 'image', 'file') NOT NULL DEFAULT 'text',
+                                            file_url       VARCHAR(500) NULL,
+                                            is_read        BOOLEAN NOT NULL DEFAULT FALSE,
+                                            created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+                                            INDEX idx_session_created (session_id, created_at),
+                                            INDEX idx_sender (sender_type, sender_id),
+                                            INDEX idx_is_read (is_read),
+
+                                            CONSTRAINT fk_chat_message_session
+                                                FOREIGN KEY (session_id) REFERENCES chat_session(id)
+                                                    ON DELETE CASCADE
+)COMMENT='会话具体消息表';;

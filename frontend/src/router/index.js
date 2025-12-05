@@ -13,6 +13,8 @@ import LeaveManagement from '@/views/LeaveManagement.vue'
 import DepartmentSchedule from '@/views/ScheduleByDepartment.vue'
 import MyWaitlist from '@/views/MyWaitlist.vue'
 import FullyBookedSchedules from '@/views/FullyBookedSchedules.vue'
+import ChatPatient from '@/views/ChatPatient.vue'
+import ChatDoctor from '@/views/ChatDoctor.vue'
 
 
 const routes = [
@@ -25,6 +27,7 @@ const routes = [
   { path: '/departmentSchedule', name: 'departmentSchedule', component: DepartmentSchedule }, //科室排班页（接受参数）
   { path: '/doctorSchedule', name: 'doctorSchedule', component: () => import('@/views/ScheduleByDoctor.vue') }, //医生排班页（接受参数）
   { path: '/password', name: 'password', component: Password }, // 修改密码页
+  { path: '/patient/chat', name: 'chat', component: ChatPatient }, // 在线问诊总入口（患者）
 
   //候补相关页面
   { path: '/waitlist/my', name: 'myWaitlist', component: MyWaitlist }, //我的候补
@@ -35,7 +38,7 @@ const routes = [
   { path: '/doctor/schedules', name: 'doctorSchedules', component: DoctorSchedule }, //医生排班页
   { path: '/doctor/leave/apply', name: 'doctorLeaveApply', component: () => import('@/views/DoctorLeaveApplication.vue') }, // 医生请假申请
   { path: '/doctor/patient-management', name: 'doctorPatientManagement', component: () => import('@/views/DoctorPatientManagement.vue') }, // 医生患者管理
-
+  { path: '/doctor/chat', name: 'chatDoctor', component: ChatDoctor },
   //管理端界面
   { path: '/admin/profile', name: 'adminProfile', component: AdminProfile }, //管理员个人信息页
   { path: '/admin/schedules', name: 'adminSchedule', component: AdminSchedule }, //管理员排班管理页
@@ -45,6 +48,7 @@ const routes = [
   { path: '/admin/statistics', name: 'adminStatistics', component: () => import('@/views/AdminStatistics.vue') }, // 数据统计与分析
   { path: '/admin/fee', name: 'feeManagement', component: () => import('@/views/AdminFee.vue') }, //费用管理页
   { path: '/reminder', name: 'reminder', component: () => import('@/components/Reminder.vue') }, // 提醒页
+
 
   // AI Consultation
   { path: '/consultation', name: 'AIConsultation', component: () => import('../views/AIConsultation.vue') },
