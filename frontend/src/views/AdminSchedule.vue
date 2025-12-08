@@ -110,13 +110,12 @@
 </div>
 
 
-          <!-- 排班表格组件 -->
-          <ScheduleTable 
-            v-if="selectedDeptId"
-            :key="selectedDeptId"
-            :deptId="selectedDeptId"
-            :deptName="currentDepartment?.deptName"
-          />
+        <ScheduleTable 
+  v-if="selectedDeptId"
+  :key="selectedDeptId + '-' + scheduleTableKey"
+  :deptId="selectedDeptId"
+  :deptName="currentDepartment?.deptName"
+/>
 
           <!-- 未选择科室的提示 -->
           <div v-else class="empty-state">
@@ -175,6 +174,13 @@ function handleScheduleSubmit() {
   showScheduleModal.value = false
   loadScheduleData()
 }
+
+const scheduleTableKey = ref(0)
+
+function loadScheduleData() {
+  scheduleTableKey.value++
+}
+
 
 function toggleDropdown() {
   dropdownVisible.value = !dropdownVisible.value
