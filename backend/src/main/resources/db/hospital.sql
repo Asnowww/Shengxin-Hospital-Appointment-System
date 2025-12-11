@@ -17,6 +17,7 @@ DROP TABLE IF EXISTS appointment_rules;
 DROP TABLE IF EXISTS user_verifications;
 DROP TABLE IF EXISTS schedule_exceptions;
 DROP TABLE IF EXISTS chat_message;
+DROP TABLE IF EXISTS medical_records;
 
 -- 再删除主表（父表）
 DROP TABLE IF EXISTS doctors;
