@@ -113,12 +113,11 @@
             <div class="legend">
               <p class="legend-title">楼层分布</p>
               <div class="legend-grid">
-                <div class="legend-item"><span class="dot green"></span>1F 老年病科 · 风湿免疫科 · 高血压科</div>
-                <div class="legend-item"><span class="dot green"></span>2F 呼吸内科 · 内分泌科 · 神经内科</div>
-                <div class="legend-item"><span class="dot blue"></span>3F 神经内科(高区) · 骨科 · 功能神外 · 心脏外科</div>
-                <div class="legend-item"><span class="dot blue"></span>4F 心脏外科 · 神经外科 · 烧伤整形</div>
-                <div class="legend-item"><span class="dot orange"></span>5F 烧伤整形 · 普胸外科 · 小儿内外科</div>
-                <div class="legend-item"><span class="dot pink"></span>6F 妇科 · 核医学科 · 小儿外科</div>
+                <div class="legend-item"><span class="dot blue"></span>5F 外科/妇儿</div>
+                <div class="legend-item"><span class="dot gray"></span>4F 检查/行政</div>
+                <div class="legend-item"><span class="dot gray"></span>3F 手术/疼痛</div>
+                <div class="legend-item"><span class="dot gray"></span>2F 专科门诊</div>
+                <div class="legend-item"><span class="dot green"></span>1F 内科/大厅</div>
               </div>
             </div>
           </div>
@@ -143,178 +142,72 @@ const FLOOR_WIDTH = 60
 const FLOOR_LENGTH = 40
 const ELEVATOR_POS = { x: 0, z: -15 }
 const ENTRANCE_POS = { x: 0, z: 25 }
-const BUILDING_NAME = '圣心楼'
 
-const GRID_LANES = [-14, -6, 6, 14]
-const GRID_START_X = -24
-const GRID_STEP_X = 8
-const ROOM_SIZE = { w: 6.2, l: 6.2 }
-
-const FLOOR_META = {
-  1: { name: '一层 · 内科门诊', description: '老年病科 / 风湿免疫科 / 高血压科' },
-  2: { name: '二层 · 专科内科', description: '呼吸内科 / 内分泌科 / 神经内科 / 高血压科' },
-  3: { name: '三层 · 神经与骨科外科', description: '神经内科(高区) / 骨科 / 功能神经外科 / 心脏外科' },
-  4: { name: '四层 · 神外与烧伤中心', description: '心脏外科 / 神经外科 / 烧伤整形科' },
-  5: { name: '五层 · 胸外与儿科', description: '烧伤整形科 / 普胸外科 / 小儿内外科' },
-  6: { name: '六层 · 妇科与医技', description: '妇科 / 核医学科 / 小儿外科' }
-}
-
-const DEPT_CATEGORY_MAP = {
-  老年病科: '内科',
-  风湿免疫科: '内科',
-  高血压科: '内科',
-  呼吸内科: '内科',
-  内分泌科: '内科',
-  神经内科: '内科',
-  骨科: '外科',
-  功能神经外科: '外科',
-  心脏外科: '外科',
-  神经外科: '外科',
-  烧伤整形科: '外科',
-  普胸外科: '外科',
-  小儿内科: '儿科',
-  小儿外科: '儿科',
-  妇科: '妇产科',
-  核医学科: '医技'
-}
-
-const makeRange = (start, end, buildLabel) => {
-  const length = end - start + 1
-  return Array.from({ length }, (_, idx) => {
-    const roomNumber = start + idx
-    return {
-      id: String(roomNumber),
-      label: buildLabel ? buildLabel(idx, roomNumber) : `${roomNumber} 诊室`
-    }
-  })
-}
-
-const buildDeptRooms = (floor, dept, items) =>
-  items.map(item => ({
-    floor,
-    id: item.id,
-    name: item.label,
-    dept,
-    building: BUILDING_NAME,
-    category: DEPT_CATEGORY_MAP[dept] || '内科',
-    desc: item.desc || item.label
-  }))
-
-const applyGridLayout = rooms =>
-  rooms.map((room, index) => {
-    const laneIndex = index % GRID_LANES.length
-    const colIndex = Math.floor(index / GRID_LANES.length)
-    return {
-      ...ROOM_SIZE,
-      ...room,
-      x: GRID_START_X + colIndex * GRID_STEP_X,
-      z: GRID_LANES[laneIndex]
-    }
-  })
-
-const RAW_ROOMS = [
-  ...buildDeptRooms(1, '老年病科', [
-    { id: '101', label: '老年病科办公室' },
-    ...makeRange(102, 108, idx => `老年病科诊室${idx + 1}`)
-  ]),
-  ...buildDeptRooms(1, '风湿免疫科', [
-    { id: '109', label: '风湿免疫科办公室' },
-    ...makeRange(110, 116, idx => `风湿免疫科诊室${idx + 1}`)
-  ]),
-  ...buildDeptRooms(1, '高血压科', [
-    { id: '117', label: '高血压科办公室' },
-    ...makeRange(118, 122, idx => `高血压科诊室${idx + 1}`)
-  ]),
-  ...buildDeptRooms(2, '高血压科', [
-    ...makeRange(201, 202, idx => `高血压科诊室${idx + 6}`)
-  ]),
-  ...buildDeptRooms(2, '呼吸内科', [
-    { id: '203', label: '呼吸内科办公室' },
-    ...makeRange(204, 210, idx => `呼吸内科诊室${idx + 1}`)
-  ]),
-  ...buildDeptRooms(2, '内分泌科', [
-    { id: '211', label: '内分泌科办公室' },
-    ...makeRange(212, 218, idx => `内分泌科诊室${idx + 1}`)
-  ]),
-  ...buildDeptRooms(2, '神经内科', [
-    { id: '219', label: '神经内科办公室' },
-    ...makeRange(220, 222, idx => `神经内科诊室${idx + 1}`)
-  ]),
-  ...buildDeptRooms(3, '神经内科', [
-    ...makeRange(301, 304, idx => `神经内科诊室${idx + 4}`)
-  ]),
-  ...buildDeptRooms(3, '骨科', [
-    { id: '305', label: '骨科办公室' },
-    ...makeRange(306, 312, idx => `骨科诊室${idx + 1}`)
-  ]),
-  ...buildDeptRooms(3, '功能神经外科', [
-    { id: '313', label: '功能神经外科办公室' },
-    ...makeRange(314, 320, idx => `功能神经外科诊室${idx + 1}`)
-  ]),
-  ...buildDeptRooms(3, '心脏外科', [
-    { id: '321', label: '心脏外科办公室' },
-    { id: '322', label: '心脏外科诊室1' }
-  ]),
-  ...buildDeptRooms(4, '心脏外科', [
-    ...makeRange(401, 407, idx => `心脏外科诊室${idx + 2}`)
-  ]),
-  ...buildDeptRooms(4, '神经外科', [
-    { id: '408', label: '神经外科办公室' },
-    ...makeRange(409, 415, idx => `神经外科诊室${idx + 1}`)
-  ]),
-  ...buildDeptRooms(4, '烧伤整形科', [
-    { id: '416', label: '烧伤整形科办公室' },
-    ...makeRange(417, 422, idx => `烧伤整形科诊室${idx + 1}`)
-  ]),
-  ...buildDeptRooms(5, '烧伤整形科', [
-    { id: '501', label: '烧伤整形科诊室7' }
-  ]),
-  ...buildDeptRooms(5, '普胸外科', [
-    { id: '502', label: '普胸外科办公室' },
-    ...makeRange(503, 509, idx => `普胸外科诊室${idx + 1}`)
-  ]),
-  ...buildDeptRooms(5, '小儿内科', [
-    { id: '510', label: '小儿内科办公室' },
-    ...makeRange(511, 517, idx => `小儿内科诊室${idx + 1}`)
-  ]),
-  ...buildDeptRooms(5, '小儿外科', [
-    { id: '518', label: '小儿外科办公室' },
-    ...makeRange(519, 522, idx => `小儿外科诊室${idx + 1}`)
-  ]),
-  ...buildDeptRooms(6, '小儿外科', [
-    ...makeRange(601, 603, idx => `小儿外科诊室${idx + 5}`)
-  ]),
-  ...buildDeptRooms(6, '妇科', [
-    { id: '604', label: '妇科办公室' },
-    ...makeRange(605, 612, idx => `妇科诊室${idx + 1}`)
-  ]),
-  ...buildDeptRooms(6, '核医学科', [
-    { id: '613', label: '核医学科办公室' },
-    ...makeRange(614, 620, idx => `核医学科诊室${idx + 1}`)
-  ])
+const HOSPITAL_DATA = [
+  {
+    floor: 1,
+    name: '门诊一楼',
+    description: '内科综合诊区',
+    rooms: [
+      { id: '101', name: '老年病科', dept: '内科', x: -15, z: -10, desc: '101诊室' },
+      { id: '102', name: '神经内科', dept: '内科', x: -15, z: 0, desc: '102诊室' },
+      { id: '103', name: '内分泌科', dept: '内科', x: -15, z: 10, desc: '103诊室' },
+      { id: '104', name: '呼吸内科', dept: '内科', x: 15, z: -10, desc: '104诊室' },
+      { id: '105', name: '高血压科', dept: '内科', x: 15, z: 0, desc: '105诊室' },
+      { id: '112', name: '风湿免疫科', dept: '内科', x: 15, z: 10, desc: '112诊室' },
+      { id: 'lobby', name: '服务台', dept: '公共', x: 0, z: 15, desc: '大厅服务台' }
+    ]
+  },
+  {
+    floor: 2,
+    name: '门诊二楼',
+    description: '专科门诊',
+    rooms: [
+      { id: '201', name: '口腔科', dept: '五官科', x: -15, z: -10, desc: '201诊室' },
+      { id: '202', name: '眼科', dept: '五官科', x: -15, z: 0, desc: '202诊室' },
+      { id: '203', name: '耳鼻喉科', dept: '五官科', x: -15, z: 10, desc: '203诊室' },
+      { id: '204', name: '皮肤科', dept: '皮肤科', x: 15, z: -10, desc: '204诊室' },
+      { id: '205', name: '中医科', dept: '中医', x: 15, z: 0, desc: '205诊室' },
+      { id: '206', name: '康复医学科', dept: '康复', x: 15, z: 10, desc: '206诊室' }
+    ]
+  },
+  {
+    floor: 3,
+    name: '门诊三楼',
+    description: '日间手术与疼痛',
+    rooms: [
+      { id: '301', name: '疼痛科', dept: '麻醉科', x: -15, z: -10, desc: '301诊室' },
+      { id: '302', name: '麻醉门诊', dept: '麻醉科', x: -15, z: 0, desc: '302诊室' },
+      { id: '303', name: '日间手术中心', dept: '手术', x: 15, z: 0, w: 10, l: 25, desc: '日间手术区域' }
+    ]
+  },
+  {
+    floor: 4,
+    name: '门诊四楼',
+    description: '功能检查区',
+    rooms: [
+      { id: '401', name: '超声科', dept: '检查', x: -15, z: -5, w: 8, l: 15, desc: 'B超/彩超' },
+      { id: '402', name: '心电图室', dept: '检查', x: -15, z: 10, desc: 'ECG' },
+      { id: '403', name: '内镜中心', dept: '检查', x: 15, z: -5, w: 8, l: 15, desc: '胃肠镜' },
+      { id: '404', name: '行政办公室', dept: '行政', x: 15, z: 12, desc: '院办' }
+    ]
+  },
+  {
+    floor: 5,
+    name: '门诊五楼',
+    description: '外科与妇儿中心',
+    rooms: [
+      { id: '501', name: '神经外科', dept: '外科', x: -15, z: -12, desc: '501诊室' },
+      { id: '502', name: '骨科', dept: '外科', x: -15, z: -4, desc: '502诊室' },
+      { id: '504', name: '烧伤整形科', dept: '外科', x: -15, z: 4, desc: '504诊室' },
+      { id: '507', name: '心脏外科', dept: '外科', x: -15, z: 12, desc: '507诊室' },
+      { id: '508', name: '妇科', dept: '妇产科', x: 15, z: -12, desc: '508诊室' },
+      { id: '509', name: '普胸外科', dept: '外科', x: 15, z: -4, desc: '509诊室' },
+      { id: '511', name: '小儿外科', dept: '儿科', x: 15, z: 4, desc: '511诊室' },
+      { id: '512', name: '小儿内科', dept: '儿科', x: 15, z: 12, desc: '512诊室' }
+    ]
+  }
 ]
-
-const buildHospitalData = () => {
-  const grouped = RAW_ROOMS.reduce((acc, room) => {
-    acc[room.floor] = acc[room.floor] || []
-    acc[room.floor].push(room)
-    return acc
-  }, {})
-
-  return Object.entries(grouped)
-    .sort(([a], [b]) => Number(a) - Number(b))
-    .map(([floor, rooms]) => {
-      const meta = FLOOR_META[floor] || {}
-      return {
-        floor: Number(floor),
-        name: meta.name || `${floor}F`,
-        description: meta.description || '',
-        rooms: applyGridLayout(rooms)
-      }
-    })
-}
-
-const HOSPITAL_DATA = buildHospitalData()
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -606,8 +499,8 @@ const buildHospital = scene => {
     roughness: 0.1
   })
 
-  HOSPITAL_DATA.forEach(floorData => {
-    const yPos = (floorData.floor - 1) * FLOOR_HEIGHT
+  HOSPITAL_DATA.forEach((floorData, index) => {
+    const yPos = index * FLOOR_HEIGHT
     const group = new THREE.Group()
     group.position.y = yPos
 
@@ -640,11 +533,9 @@ const buildHospital = scene => {
       const roomL = room.l || 8
       const roomH = 5
       let color = 0x4ade80
-      const category = room.category || room.dept
-      if (category === '外科') color = 0x60a5fa
-      if (category === '妇产科') color = 0xf472b6
-      if (category === '儿科') color = 0xfacc15
-      if (category === '医技') color = 0xa855f7
+      if (room.dept === '外科') color = 0x60a5fa
+      if (room.dept === '妇产科') color = 0xf472b6
+      if (room.dept === '儿科') color = 0xfacc15
 
       const roomMat = new THREE.MeshLambertMaterial({ color, transparent: true, opacity: 0.9 })
       const roomMesh = new THREE.Mesh(new THREE.BoxGeometry(roomW, roomH, roomL), roomMat)
@@ -660,7 +551,10 @@ const buildHospital = scene => {
 
       const div = document.createElement('div')
       div.className = 'label room'
-      div.textContent = room.id || ''
+      div.innerHTML = `
+        <div class="room-name">${room.name}</div>
+        <div class="room-id">${room.id || ''}</div>
+      `
       const label = new CSS2DObject(div)
       label.position.set(0, roomH / 2 + 2, 0)
       roomMesh.add(label)
@@ -706,12 +600,8 @@ const initScene = () => {
   scene.fog = new THREE.Fog(0xf0f5f9, 50, 500)
 
   const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
-  const maxFloor = Math.max(...HOSPITAL_DATA.map(f => f.floor))
-  const totalHeight = maxFloor * FLOOR_HEIGHT
-  const midHeight = totalHeight / 2
-  const cameraHeight = Math.max(120, totalHeight * 0.85)
-  camera.position.set(80, cameraHeight, 120)
-  camera.lookAt(0, midHeight, 0)
+  camera.position.set(80, 120, 120)
+  camera.lookAt(0, 40, 0)
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setPixelRatio(window.devicePixelRatio || 1)
@@ -747,7 +637,7 @@ const initScene = () => {
   controls.enableDamping = true
   controls.dampingFactor = 0.05
   controls.maxPolarAngle = Math.PI / 2 - 0.1
-  controls.target.set(0, midHeight, 0)
+  controls.target.set(0, FLOOR_HEIGHT * 1.5, 0)
   controls.update()
 
   buildHospital(scene)
@@ -1093,18 +983,6 @@ onBeforeUnmount(() => {
 
 .dot.green {
   background: #4ade80;
-}
-
-.dot.orange {
-  background: #fb923c;
-}
-
-.dot.pink {
-  background: #f472b6;
-}
-
-.dot.purple {
-  background: #a855f7;
 }
 
 .nav-hint {
