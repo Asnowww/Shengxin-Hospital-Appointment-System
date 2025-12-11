@@ -139,7 +139,6 @@ function showToast(message, duration = 2000) {
 
 // 空科室数组
 const emptyDepts = ref([])
-
 // 获取空科室
 async function fetchEmptyDepartments() {
   try {
