@@ -2,7 +2,6 @@ package org.example.backend.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
-import lombok.extern.slf4j.Slf4j;
 import org.example.backend.dto.*;
 import org.example.backend.pojo.Appointment;
 import org.example.backend.pojo.Doctor;
@@ -11,15 +10,15 @@ import org.example.backend.service.AppointmentService;
 import org.example.backend.service.DoctorService;
 import org.example.backend.service.PatientService;
 import org.example.backend.service.ScheduleService;
+import org.example.backend.service.AuditLogService;
+import org.example.backend.dto.AuditLogCreateDTO;
 import org.example.backend.util.TokenUtil;
 import org.springframework.web.bind.annotation.*;
 import org.example.backend.dto.AppointmentInfoDTO;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
-
-import static com.baomidou.mybatisplus.extension.ddl.DdlScriptErrorHandler.PrintlnLogErrorHandler.log;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * 患者端预约控制器
@@ -48,12 +47,15 @@ public class PatientAppointmentController {
     @Resource
     private PatientService patientService;
 
+    @Resource
+    private AuditLogService auditLogService;
+
     @PostMapping("/create")
     public Result<Appointment> createAppointment(
             @RequestBody AppointmentCreateParam param,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenParam
-    ) {
+            @RequestParam(value = "token", required = false) String tokenParam,
+            HttpServletRequest request) {
         try {
             // 提取 token
             String token = tokenUtil.extractToken(authHeader, tokenParam);
@@ -71,8 +73,7 @@ public class PatientAppointmentController {
             if (param.getPatientId() == null) {
                 Patient patient = patientService.getOne(
                         new QueryWrapper<Patient>().lambda()
-                                .eq(Patient::getUserId, userId)
-                );
+                                .eq(Patient::getUserId, userId));
                 if (patient == null) {
                     return Result.error("患者信息不存在");
                 }
@@ -87,6 +88,11 @@ public class PatientAppointmentController {
             // 创建预约
             Appointment appointment = appointmentService.createAppointmentByPatient(param);
 
+            recordAudit(userId, "create", "appointment",
+                    appointment.getAppointmentId(),
+                    "患者创建预约 scheduleId=" + param.getScheduleId(),
+                    request);
+
             return Result.success(appointment);
 
         } catch (RuntimeException e) {
@@ -100,7 +106,7 @@ public class PatientAppointmentController {
      * 取消预约
      *
      * @param appointmentId 预约ID
-     * @param cancelReason 取消原因（可选）
+     * @param cancelReason  取消原因（可选）
      * @return 取消结果
      */
     @PutMapping("/cancel")
@@ -108,8 +114,8 @@ public class PatientAppointmentController {
             @RequestParam Long appointmentId,
             @RequestParam(required = false) String cancelReason,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenParam
-    ) {
+            @RequestParam(value = "token", required = false) String tokenParam,
+            HttpServletRequest request) {
         try {
             // 提取 token
             String token = tokenUtil.extractToken(authHeader, tokenParam);
@@ -126,8 +132,7 @@ public class PatientAppointmentController {
             // 根据 userId 查 patientId
             Patient patient = patientService.getOne(
                     new QueryWrapper<Patient>().lambda()
-                            .eq(Patient::getUserId, userId)
-            );
+                            .eq(Patient::getUserId, userId));
             if (patient == null) {
                 return Result.error("患者信息不存在");
             }
@@ -157,6 +162,10 @@ public class PatientAppointmentController {
             boolean success = appointmentService.cancelAppointment(appointmentId, patientId);
 
             if (success) {
+                recordAudit(userId, "delete", "appointment",
+                        appointmentId,
+                        "患者取消预约 reason=" + cancelReason,
+                        request);
                 return Result.success("预约取消成功");
             } else {
                 return Result.error("预约取消失败");
@@ -167,15 +176,13 @@ public class PatientAppointmentController {
         }
     }
 
-
     /**
      * 获取当前患者的所有预约
      */
     @GetMapping("/list")
     public Result<List<AppointmentInfoDTO>> getAppointmentsByPatient(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenParam
-    ) {
+            @RequestParam(value = "token", required = false) String tokenParam) {
         try {
             // 提取 token
             String token = tokenUtil.extractToken(authHeader, tokenParam);
@@ -192,8 +199,7 @@ public class PatientAppointmentController {
             // 根据 userId 查 patientId
             Patient patient = patientService.getOne(
                     new QueryWrapper<Patient>().lambda()
-                            .eq(Patient::getUserId, userId)
-            );
+                            .eq(Patient::getUserId, userId));
             if (patient == null) {
                 return Result.error("患者信息不存在");
             }
@@ -210,13 +216,12 @@ public class PatientAppointmentController {
         }
     }
 
-
     /**
      * 根据日期查询当前患者当天预约
      */
     @GetMapping("/list/{patientId}/date")
     public Result<List<Appointment>> getAppointmentsByDate(@PathVariable Long patientId,
-                                        @RequestParam LocalDate date) {
+            @RequestParam LocalDate date) {
         List<Appointment> list = appointmentService.getAppointmentsByPatientIdAndDate(patientId, date);
         return Result.success(list);
     }
@@ -225,11 +230,11 @@ public class PatientAppointmentController {
      * 查询可预约的号源（根据排班）
      * 支持按科室、医生、日期范围筛选
      *
-     * @param deptId 科室ID（可选）
-     * @param doctorId 医生ID（可选）
+     * @param deptId    科室ID（可选）
+     * @param doctorId  医生ID（可选）
      * @param startDate 开始日期（可选，默认当天）
-     * @param endDate 结束日期（可选，默认7天后）
-     * @param timeSlot 时间段（可选：0-上午，1-下午，2-晚上）
+     * @param endDate   结束日期（可选，默认7天后）
+     * @param timeSlot  时间段（可选：0-上午，1-下午，2-晚上）
      * @return 可预约的排班列表
      */
     @GetMapping("/available-schedules")
@@ -279,7 +284,7 @@ public class PatientAppointmentController {
      * 常用于患者选择具体就诊日期
      *
      * @param deptId 科室ID
-     * @param date 就诊日期
+     * @param date   就诊日期
      * @return 当天该科室所有可预约的排班
      */
     @GetMapping("/available-schedules/dept/{deptId}")
@@ -326,9 +331,9 @@ public class PatientAppointmentController {
      * 查询指定医生的可预约号源
      * 常用于患者选择指定医生
      *
-     * @param doctorId 医生ID
+     * @param doctorId  医生ID
      * @param startDate 开始日期（可选，默认当天）
-     * @param endDate 结束日期（可选，默认14天后）
+     * @param endDate   结束日期（可选，默认14天后）
      * @return 该医生的可预约排班列表
      */
     @GetMapping("/available-schedules/doctor/{doctorId}")
@@ -385,6 +390,12 @@ public class PatientAppointmentController {
             if (success) {
                 // 返回更新后的预约信息
                 Appointment updatedAppointment = appointmentService.getById(param.getAppointmentId());
+
+                // 无 token，这里直接用传入 patientId 作为 userId 记录
+                recordAudit(param.getPatientId(), "update", "appointment",
+                        param.getAppointmentId(),
+                        "患者修改预约 newScheduleId=" + param.getNewScheduleId(),
+                        null);
                 return Result.success(updatedAppointment);
             } else {
                 return Result.error("预约修改失败");
@@ -409,7 +420,8 @@ public class PatientAppointmentController {
             @RequestParam Long appointmentId,
             @RequestParam String paymentMethod,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenParam) {
+            @RequestParam(value = "token", required = false) String tokenParam,
+            HttpServletRequest request) {
         try {
             // 提取 token
             String token = tokenUtil.extractToken(authHeader, tokenParam);
@@ -426,8 +438,7 @@ public class PatientAppointmentController {
             // 根据 userId 查 patientId
             Patient patient = patientService.getOne(
                     new QueryWrapper<Patient>().lambda()
-                            .eq(Patient::getUserId, userId)
-            );
+                            .eq(Patient::getUserId, userId));
             if (patient == null) {
                 return Result.error("患者信息不存在");
             }
@@ -445,6 +456,11 @@ public class PatientAppointmentController {
             if (success) {
                 // 返回更新后的预约信息
                 Appointment updatedAppointment = appointmentService.getById(appointmentId);
+
+                recordAudit(userId, "update", "payment",
+                        appointmentId,
+                        "预约支付方式=" + paymentMethod,
+                        request);
                 return Result.success(updatedAppointment);
             } else {
                 return Result.error("支付失败");
@@ -457,12 +473,11 @@ public class PatientAppointmentController {
         }
     }
 
-
     /**
      * 验证预约是否可以修改
      *
      * @param appointmentId 预约ID
-     * @param patientId 患者ID
+     * @param patientId     患者ID
      * @return 是否可修改
      */
     @GetMapping("/can-update")
@@ -477,7 +492,7 @@ public class PatientAppointmentController {
      * 获取预约详情（用于修改前查看）
      *
      * @param appointmentId 预约ID
-     * @param patientId 患者ID（用于权限验证）
+     * @param patientId     患者ID（用于权限验证）
      * @return 预约详细信息
      */
     @GetMapping("/detail")
@@ -501,15 +516,16 @@ public class PatientAppointmentController {
      * 修改预约备注
      *
      * @param appointmentId 预约ID
-     * @param patientId 患者ID
-     * @param notes 备注内容
+     * @param patientId     患者ID
+     * @param notes         备注内容
      * @return 修改结果
      */
     @PutMapping("/update-notes")
     public Result<String> updateNotes(
             @RequestParam Long appointmentId,
             @RequestParam Long patientId,
-            @RequestParam String notes) {
+            @RequestParam String notes,
+            HttpServletRequest request) {
 
         AppointmentUpdateParam param = new AppointmentUpdateParam();
         param.setAppointmentId(appointmentId);
@@ -518,11 +534,32 @@ public class PatientAppointmentController {
 
         try {
             boolean success = appointmentService.updateAppointment(param);
-            return success ? Result.success("备注修改成功") : Result.error("备注修改失败");
+            if (success) {
+                recordAudit(patientId, "update", "appointment",
+                        appointmentId,
+                        "患者修改备注",
+                        request);
+                return Result.success("备注修改成功");
+            }
+            return Result.error("备注修改失败");
         } catch (Exception e) {
             return Result.error(e.getMessage());
         }
     }
 
+    private void recordAudit(Long userId, String action, String resourceType,
+            Long resourceId, String message, HttpServletRequest request) {
+        try {
+            AuditLogCreateDTO dto = new AuditLogCreateDTO();
+            dto.setAction(action);
+            dto.setResourceType(resourceType);
+            dto.setResourceId(resourceId);
+            dto.setMessage(message);
+            dto.setIp(request != null ? request.getRemoteAddr() : null);
+            auditLogService.recordLog(userId, dto);
+        } catch (Exception e) {
+            // 审计失败不影响主流程
+        }
+    }
 
 }
