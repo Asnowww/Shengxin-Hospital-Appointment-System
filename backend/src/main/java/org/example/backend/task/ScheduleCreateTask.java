@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
  * 6. 内科/外科/儿科二级科室：白天2个医生，晚上1个医生
  * 7. 妇科：1个医生；医学检验科：1个医生
  * 8. 科室不能连续两周没有专家号/特需号
+ * 9. 一个科室的多个诊室轮换使用，不同医生使用不同诊室
  */
 @Component
 public class ScheduleCreateTask {
@@ -137,12 +138,14 @@ public class ScheduleCreateTask {
         expertDoctors.addAll(chiefDoctors);
         expertDoctors.addAll(viceChiefDoctors);
 
-        // 获取科室诊室
-        ConsultationRoom room = getDeptRoom(deptId);
-        if (room == null) {
+        // 获取科室所有诊室
+        List<ConsultationRoom> rooms = getDeptRooms(deptId);
+        if (rooms.isEmpty()) {
             System.err.println("    " + deptName + " 没有可用诊室，跳过");
             return;
         }
+
+        System.out.println("    科室拥有 " + rooms.size() + " 个诊室");
 
         // 获取工作日
         List<LocalDate> weekdays = getWeekdays(startDate, endDate);
@@ -182,6 +185,9 @@ public class ScheduleCreateTask {
         // 医生最后排班日期
         Map<Long, LocalDate> doctorLastScheduleDate = new HashMap<>();
 
+        // 诊室使用索引（用于轮换诊室）
+        int roomIndex = 0;
+
         // 每个班次需要的医生数
         int morningDoctorCount = getDoctorCountByDept(parentDeptName, deptName);
         int afternoonDoctorCount = morningDoctorCount;
@@ -212,8 +218,8 @@ public class ScheduleCreateTask {
                 morningDoctorCountForThisDay = 1;  // 特需号只需要1个医生
 
                 // 安排完特需号后，立即安排普通号（使用剩余医生）
-                createTimeSlotSchedules(
-                        deptId, deptName, room.getRoomId(), date,
+                roomIndex = createTimeSlotSchedules(
+                        deptId, deptName, rooms, roomIndex, date,
                         MORNING, NORMAL_TYPE, morningDoctorCount - 1,
                         allDoctors, doctorLastScheduleDate
                 );
@@ -226,8 +232,8 @@ public class ScheduleCreateTask {
                 morningDoctorCountForThisDay = 1;  // 专家号只需要1个医生
 
                 // 安排完专家号后，立即安排普通号（使用剩余医生）
-                createTimeSlotSchedules(
-                        deptId, deptName, room.getRoomId(), date,
+                roomIndex = createTimeSlotSchedules(
+                        deptId, deptName, rooms, roomIndex, date,
                         MORNING, NORMAL_TYPE, morningDoctorCount - 1,
                         allDoctors, doctorLastScheduleDate
                 );
@@ -238,23 +244,23 @@ public class ScheduleCreateTask {
             }
 
             // 安排主要班次（专家号/特需号/普通号）
-            createTimeSlotSchedules(
-                    deptId, deptName, room.getRoomId(), date,
+            roomIndex = createTimeSlotSchedules(
+                    deptId, deptName, rooms, roomIndex, date,
                     MORNING, morningType, morningDoctorCountForThisDay,
                     morningAvailableDoctors, doctorLastScheduleDate
             );
 
             // -------- 下午排班：永远普通号 --------
-            createTimeSlotSchedules(
-                    deptId, deptName, room.getRoomId(), date,
+            roomIndex = createTimeSlotSchedules(
+                    deptId, deptName, rooms, roomIndex, date,
                     AFTERNOON, NORMAL_TYPE, afternoonDoctorCount,
                     allDoctors, doctorLastScheduleDate
             );
 
             // -------- 晚上（如有）：永远普通号 --------
             if (hasEvening) {
-                createTimeSlotSchedules(
-                        deptId, deptName, room.getRoomId(), date,
+                roomIndex = createTimeSlotSchedules(
+                        deptId, deptName, rooms, roomIndex, date,
                         EVENING, NORMAL_TYPE, eveningDoctorCount,
                         allDoctors, doctorLastScheduleDate
                 );
@@ -301,12 +307,14 @@ public class ScheduleCreateTask {
     }
 
     /**
-     * 为特定时间段创建排班
+     * 为特定时间段创建排班（支持多诊室）
+     * 返回下一个要使用的诊室索引
      */
-    private void createTimeSlotSchedules(Integer deptId, String deptName, Integer roomId,
-                                         LocalDate date, Integer timeSlot, Integer appointmentTypeId,
-                                         int doctorCount, List<Doctor> availableDoctors,
-                                         Map<Long, LocalDate> doctorLastScheduleDate) {
+    private int createTimeSlotSchedules(Integer deptId, String deptName,
+                                        List<ConsultationRoom> rooms, int startRoomIndex,
+                                        LocalDate date, Integer timeSlot, Integer appointmentTypeId,
+                                        int doctorCount, List<Doctor> availableDoctors,
+                                        Map<Long, LocalDate> doctorLastScheduleDate) {
         // 过滤出可用医生（三天内未值班）
         List<Doctor> eligibleDoctors = availableDoctors.stream()
                 .filter(doctor -> canScheduleDoctor(doctor, date, doctorLastScheduleDate))
@@ -327,13 +335,19 @@ public class ScheduleCreateTask {
                 .limit(doctorCount)
                 .collect(Collectors.toList());
 
-        // 为每个医生创建排班
+        // 当前诊室索引
+        int currentRoomIndex = startRoomIndex % rooms.size();
+
+        // 为每个医生创建排班，使用不同的诊室
         for (Doctor doctor : selectedDoctors) {
             try {
+                // 获取当前诊室
+                ConsultationRoom room = rooms.get(currentRoomIndex);
+
                 ScheduleCreateParam param = new ScheduleCreateParam();
                 param.setDoctorId(doctor.getDoctorId());
                 param.setDeptId(deptId);
-                param.setRoomId(roomId);
+                param.setRoomId(room.getRoomId());
                 param.setDate(date);
                 param.setTimeSlots(Collections.singletonList(timeSlot));
                 param.setAppointmentTypeId(appointmentTypeId);
@@ -344,6 +358,9 @@ public class ScheduleCreateTask {
                 // 更新医生最后值班日期
                 doctorLastScheduleDate.put(doctor.getDoctorId(), date);
 
+                // 移动到下一个诊室
+                currentRoomIndex = (currentRoomIndex + 1) % rooms.size();
+
             } catch (Exception e) {
                 // 如果是重复排班错误，不打印（正常情况）
                 if (!e.getMessage().contains("已有排班")) {
@@ -351,6 +368,9 @@ public class ScheduleCreateTask {
                 }
             }
         }
+
+        // 返回下一个要使用的诊室索引
+        return currentRoomIndex;
     }
 
     /**
@@ -403,13 +423,17 @@ public class ScheduleCreateTask {
     }
 
     /**
-     * 获取科室的诊室
+     * 获取科室的所有诊室
      */
-    private ConsultationRoom getDeptRoom(Integer deptId) {
+    private List<ConsultationRoom> getDeptRooms(Integer deptId) {
         QueryWrapper<ConsultationRoom> wrapper = new QueryWrapper<>();
-        wrapper.eq("dept_id", deptId)
-                .last("LIMIT 1");
-        return consultationRoomMapper.selectOne(wrapper);
+        wrapper.eq("dept_id", deptId);
+        List<ConsultationRoom> allRooms = consultationRoomMapper.selectList(wrapper);
+
+        // 过滤掉办公室，只保留诊室
+        return allRooms.stream()
+                .filter(room -> !room.getRoomName().contains("办公室"))
+                .collect(Collectors.toList());
     }
 
     /**

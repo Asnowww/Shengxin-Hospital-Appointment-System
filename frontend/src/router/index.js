@@ -15,6 +15,7 @@ import MyWaitlist from '@/views/MyWaitlist.vue'
 import FullyBookedSchedules from '@/views/FullyBookedSchedules.vue'
 import ChatPatient from '@/views/ChatPatient.vue'
 import ChatDoctor from '@/views/ChatDoctor.vue'
+import AdminDepartments from "@/views/AdminDepartments.vue";
 
 
 const routes = [
@@ -48,7 +49,7 @@ const routes = [
   { path: '/admin/statistics', name: 'adminStatistics', component: () => import('@/views/AdminStatistics.vue') }, // 数据统计与分析
   { path: '/admin/fee', name: 'feeManagement', component: () => import('@/views/AdminFee.vue') }, //费用管理页
   { path: '/reminder', name: 'reminder', component: () => import('@/components/Reminder.vue') }, // 提醒页
-
+  { path: '/admin/departments', name: 'adminDepartments', component: AdminDepartments },
 
   // AI Consultation
   { path: '/consultation', name: 'AIConsultation', component: () => import('../views/AIConsultation.vue') },
