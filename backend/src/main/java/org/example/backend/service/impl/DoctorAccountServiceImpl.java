@@ -63,21 +63,16 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
                 queryDTO.getStatus(),
                 queryDTO.getDoctorStatus(),
                 offset,
-                queryDTO.getPageSize()
-        );
+                queryDTO.getPageSize());
 
         int total = doctorMapper.countDoctorList(
                 queryDTO.getDeptId(),
                 queryDTO.getUsername(),
                 queryDTO.getStatus(),
-                queryDTO.getDoctorStatus()
-        );
+                queryDTO.getDoctorStatus());
 
         return new PageResult<>(total, list, queryDTO.getPageNum(), queryDTO.getPageSize());
     }
-
-
-
 
     /**
      * 添加医生账号（同时创建 user 和 doctor 两张表的记录）
@@ -127,17 +122,24 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
 
         // 2. 更新 user 表中的信息（基础信息）
         User user = userMapper.selectById(doctor.getUserId());
-        if (doctorDTO.getUsername() != null) user.setUsername(doctorDTO.getUsername());
-        if (doctorDTO.getEmail() != null) user.setEmail(doctorDTO.getEmail());
-        if (doctorDTO.getGender() != null) user.setGender(doctorDTO.getGender());
+        if (doctorDTO.getUsername() != null)
+            user.setUsername(doctorDTO.getUsername());
+        if (doctorDTO.getEmail() != null)
+            user.setEmail(doctorDTO.getEmail());
+        if (doctorDTO.getGender() != null)
+            user.setGender(doctorDTO.getGender());
         user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
 
         // 3. 更新 doctor 表中的专业信息
-        if (doctorDTO.getDeptId() != null) doctor.setDeptId(doctorDTO.getDeptId());
-        if (doctorDTO.getTitle() != null) doctor.setTitle(doctorDTO.getTitle());
-        if (doctorDTO.getBio() != null) doctor.setBio(doctorDTO.getBio());
-        if (doctorDTO.getDoctorStatus() != null) doctor.setStatus(doctorDTO.getDoctorStatus());
+        if (doctorDTO.getDeptId() != null)
+            doctor.setDeptId(doctorDTO.getDeptId());
+        if (doctorDTO.getTitle() != null)
+            doctor.setTitle(doctorDTO.getTitle());
+        if (doctorDTO.getBio() != null)
+            doctor.setBio(doctorDTO.getBio());
+        if (doctorDTO.getDoctorStatus() != null)
+            doctor.setStatus(doctorDTO.getDoctorStatus());
         doctor.setUpdatedAt(LocalDateTime.now());
         doctorMapper.updateById(doctor);
     }
@@ -212,15 +214,14 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
         // 校验是否有待审核记录
         Long count = requestMapper.selectCount(new QueryWrapper<DoctorBioUpdateRequest>()
                 .eq("doctor_id", doctor.getDoctorId())
-                .eq("status", "pending")
-        );
+                .eq("status", "pending"));
 
         if (count > 0) {
             throw new RuntimeException("已有修改申请正在审核中");
         }
 
         DoctorBioUpdateRequest req = new DoctorBioUpdateRequest();
-        req.setDoctorId(doctor.getDoctorId());  // 仍用 doctorId 插入关联表
+        req.setDoctorId(doctor.getDoctorId()); // 仍用 doctorId 插入关联表
         req.setOldBio(doctor.getBio());
         req.setNewBio(newBio);
         req.setStatus("pending");
@@ -228,7 +229,6 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
 
         requestMapper.insert(req);
     }
-
 
     /**
      * 管理员审核bio修改
