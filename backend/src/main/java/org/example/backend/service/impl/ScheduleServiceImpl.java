@@ -8,6 +8,7 @@ import org.example.backend.pojo.*;
 import org.example.backend.service.ScheduleService;
 import org.example.backend.service.WaitlistService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authorization.method.AuthorizeReturnObject;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,6 +52,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Autowired
     private PatientMapper patientMapper;
+
 
     @Override
     @Transactional
@@ -122,11 +124,13 @@ public class ScheduleServiceImpl implements ScheduleService {
             throw new RuntimeException("所选日期范围内没有匹配的星期几，未创建任何排班");
         }
 
+
         // 插入
         for (Schedule schedule : schedulesToInsert) {
             scheduleMapper.insert(schedule);
         }
     }
+
 
     @Override
     @Transactional
@@ -160,7 +164,7 @@ public class ScheduleServiceImpl implements ScheduleService {
             throw new RuntimeException("必须选择至少一个时间段");
         }
 
-        // LocalDate workDate = param.getStartDate();
+//        LocalDate workDate = param.getStartDate();
         List<Schedule> schedulesToInsert = new ArrayList<>();
         List<String> errors = new ArrayList<>();
 
@@ -204,6 +208,7 @@ public class ScheduleServiceImpl implements ScheduleService {
             throw new RuntimeException("部分时间段未创建:\n" + String.join("\n", errors));
         }
     }
+
 
     @Override
     @Transactional
@@ -292,20 +297,6 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
-    public List<ScheduleDetailVO> getScheduleDetailsByIds(List<Integer> scheduleIds) {
-        if (scheduleIds == null || scheduleIds.isEmpty()) {
-            return Collections.emptyList();
-        }
-        QueryWrapper<Schedule> wrapper = new QueryWrapper<>();
-        wrapper.in("schedule_id", scheduleIds);
-        wrapper.orderByAsc("work_date", "time_slot");
-        List<Schedule> schedules = scheduleMapper.selectList(wrapper);
-        return schedules.stream()
-                .map(this::convertToDetailVO)
-                .collect(Collectors.toList());
-    }
-
-    @Override
     public List<ScheduleDetailVO> getDoctorSchedulesByDoctorId(Long doctorId, LocalDate startDate, LocalDate endDate) {
         // 查询医生信息
         Doctor doctor = doctorMapper.selectById(doctorId);
@@ -334,11 +325,13 @@ public class ScheduleServiceImpl implements ScheduleService {
                 .collect(Collectors.toList());
     }
 
+
     @Override
     public List<ScheduleDetailVO> getDoctorSchedules(Long userId, LocalDate startDate, LocalDate endDate) {
         Doctor doctor = doctorMapper.selectOne(
                 new LambdaQueryWrapper<Doctor>()
-                        .eq(Doctor::getUserId, userId));
+                        .eq(Doctor::getUserId, userId)
+        );
         Long doctorId = doctor.getDoctorId();
 
         QueryWrapper<Schedule> wrapper = new QueryWrapper<>();
@@ -376,8 +369,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
-    public List<ScheduleDetailVO> getAllSchedules(Integer deptId, Long doctorId, LocalDate startDate, LocalDate endDate,
-            String status) {
+    public List<ScheduleDetailVO> getAllSchedules(Integer deptId, Long doctorId, LocalDate startDate, LocalDate endDate, String status) {
         QueryWrapper<Schedule> wrapper = new QueryWrapper<>();
         if (deptId != null) {
             wrapper.eq("dept_id", deptId);
@@ -712,8 +704,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                     }
 
                     // 查询预约类型
-                    AppointmentType appointmentType = appointmentTypeMapper
-                            .selectById(appointment.getAppointmentTypeId());
+                    AppointmentType appointmentType = appointmentTypeMapper.selectById(appointment.getAppointmentTypeId());
                     if (appointmentType != null) {
                         vo.setAppointmentTypeName(appointmentType.getTypeName());
                     }

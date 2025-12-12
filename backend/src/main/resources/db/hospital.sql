@@ -5,7 +5,6 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS doctor_bio_update_request;
 DROP TABLE IF EXISTS doctor_leaves;
 DROP TABLE IF EXISTS schedules;
-DROP TABLE IF EXISTS appointment_relations;
 DROP TABLE IF EXISTS appointments;
 DROP TABLE IF EXISTS waitlist;
 DROP TABLE IF EXISTS payments;
@@ -166,7 +165,6 @@ CREATE TABLE doctor_leaves (
                                doctor_id BIGINT NOT NULL COMMENT '请假的医生ID，关联 doctors 表',
                                from_date DATE NOT NULL COMMENT '请假开始日期',
                                to_date DATE NOT NULL COMMENT '请假结束日期',
-                               schedule_ids VARCHAR(255) NULL COMMENT '逗号分隔请假排班ID',
                                reason VARCHAR(255) COMMENT '请假原因说明',
                                status ENUM('pending','approved','rejected') DEFAULT 'pending' COMMENT '请假状态：pending=待审核, approved=批准, rejected=拒绝',
                                applied_by BIGINT COMMENT '提交请假申请的用户ID（通常是医生本人）',
@@ -397,30 +395,3 @@ CREATE TABLE if NOT EXISTS chat_message (
                                                 FOREIGN KEY (session_id) REFERENCES chat_session(id)
                                                     ON DELETE CASCADE
 )COMMENT='会话具体消息表';;
-
-CREATE TABLE appointment_relations (
-                                       id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
-
-                                       source_appointment_id BIGINT NOT NULL COMMENT '源预约ID（被取消/被变更的预约）',
-                                       target_appointment_id BIGINT NOT NULL COMMENT '目标预约ID（自动创建或自动分配的新预约）',
-
-                                       relation_type VARCHAR(50) NOT NULL COMMENT '关联类型，例如 AUTO_REASSIGN、FOLLOWUP 等',
-                                       remark VARCHAR(255) DEFAULT NULL COMMENT '备注信息',
-
-                                       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-                                       created_by BIGINT DEFAULT NULL COMMENT '操作人（后台管理员ID或系统ID）',
-
-    -- 索引
-                                       INDEX idx_source_appointment (source_appointment_id),
-                                       INDEX idx_target_appointment (target_appointment_id),
-                                       INDEX idx_relation_type (relation_type),
-
-    -- 外键（启用外键可选，如果正式环境会对预约数据进行归档或分区，建议使用逻辑约束即可）
-                                       CONSTRAINT fk_relation_source_app
-                                           FOREIGN KEY (source_appointment_id) REFERENCES appointments(appointment_id)
-                                               ON DELETE RESTRICT ON UPDATE CASCADE,
-
-                                       CONSTRAINT fk_relation_target_app
-                                           FOREIGN KEY (target_appointment_id) REFERENCES appointments(appointment_id)
-                                               ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='预约关联表，用于记录自动改约、随访预约等关联关系';

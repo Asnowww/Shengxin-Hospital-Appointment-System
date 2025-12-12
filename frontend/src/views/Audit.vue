@@ -21,11 +21,11 @@
             <span>医生信息更改审核</span>
           </button>
 
-          <button 
+          <!-- <button 
             :class="['nav-item', { active: activeTab === 'leave' }]" 
             @click="activeTab = 'leave'">
             <span>请假审批</span>
-          </button>
+          </button> -->
 
           <button 
             :class="['nav-item', { active: activeTab === 'identity' }]" 
@@ -51,7 +51,7 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import Navigation from '@/components/Navigation.vue'
 import IdentityAudit from '@/components/IdentityAudit.vue'
-import LeaveManagement from '@/views/DoctorLeaveManagement.vue'
+import LeaveManagement from '@/views/LeaveManagement.vue'
 import DoctorInfoChangeAudit from '@/components/DoctorInfoChangeAudit.vue'
 
 const activeTab = ref('doctorInfo')
@@ -181,8 +181,9 @@ onUnmounted(() => {
 /* 右侧主内容区 */
 .main-content {
   flex: 1;
+  background: white;
   border-radius: 16px;
-  /* box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); */
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   min-height: 600px;
   overflow: hidden;
 }
