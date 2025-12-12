@@ -270,6 +270,18 @@ function validateForm() {
     isValid = false
   }
 
+  if (profile.emergencyPhone && !/^(?:\+?86)?1[3-9]\d{9}$/.test(profile.emergencyPhone)) {
+    // We don't have a specific error field for emergencyPhone in the errors object shown in the original code,
+    // so we might need to alert or add it to errors if we assume it exists or just rely on the return value if not.
+    // However, looking at the template, there is no error display for emergencyPhone.
+    // Let's add an alert for consistency or just return false, but user wanted validation.
+    // Ideally we update the errors object but the template needs to show it.
+    // For now, let's use alert if it's invalid, or purely rely on isValid = false.
+    // Actually, let's just use alert as a quick feedback since UI doesn't support inline error for this field yet.
+    alert('紧急联系人电话格式不正确')
+    isValid = false
+  }
+
   return isValid
 }
 
