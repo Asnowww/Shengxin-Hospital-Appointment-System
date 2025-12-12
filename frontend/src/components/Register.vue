@@ -236,6 +236,12 @@ async function handleRegister() {
     return
   }
 
+  // 紧急联系人电话校验
+  if (form.emergencyPhone && !/^(?:\+?86)?1[3-9]\d{9}$/.test(form.emergencyPhone)) {
+    alert('紧急联系人电话格式不正确，请输入有效的手机号')
+    return
+  }
+
  try {
   const response = await axios.post('/api/auth/register/patient', form)
 

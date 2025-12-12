@@ -2,6 +2,9 @@
   <div class="consultation-container">
     <div class="chat-window">
       <div class="chat-header">
+        <button class="back-btn" @click="goBack">
+          ← 返回
+        </button>
         <h2>智能问诊助手</h2>
         <p>请描述您的症状，我将为您提供初步分析和挂号建议。</p>
       </div>
@@ -64,6 +67,11 @@ const messages = ref([
 const userInput = ref('')
 const isLoading = ref(false)
 const messagesContainer = ref(null)
+
+// Go back
+const goBack = () => {
+  router.back()
+}
 
 // Scroll to bottom
 const scrollToBottom = async () => {
@@ -162,6 +170,26 @@ const goToRegistration = (departmentName) => {
   background-color: #EFE7DC;
   border-bottom: 1px solid #eee;
   text-align: center;
+  position: relative; /* For absolute positioning of back button */
+}
+
+.back-btn {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #666;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+.back-btn:hover {
+  background-color: rgba(0,0,0,0.05);
+  color: #333;
 }
 
 .chat-header h2 {
