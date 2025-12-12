@@ -54,7 +54,6 @@ public class DoctorScheduleController {
         }
     }
 
-
     /**
      * 申请调班
      */
@@ -76,6 +75,19 @@ public class DoctorScheduleController {
         try {
             List<DoctorLeave> leaves = doctorLeaveService.getDoctorLeaveHistory(userId);
             return Result.success(leaves);
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 批量查询排班详情
+     */
+    @GetMapping("/batch-details")
+    public Result<List<ScheduleDetailVO>> getScheduleDetailsByIds(@RequestParam List<Integer> scheduleIds) {
+        try {
+            List<ScheduleDetailVO> schedules = scheduleService.getScheduleDetailsByIds(scheduleIds);
+            return Result.success(schedules);
         } catch (Exception e) {
             return Result.error(e.getMessage());
         }

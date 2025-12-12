@@ -8,18 +8,32 @@
             <h2>请假申请</h2>
             <p class="subtitle">提交请假申请，待管理员审批</p>
           </div>
+          <button class="btn ghost" @click="fetchScheduleOptions" :disabled="scheduleLoading">
+            {{ scheduleLoading ? '刷新中…' : '刷新排班' }}
+          </button>
         </div>
 
         <div class="form-grid">
-          <div class="form-group">
-            <label>开始日期 <span class="required">*</span></label>
-            <input v-model="form.fromDate" type="date" :min="today" />
-
-
-          </div>
-          <div class="form-group">
-            <label>结束日期 <span class="required">*</span></label>
-            <input v-model="form.toDate" type="date" :min="form.fromDate || today" />
+          <div class="form-group full">
+            <label>选择排班 <span class="required">*</span></label>
+            <div v-if="scheduleLoading" class="loading">加载可请假的排班...</div>
+            <div v-else-if="scheduleOptions.length === 0" class="empty">未来30天暂无可请假的排班</div>
+            <div v-else class="schedule-grid">
+              <label 
+                v-for="item in scheduleOptions" 
+                :key="item.scheduleId" 
+                class="schedule-card">
+                <input 
+                  type="checkbox" 
+                  :value="item.scheduleId" 
+                  v-model="form.scheduleIds" />
+                <div class="schedule-info">
+                  <div class="schedule-date">{{ item.dateLabel }}</div>
+                  <div class="schedule-time">{{ item.timeLabel }}</div>
+                  <div class="schedule-meta">可预约：{{ item.availableText }}</div>
+                </div>
+              </label>
+            </div>
           </div>
           <div class="form-group full">
             <label>请假事由 <span class="required">*</span></label>
@@ -45,16 +59,16 @@
           <div v-if="history.length === 0" class="empty">暂无记录</div>
           <div v-else class="table">
             <div class="thead">
-              <div>开始</div>
-              <div>结束</div>
+              <div>请假排班</div>
               <div>原因</div>
               <div>状态</div>
+              <div>提交时间</div>
             </div>
             <div class="row" v-for="it in history" :key="it.id">
-              <div>{{ it.startDate || it.fromDate }}</div>
-              <div>{{ it.endDate || it.toDate }}</div>
+              <div>{{ historyScheduleText(it) }}</div>
               <div class="reason">{{ it.reason }}</div>
               <div><span :class="['status-badge', it.status]">{{ statusText(it.status) }}</span></div>
+              <div>{{ (it.appliedAt || '').toString().replace('T', ' ') }}</div>
             </div>
           </div>
         </div>
@@ -81,10 +95,13 @@ function updateNavHeight() {
 }
 
 // --- 表单与状态 ---
-const form = ref({ userId: null, fromDate: '', toDate: '', reason: '' })
+const form = ref({ userId: null, scheduleIds: [], reason: '' })
 const loading = ref(false)
 const history = ref([])
 const submitting = ref(false)
+const scheduleOptions = ref([])
+const scheduleLoading = ref(false)
+const scheduleDetailsMap = ref(new Map()) // 存储排班ID到详情的映射
 
 // helper: 从 localStorage 读 userId（返回 null 或 Number）
 function getUserIdFromStorage() {
@@ -98,23 +115,87 @@ function statusText(s) {
   return s === 'approved' ? '已通过' : s === 'rejected' ? '已拒绝' : '待审批'
 }
 
+function formatTimeSlot(slot) {
+  if (slot === 0) return '上午'
+  if (slot === 1) return '下午'
+  if (slot === 2) return '晚上'
+  return '未指定'
+}
+
+function formatDateLabel(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  const weekdayMap = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  const weekday = weekdayMap[d.getDay()]
+  return `${dateStr}（${weekday}）`
+}
+
+function mapScheduleOptions(list) {
+  return list
+    .filter(item => item.status !== 'cancelled')
+    .map(item => {
+      const patientCount = typeof item.bookedSlots === 'number'
+        ? item.bookedSlots
+        : (item.maxSlots ?? 0) - (item.availableSlots ?? 0)
+      const available = typeof item.availableSlots === 'number'
+        ? item.availableSlots
+        : Math.max((item.maxSlots ?? 0) - patientCount, 0)
+      return {
+        scheduleId: item.scheduleId,
+        dateLabel: formatDateLabel(item.workDate),
+        timeLabel: item.timeSlotName || formatTimeSlot(item.timeSlot),
+        availableText: item.maxSlots ? `${available} / ${item.maxSlots}` : '—',
+        raw: item
+      }
+    })
+}
+
+async function fetchScheduleOptions() {
+  scheduleLoading.value = true
+  try {
+    const startDate = today
+    const end = new Date()
+    end.setDate(end.getDate() + 30)
+    const endDate = end.toISOString().split('T')[0]
+    const { data } = await axios.get('/api/doctor/schedules/my', {
+      params: { userId: getUserIdFromStorage(), startDate, endDate }
+    })
+    if (data?.code !== 200) throw new Error(data?.message || '获取排班失败')
+    scheduleOptions.value = mapScheduleOptions(data.data || [])
+  } catch (e) {
+    console.error('fetchScheduleOptions error:', e)
+    scheduleOptions.value = []
+  } finally {
+    scheduleLoading.value = false
+  }
+}
+
+function historyScheduleText(it) {
+  if (it.scheduleIds) {
+    const ids = it.scheduleIds.split(',').filter(Boolean)
+    const details = ids.map(id => {
+      const detail = scheduleDetailsMap.value.get(Number(id.trim()))
+      if (detail) {
+        const date = new Date(detail.workDate)
+        const dateStr = `${date.getMonth() + 1}月${date.getDate()}日`
+        const timeSlot = detail.timeSlotName || formatTimeSlot(detail.timeSlot)
+        return `${dateStr} ${timeSlot}`
+      }
+      return null
+    }).filter(Boolean)
+    
+    if (details.length > 0) {
+      return details.join('、')
+    }
+    return `已选 ${ids.length} 个排班`
+  }
+  return `${it.fromDate || ''} ~ ${it.toDate || ''}`
+}
+
 async function submit() {
   // 校验表单项
-  if (!form.value.fromDate) { alert('请选择开始日期'); return }
-  if (!form.value.toDate) { alert('请选择结束日期'); return }
+  if (!form.value.scheduleIds || form.value.scheduleIds.length === 0) { alert('请选择要请假的排班'); return }
   if (!form.value.reason || !form.value.reason.trim()) { alert('请输入请假事由'); return }
-
-    // 日期不得早于今天
-  if (form.value.fromDate < today) {
-    alert('开始日期不能早于今天');
-    return
-  }
-
-  // 结束日期不得早于开始日期
-  if (form.value.toDate < form.value.fromDate) {
-    alert('结束日期不能早于开始日期');
-    return
-  }
   
   // 确保 userId 已设置（从 form 或 localStorage）
   if (!form.value.userId) {
@@ -128,7 +209,11 @@ async function submit() {
   try {
     submitting.value = true
     const token = localStorage.getItem('token')
-    await axios.post('/api/doctor/schedules/leave/apply', form.value, {
+    const payload = {
+      ...form.value,
+      scheduleIds: form.value.scheduleIds.map(id => Number(id))
+    }
+    await axios.post('/api/doctor/schedules/leave/apply', payload, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
     alert('已提交，请等待审批')
@@ -163,6 +248,37 @@ async function fetchHistory() {
 
     if (data?.code === 200) {
       history.value = data.data || []
+      
+      // 获取所有排班详情
+      scheduleDetailsMap.value.clear()
+      const allScheduleIds = new Set()
+      history.value.forEach(leave => {
+        if (leave.scheduleIds) {
+          leave.scheduleIds.split(',').forEach(id => {
+            const numId = Number(id.trim())
+            if (numId) allScheduleIds.add(numId)
+          })
+        }
+      })
+      
+      if (allScheduleIds.size > 0) {
+        const scheduleIdsArray = Array.from(allScheduleIds)
+        try {
+          const token = localStorage.getItem('token')
+          const { data: detailData } = await axios.get('/api/doctor/schedules/batch-details', {
+            params: { scheduleIds: scheduleIdsArray },
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          })
+          if (detailData?.code === 200) {
+            const details = detailData.data || []
+            details.forEach(detail => {
+              scheduleDetailsMap.value.set(detail.scheduleId, detail)
+            })
+          }
+        } catch (e) {
+          console.error('获取排班详情失败', e)
+        }
+      }
     } else {
       console.warn('fetchHistory 返回非 200：', data)
       history.value = []
@@ -192,6 +308,7 @@ onMounted(async () => {
 
   // 首次尝试拉取历史（如果没有 userId，但后端支持 token 识别，也会返回数据）
   fetchHistory()
+  fetchScheduleOptions()
 })
 </script>
 
@@ -214,13 +331,21 @@ input, textarea { padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 
 .btn.ghost { background: #fff; border: 2px solid #e2e8f0; color: #4a5568; }
 .loading, .empty { padding: 1.5rem; text-align: center; color: #718096; }
 .table { display: grid; gap: 8px; padding: 1rem 1.5rem 1.5rem; }
-.thead, .row { display: grid; grid-template-columns: 1fr 1fr 2fr 1fr; gap: 8px; align-items: center; }
+.thead, .row { display: grid; grid-template-columns: 1.2fr 2fr 1fr 1.2fr; gap: 8px; align-items: center; }
 .thead { background: #667eea; padding: 12px; border-radius: 10px; font-weight: 700; color: #fff; }
 .row { background: #fff; border: 2px solid #e2e8f0; border-radius: 10px; padding: 12px; }
 .status-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 700; }
 .status-badge.pending { background: #fff3cd; color: #856404; }
 .status-badge.approved { background: #d4edda; color: #28a745; }
 .status-badge.rejected { background: #f8d7da; color: #721c24; }
+.schedule-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0.75rem; }
+.schedule-card { display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; align-items: center; padding: 0.75rem; border: 2px solid #e2e8f0; border-radius: 10px; background: #fff; cursor: pointer; }
+.schedule-card input { width: 18px; height: 18px; }
+.schedule-card:hover { border-color: #667eea; box-shadow: 0 6px 16px rgba(102, 126, 234, 0.15); }
+.schedule-info { display: flex; flex-direction: column; gap: 4px; }
+.schedule-date { font-weight: 700; color: #2d3748; }
+.schedule-time { color: #4c51bf; font-weight: 600; }
+.schedule-meta { color: #718096; font-size: 0.9rem; }
 @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } }
 </style>
 

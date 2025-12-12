@@ -6,12 +6,12 @@
       <!-- 页面标题 -->
       <div class="header-section">
         <h1>排班管理</h1>
-        <button @click="showAdjustDialog" class="adjust-btn">
+        <button @click="goToLeaveApplication" class="adjust-btn">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
             <polyline points="12 6 12 12 16 14"></polyline>
           </svg>
-          申请调整出诊时间
+          申请请假
         </button>
       </div>
 
@@ -157,6 +157,9 @@
                 <div class="actions">
                   <button @click="viewScheduleDetail(schedule)" class="view-btn primary">
                     查看详情
+                  </button>
+                  <button @click="showLeaveDialog(schedule)" class="view-btn leave-btn">
+                    请假
                   </button>
                 </div>
               </div>
@@ -385,13 +388,87 @@
         </div>
       </div>
     </transition>
+
+    <!-- 请假弹窗 -->
+    <transition name="modal">
+      <div v-if="showLeaveModal" class="modal-overlay" @click.self="closeLeaveModal">
+        <div class="modal-container">
+          <button @click="closeLeaveModal" class="close-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+
+          <div class="modal-header">
+            <h2>申请请假</h2>
+            <p class="subtitle">请填写请假原因</p>
+          </div>
+
+          <form @submit.prevent="submitLeaveRequest" class="modal-body">
+            <div class="form-group">
+              <label>排班信息</label>
+              <div class="schedule-info-display">
+                <div class="info-display-row">
+                  <span class="info-label">日期：</span>
+                  <span class="info-value">{{ leaveForm.scheduleDate }}</span>
+                </div>
+                <div class="info-display-row">
+                  <span class="info-label">时间：</span>
+                  <span class="info-value">{{ leaveForm.scheduleTime }}</span>
+                </div>
+                <div v-if="leaveForm.patientCount > 0" class="info-display-row warning">
+                  <span class="info-label">已预约：</span>
+                  <span class="info-value">{{ leaveForm.patientCount }} 人</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>请假事由 <span class="required">*</span></label>
+              <textarea 
+                v-model="leaveForm.reason" 
+                class="form-input"
+                rows="4"
+                placeholder="请输入请假原因"
+                required
+              ></textarea>
+            </div>
+
+            <div v-if="leaveForm.patientCount > 0" class="warning-box">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              <div>
+                <strong>注意：</strong>该排班已有 {{ leaveForm.patientCount }} 位患者预约，
+                请假申请通过后，这些患者需要重新安排就诊时间
+              </div>
+            </div>
+
+            <div class="button-group">
+              <button type="button" @click="closeLeaveModal" class="cancel-btn">
+                取消
+              </button>
+              <button type="submit" class="submit-btn" :disabled="submittingLeave">
+                {{ submittingLeave ? '提交中...' : '提交申请' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import Navigation from '@/components/Navigation.vue'
 import axios from 'axios'
+
+const router = useRouter()
 
 const navRef = ref(null)
 const navHeight = ref(110)
@@ -420,6 +497,16 @@ const adjustForm = ref({
   reason: '',
   hasPatients: false,
   patientCount: 0
+})
+
+const showLeaveModal = ref(false)
+const submittingLeave = ref(false)
+const leaveForm = ref({
+  scheduleId: null,
+  scheduleDate: '',
+  scheduleTime: '',
+  patientCount: 0,
+  reason: ''
 })
 
 const showScheduleModal = ref(false)
@@ -686,6 +773,93 @@ function viewScheduleDetail(schedule) {
 function closeScheduleModal() {
   showScheduleModal.value = false
 }
+
+// 跳转到请假申请界面
+function goToLeaveApplication() {
+  router.push('/doctor/leave/apply')
+}
+
+// 显示请假弹窗
+function showLeaveDialog(schedule) {
+  leaveForm.value = {
+    scheduleId: schedule.scheduleId,
+    scheduleDate: schedule.date,
+    scheduleTime: schedule.timeRange,
+    patientCount: schedule.patientCount,
+    reason: ''
+  }
+  showLeaveModal.value = true
+}
+
+// 关闭请假弹窗
+function closeLeaveModal() {
+  showLeaveModal.value = false
+  leaveForm.value = {
+    scheduleId: null,
+    scheduleDate: '',
+    scheduleTime: '',
+    patientCount: 0,
+    reason: ''
+  }
+}
+
+// 提交请假申请
+async function submitLeaveRequest() {
+  const reason = leaveForm.value.reason?.trim()
+  if (!reason) {
+    alert('请输入请假事由')
+    return
+  }
+
+  const scheduleId = Number(leaveForm.value.scheduleId)
+  if (!scheduleId || Number.isNaN(scheduleId)) {
+    alert('排班信息错误，请重试')
+    return
+  }
+
+  const uid = Number(userId.value)
+  if (!uid) {
+    alert('无法识别用户，请重新登录')
+    return
+  }
+
+  const payload = {
+    userId: uid,
+    scheduleIds: [scheduleId],
+    reason
+  }
+
+  const headers = token.value
+    ? { Authorization: `Bearer ${token.value}` }
+    : {}
+
+  try {
+    submittingLeave.value = true
+
+    const res = await axios.post(
+      '/api/doctor/schedules/leave/apply',
+      payload,
+      { headers }
+    )
+
+    if (res.data?.code && res.data.code !== 200) {
+      alert(res.data.message || '提交失败，请重试')
+      return
+    }
+
+    alert('请假申请已提交，请等待审批')
+    closeLeaveModal()
+    await fetchFutureSchedules()
+
+  } catch (err) {
+    console.error('提交请假申请失败', err)
+    alert(err?.response?.data?.message || '提交失败，请重试')
+  } finally {
+    submittingLeave.value = false
+  }
+}
+
+
 
 // 显示调整时间弹窗
 function showAdjustDialog() {
@@ -1236,8 +1410,14 @@ h1 {
   font-size: 0.9rem;
 }
 
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
 .view-btn {
-  align-self: center;
   padding: 0.5rem 1rem;
   background: #f7fafc;
   border: 1px solid #e2e8f0;
@@ -1263,6 +1443,18 @@ h1 {
 
 .view-btn.primary:hover {
   box-shadow: 0 10px 30px rgba(76, 111, 255, 0.25);
+}
+
+.view-btn.leave-btn {
+  background: #fff5f5;
+  border-color: #fc8181;
+  color: #c53030;
+}
+
+.view-btn.leave-btn:hover {
+  background: #fed7d7;
+  border-color: #fc8181;
+  box-shadow: 0 4px 12px rgba(197, 48, 48, 0.2);
 }
 
 /* 弹窗样式 */
@@ -1482,6 +1674,43 @@ h1 {
   font-weight: 600;
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
+}
+
+.required {
+  color: #e53e3e;
+}
+
+.schedule-info-display {
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.info-display-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.info-display-row:last-child {
+  margin-bottom: 0;
+}
+
+.info-display-row.warning {
+  color: #c53030;
+}
+
+.info-label {
+  color: #718096;
+  font-weight: 500;
+  min-width: 60px;
+}
+
+.info-value {
+  color: #2d3748;
+  font-weight: 600;
 }
 
 .form-input {
