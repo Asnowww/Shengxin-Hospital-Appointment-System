@@ -195,7 +195,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import Navigation from '@/components/Navigation.vue'
-// import axios from 'axios'
+import axios from 'axios'
 
 const router = useRouter()
 
@@ -265,41 +265,68 @@ function validateEmail(email) {
 }
 
 // 发送验证码
+let countdownTimer = null
+
 async function sendVerificationCode() {
   clearErrors()
-  
+
+  // 基础校验
   if (!email.value) {
     errors.value.email = '请输入邮箱地址'
     return
   }
-  
+
   if (!validateEmail(email.value)) {
     errors.value.email = '请输入有效的邮箱地址'
     return
   }
-  
+
+  // 防重复点击：已有倒计时禁止再次发送
+  if (countdown.value > 0) {
+    return
+  }
+
   try {
-    // 实际使用时替换为：
-    // await axios.post('/api/auth/send-reset-code', { email: email.value })
-    
-    // 模拟发送验证码
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
+    const res = await axios.post('/api/user/sendPasswordResetCode', { email: email.value })
+
+    if (!res || !res.data) {
+      errors.value.email = '服务器无响应'
+      return
+    }
+
+    if (res.data.code !== 200) {
+      errors.value.email = res.data.message || '发送失败，请稍后重试'
+      return
+    }
+
     alert('验证码已发送到您的邮箱')
-    
-    // 开始倒计时
-    countdown.value = 60
-    const timer = setInterval(() => {
-      countdown.value--
-      if (countdown.value <= 0) {
-        clearInterval(timer)
-      }
-    }, 1000)
+
+    // 启动倒计时
+    startCountdown()
   } catch (err) {
-    errors.value.email = '发送失败，请检查邮箱地址'
-    console.error('发送验证码失败', err)
+    errors.value.email = '发送失败，请检查您的邮箱是否正确'
+    console.error('发送验证码失败:', err)
   }
 }
+
+// 启动倒计时函数，避免重复 setInterval
+function startCountdown() {
+  if (countdownTimer) {
+    clearInterval(countdownTimer)
+  }
+
+  countdown.value = 60
+
+  countdownTimer = setInterval(() => {
+    countdown.value--
+
+    if (countdown.value <= 0) {
+      clearInterval(countdownTimer)
+      countdownTimer = null
+    }
+  }, 1000)
+}
+
 
 // 验证验证码并进入下一步
 async function handleSendCode() {
@@ -328,15 +355,12 @@ async function handleSendCode() {
   loading.value = true
   
   try {
-    // 实际使用时替换为：
-    // await axios.post('/api/auth/verify-reset-code', { 
-    //   email: email.value,
-    //   code: code.value 
-    // })
-    
-    // 模拟验证
-    await new Promise(resolve => setTimeout(resolve, 800))
-    
+
+    await axios.post('/api/user/verifyEmailCode', { 
+      email: email.value,
+      captcha: code.value 
+    })
+ 
     // 验证成功，进入下一步
     currentStep.value = 2
   } catch (err) {
@@ -374,15 +398,13 @@ async function handleResetPassword() {
   loading.value = true
   
   try {
-    // 实际使用时替换为：
-    // await axios.post('/api/auth/reset-password', {
-    //   email: email.value,
-    //   code: code.value,
-    //   newPassword: newPassword.value
-    // })
+  
+    await axios.post('/api/user/resetPassword', {
+      email: email.value,
+      captcha: code.value,
+      newPassword: newPassword.value
+    })
     
-    // 模拟重置
-    await new Promise(resolve => setTimeout(resolve, 1000))
     
     // 重置成功
     currentStep.value = 3
