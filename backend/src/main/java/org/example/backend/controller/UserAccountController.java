@@ -54,6 +54,28 @@ public class UserAccountController {
 
 
     /**
+     * 验证邮箱验证码接口
+     */
+    @PostMapping("/verifyEmailCode")
+    public Result<Void> verifyEmailCode(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String captcha = body.get("captcha");
+        if (email == null || captcha == null) {
+            return new Result<>(400, "邮箱、验证码不能为空", null);
+        }
+        // 验证验证码
+        String redisKey = "login:email:captcha:" + email;
+        String correctCaptcha = stringRedisTemplate.<String, String>boundHashOps(redisKey).get("captcha");
+
+        if (correctCaptcha == null || !correctCaptcha.equals(captcha)) {
+            return new Result<>(401, "验证码错误或已过期", null);
+        }
+        // 删除验证码缓存
+//        stringRedisTemplate.delete(redisKey);
+        return new Result<>(200, "邮箱验证码验证成功", null);
+    }
+
+    /**
      * 修改密码接口
      */
     @PostMapping("/resetPassword")
@@ -62,8 +84,8 @@ public class UserAccountController {
         String newPassword = body.get("newPassword");
         String captcha = body.get("captcha");
 
-        if (email == null || newPassword == null || captcha == null) {
-            return new Result<>(400, "邮箱、验证码和新密码不能为空", null);
+        if (email == null || newPassword == null) {
+            return new Result<>(400, "邮箱、新密码不能为空", null);
         }
 
         // 验证验证码
