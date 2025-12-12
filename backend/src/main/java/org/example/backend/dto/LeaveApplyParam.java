@@ -2,7 +2,7 @@ package org.example.backend.dto;
 
 import lombok.Data;
 
-import java.util.List;
+import java.time.LocalDate;
 
 /**
  * 医生申请请假的请求参数
@@ -10,9 +10,7 @@ import java.util.List;
 @Data
 public class LeaveApplyParam {
     private Long userId;
-    /**
-     * 选择请假的排班ID列表
-     */
-    private List<Integer> scheduleIds;
+    private LocalDate fromDate;
+    private LocalDate toDate;
     private String reason;
 }

@@ -41,7 +41,6 @@
           <span class="content-value fee">¥{{ record.feeFinal }}</span>
         </div>
       </div>
-      
 
       <div class="time-row">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -87,9 +86,7 @@ const statusMap = {
   'confirmed': '已确认',
   'completed': '已完成',
   'cancelled': '已取消',
-  'no-show': '未到诊',
-  'pending_confirm': '待处理',
-  'waiting_action': '待确认--预约取消！！'
+  'no-show': '未到诊'
 }
 
 function getStatusLabel(status) {
@@ -193,15 +190,6 @@ function handleNavigate() {
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
-}
-
-.status-badge.pending_confirm {
-  background: #ffede6;
-  color: #ff1818;
-}
-.status-badge.waiting_action {
-  background: #f7d1ef;
-  color: #540648;
 }
 
 .status-badge.pending {

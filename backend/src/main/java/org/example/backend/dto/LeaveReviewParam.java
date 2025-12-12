@@ -10,5 +10,4 @@ public class LeaveReviewParam {
     private Integer leaveId;
     private String action; // approve / reject
     private Long reviewedBy; // 审批人ID
-    private String reviewNote; // 审批理由/备注（可选）
 }

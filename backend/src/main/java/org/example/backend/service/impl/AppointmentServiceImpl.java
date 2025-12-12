@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.*;
 import org.example.backend.mapper.AppointmentMapper;
-import org.example.backend.mapper.AppointmentRelationsMapper;
 import org.example.backend.mapper.AppointmentTypeMapper;
 import org.example.backend.mapper.PatientMapper;
 import org.example.backend.mapper.ScheduleMapper;
@@ -29,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 public class AppointmentServiceImpl implements AppointmentService {
@@ -54,9 +54,6 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Resource
     private PatientMapper patientMapper;
-
-    @Resource
-    private AppointmentRelationsMapper appointmentRelationsMapper;
 
     // === 病人端 ===
 
@@ -116,8 +113,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setFeeFinal(finalFee);
 
         // 设置状态
-        appointment.setPaymentStatus("unpaid"); // 待支付
-        appointment.setAppointmentStatus("pending"); // 待支付状态
+        appointment.setPaymentStatus("unpaid");  // 待支付
+        appointment.setAppointmentStatus("pending");  // 待支付状态
 
         // 设置时间
         appointment.setBookingTime(LocalDateTime.now());
@@ -147,13 +144,15 @@ public class AppointmentServiceImpl implements AppointmentService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
             @Override
             public void afterCommit() {
-                CompletableFuture.runAsync(() -> notificationEmailService
-                        .sendAppointmentCreatedNotification(appointment.getAppointmentId()));
+                CompletableFuture.runAsync(() ->
+                        notificationEmailService.sendAppointmentCreatedNotification(appointment.getAppointmentId())
+                );
             }
         });
 
         return appointment;
     }
+
 
     @Override
     public List<AppointmentInfoDTO> getAppointmentsByPatientId(Long patientId) {
@@ -165,7 +164,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         return appointmentMapper.selectList(
                 new QueryWrapper<Appointment>()
                         .eq("patient_id", patientId)
-                        .apply("DATE(appointment_date) = {0}", date));
+                        .apply("DATE(appointment_date) = {0}", date)
+        );
     }
 
     @Override
@@ -174,53 +174,49 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public boolean cancelAppointment(Long appointmentId, Long patientId, Integer cancelType) {
+    @Transactional
+    public boolean cancelAppointment(Long appointmentId, Long patientId) {
         // 1. 查询预约
         Appointment appointment = appointmentMapper.selectById(appointmentId);
         if (appointment == null) {
             throw new RuntimeException("预约不存在");
         }
 
-        // 2. 权限验证（用户取消时）
-        if (cancelType != null && cancelType == 1 && patientId != null) {
-            if (!appointment.getPatientId().equals(patientId)) {
-                throw new RuntimeException("无权取消该预约");
-            }
+        // 2. 验证权限（仅限该患者或管理员）
+        if (patientId != null && !appointment.getPatientId().equals(patientId)) {
+            throw new RuntimeException("无权取消该预约");
         }
 
-        // 3. 重复取消校验
+        // 3. 若预约已被取消或退款，不再处理
         if ("cancelled".equals(appointment.getAppointmentStatus()) ||
                 "refunded".equals(appointment.getPaymentStatus())) {
             throw new RuntimeException("该预约已取消或已退款");
         }
 
-        // ========== 已支付 → 执行退款 ==========
+        // 4. 如果已支付，则执行退款逻辑
         if ("paid".equals(appointment.getPaymentStatus())) {
             try {
-                String refundReason = (cancelType != null && cancelType == 2)
-                        ? "系统自动执行退款"
-                        : "用户取消预约自动退款";
-
-                Refunds refund = paymentService.createRefund(appointmentId, refundReason);
+                // === 创建退款记录 ===
+                Refunds refund = paymentService.createRefund(appointmentId, "用户取消预约自动退款");
                 System.out.println("已创建退款记录：" + refund.getRefundId());
 
-                // 模拟第三方退款调用
+                // === 模拟第三方退款调用 ===
                 Thread.sleep(1000);
                 System.out.println("调用第三方退款接口成功，退款金额：" + refund.getAmount());
 
+                // === 更新退款状态 ===
                 boolean refundSuccess = paymentService.processRefundSuccess(refund.getRefundId());
                 if (!refundSuccess) {
                     throw new RuntimeException("退款状态更新失败");
                 }
 
-                // 重新查询 appointment 更新状态，不覆盖 payment_status
+                // === 重新查询预约获取最新状态（关键修复点）===
                 appointment = appointmentMapper.selectById(appointmentId);
-                appointment.setAppointmentStatus("cancelled");
-                appointment.setUpdatedAt(LocalDateTime.now());
-                appointmentMapper.updateStatusOnly(appointment);
+                if (appointment == null) {
+                    throw new RuntimeException("预约记录丢失");
+                }
 
-                // 异步邮件通知
+                // === 邮件通知（事务提交后执行）===
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
                     @Override
                     public void afterCommit() {
@@ -230,30 +226,34 @@ public class AppointmentServiceImpl implements AppointmentService {
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new RuntimeException("退款过程被中断，请稍后重试");
+                System.err.println("退款过程被中断：" + e.getMessage());
+                throw new RuntimeException("退款失败，请稍后重试");
             } catch (Exception e) {
-                throw new RuntimeException("退款失败，请稍后重试：" + e.getMessage());
+                System.err.println("退款失败：" + e.getMessage());
+                throw new RuntimeException("退款失败，请稍后重试");
             }
-
         } else {
-            // 未支付直接取消
+            // 5. 如果未支付，直接取消预约
             appointment.setAppointmentStatus("cancelled");
             appointment.setPaymentStatus("unpaid");
             appointment.setUpdatedAt(LocalDateTime.now());
             appointmentMapper.updateById(appointment);
         }
 
-        // 4. 释放号源
+        // 6. 释放排班号源
         Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
         if (schedule != null) {
             schedule.setAvailableSlots(schedule.getAvailableSlots() + 1);
             schedule.setUpdatedAt(LocalDateTime.now());
             scheduleMapper.updateById(schedule);
+            System.out.println("已释放号源，当前可用号源：" + schedule.getAvailableSlots());
 
+            // 7. 取消成功后，处理候补队列自动转正
             Integer scheduleId = appointment.getScheduleId();
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
                 @Override
                 public void afterCommit() {
+                    // 处理候补队列自动转正（按优先级和时间顺序）
                     waitlistService.processWaitlistConversion(scheduleId);
                 }
             });
@@ -261,8 +261,6 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         return true;
     }
-
-
 
     @Transactional
     @Override
@@ -351,6 +349,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         // 6. 更新时间戳
         appointment.setUpdatedAt(LocalDateTime.now());
 
+
+
         return appointmentMapper.updateById(appointment) > 0;
     }
 
@@ -401,7 +401,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         Payments payment = paymentService.createPayment(
                 appointmentId,
                 appointment.getFeeFinal().doubleValue(),
-                method);
+                method
+        );
 
         try {
             // === 模拟调用第三方支付接口 ===
@@ -431,6 +432,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new RuntimeException("支付失败，请稍后重试");
         }
     }
+
 
     // === 医生端 ===
 
@@ -463,10 +465,9 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
-    public boolean updateAppointmentFee(Integer id, Double fee) {
+    public boolean updateAppointmentFee(Integer id, Double fee){
         AppointmentType type = appointmentTypeMapper.selectById(id);
-        if (type == null)
-            return false;
+        if (type == null) return false;
         type.setFeeAmount(java.math.BigDecimal.valueOf(fee));
         return appointmentTypeMapper.updateById(type) > 0;
     }
@@ -498,16 +499,13 @@ public class AppointmentServiceImpl implements AppointmentService {
     public Result<Object> calculateFee(Long appointmentId) {
 
         Appointment appointment = appointmentMapper.selectById(appointmentId);
-        if (appointment == null)
-            return Result.error("挂号记录不存在");
+        if (appointment == null) return Result.error("挂号记录不存在");
 
         AppointmentType type = appointmentTypeMapper.selectById(appointment.getAppointmentTypeId());
-        if (type == null)
-            return Result.error("挂号类别不存在");
+        if (type == null) return Result.error("挂号类别不存在");
 
         Patient patient = patientMapper.selectById(appointment.getPatientId());
-        if (patient == null)
-            return Result.error("患者信息不存在");
+        if (patient == null) return Result.error("患者信息不存在");
 
         BigDecimal finalFee = computeFinalFee(type, patient);
 
@@ -532,16 +530,15 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     @Transactional
-    public boolean appointmentComplete(Long appointmentId) {
+    public boolean appointmentComplete(Long appointmentId){
         Appointment appointment = appointmentMapper.selectById(appointmentId);
-        if (appointment == null)
-            return false;
+        if (appointment == null) return false;
         appointment.setAppointmentStatus("completed");
         appointment.setVisitTime(LocalDateTime.now());
         appointment.setUpdatedAt(LocalDateTime.now());
         appointmentMapper.updateById(appointment);
 
-        /* 发送已就诊通知 */
+        /*发送已就诊通知*/
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
             @Override
             public void afterCommit() {
@@ -554,16 +551,15 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     @Transactional
-    public boolean appointmentPass(Long appointmentId) {
+    public boolean appointmentPass(Long appointmentId){
         Appointment appointment = appointmentMapper.selectById(appointmentId);
-        if (appointment == null)
-            return false;
+        if (appointment == null) return false;
         appointment.setAppointmentStatus("no_show");
         appointment.setVisitTime(LocalDateTime.now());
         appointment.setUpdatedAt(LocalDateTime.now());
         appointmentMapper.updateById(appointment);
 
-        /* 发送过号通知 */
+        /*发送过号通知*/
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
             @Override
             public void afterCommit() {
@@ -580,19 +576,20 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         Appointment appointment = appointmentMapper.selectById(appointmentId);
 
-        if (appointment == null) {
-            throw new RuntimeException("预约不存在");
-        }
-
         Appointment next = appointmentMapper.selectOne(
                 new QueryWrapper<Appointment>()
                         .eq("schedule_id", appointment.getScheduleId())
                         .eq("appointment_status", "booked")
                         .orderByAsc("queue_number")
-                        .last("limit 1"));
+                        .last("limit 1")
+        );
 
         if (!next.getAppointmentId().equals(appointmentId)) {
             throw new RuntimeException("请按顺序叫号");
+        }
+
+        if (appointment == null) {
+            throw new RuntimeException("预约不存在");
         }
 
         // 只允许对已挂号的预约叫号
@@ -615,10 +612,12 @@ public class AppointmentServiceImpl implements AppointmentService {
             }
         });
 
+
         startAutoNoShowTask(appointmentId);
 
         return true;
     }
+
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
 
@@ -627,8 +626,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
             Appointment appointment = appointmentMapper.selectById(appointmentId);
 
-            if (appointment == null)
-                return;
+            if (appointment == null) return;
 
             // 如果还处于 booked ，说明未就诊，自动过号
             if ("booked".equals(appointment.getAppointmentStatus())) {
@@ -636,13 +634,14 @@ public class AppointmentServiceImpl implements AppointmentService {
                 appointment.setUpdatedAt(LocalDateTime.now());
                 appointmentMapper.updateById(appointment);
 
-                /* 发送过号通知 */
+                /*发送过号通知*/
                 notificationEmailService.sendNoShowNotification(appointment.getAppointmentId());
 
             }
 
         }, 15, TimeUnit.MINUTES);
     }
+
 
     /**
      * 获取患者所有历史就诊记录
@@ -657,85 +656,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         return history;
-    }
-
-    @Override
-    @Transactional
-    public void confirmReassignedAppointment(Long targetAppointmentId, Long patientId) {
-        Appointment target = appointmentMapper.selectById(targetAppointmentId);
-        if (target == null) {
-            throw new RuntimeException("新预约不存在");
-        }
-        if (!target.getPatientId().equals(patientId)) {
-            throw new RuntimeException("无权操作该预约");
-        }
-        if (!"pending_patient_confirm".equals(target.getAppointmentStatus())) {
-            throw new RuntimeException("该预约不需要确认");
-        }
-
-        AppointmentRelations rel = appointmentRelationsMapper.selectOne(
-                new QueryWrapper<AppointmentRelations>()
-                        .eq("target_appointment_id", targetAppointmentId)
-                        .orderByDesc("created_at")
-                        .last("LIMIT 1"));
-        if (rel == null || rel.getSourceAppointmentId() == null) {
-            throw new RuntimeException("未找到关联的原预约记录");
-        }
-
-        Appointment source = appointmentMapper.selectById(rel.getSourceAppointmentId());
-        if (source == null) {
-            throw new RuntimeException("原预约不存在");
-        }
-        if (!source.getPatientId().equals(patientId)) {
-            throw new RuntimeException("无权操作该预约");
-        }
-
-       target.setAppointmentStatus("pending"); //TODO:是否需要？
-        target.setUpdatedAt(LocalDateTime.now());
-        appointmentMapper.updateById(target);
-
-        source.setAppointmentStatus("cancelled");
-        source.setUpdatedAt(LocalDateTime.now());
-        appointmentMapper.updateById(source);
-    }
-
-    @Override
-    @Transactional
-    public void acknowledgeCancelledAppointment(Long appointmentId, Long patientId) {
-        Appointment appointment = appointmentMapper.selectById(appointmentId);
-        if (appointment == null) {
-            throw new RuntimeException("预约不存在");
-        }
-        if (!appointment.getPatientId().equals(patientId)) {
-            throw new RuntimeException("无权操作该预约");
-        }
-        if (!"waiting_patient_action".equals(appointment.getAppointmentStatus())) {
-            throw new RuntimeException("该预约无需确认");
-        }
-
-        appointment.setAppointmentStatus("cancelled");
-        appointment.setUpdatedAt(LocalDateTime.now());
-        appointmentMapper.updateById(appointment);
-    }
-
-    @Override
-    @Transactional
-    public void rejectReassignedAppointment(Long targetAppointmentId, Long patientId) {
-        Appointment target = appointmentMapper.selectById(targetAppointmentId);
-        if (target == null) {
-            throw new RuntimeException("新预约不存在");
-        }
-        if (!target.getPatientId().equals(patientId)) {
-            throw new RuntimeException("无权操作该预约");
-        }
-        if (!"pending_patient_confirm".equals(target.getAppointmentStatus())) {
-            throw new RuntimeException("该预约不在待确认状态");
-        }
-
-        target.setNotes("系统自动调剂预约已拒绝");
-        target.setAppointmentStatus("cancelled");
-        target.setUpdatedAt(LocalDateTime.now());
-        appointmentMapper.updateById(target);
     }
 
 }

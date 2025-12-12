@@ -2,6 +2,7 @@ package org.example.backend.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.example.backend.dto.*;
 import org.example.backend.pojo.Appointment;
 import org.example.backend.pojo.Doctor;
@@ -15,7 +16,10 @@ import org.springframework.web.bind.annotation.*;
 import org.example.backend.dto.AppointmentInfoDTO;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
+
+import static com.baomidou.mybatisplus.extension.ddl.DdlScriptErrorHandler.PrintlnLogErrorHandler.log;
 
 /**
  * 患者端预约控制器
@@ -48,7 +52,8 @@ public class PatientAppointmentController {
     public Result<Appointment> createAppointment(
             @RequestBody AppointmentCreateParam param,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenParam) {
+            @RequestParam(value = "token", required = false) String tokenParam
+    ) {
         try {
             // 提取 token
             String token = tokenUtil.extractToken(authHeader, tokenParam);
@@ -66,7 +71,8 @@ public class PatientAppointmentController {
             if (param.getPatientId() == null) {
                 Patient patient = patientService.getOne(
                         new QueryWrapper<Patient>().lambda()
-                                .eq(Patient::getUserId, userId));
+                                .eq(Patient::getUserId, userId)
+                );
                 if (patient == null) {
                     return Result.error("患者信息不存在");
                 }
@@ -91,10 +97,10 @@ public class PatientAppointmentController {
     }
 
     /**
-     * 取消预约(用户主动取消）
+     * 取消预约
      *
      * @param appointmentId 预约ID
-     * @param cancelReason  取消原因（可选）
+     * @param cancelReason 取消原因（可选）
      * @return 取消结果
      */
     @PutMapping("/cancel")
@@ -102,7 +108,8 @@ public class PatientAppointmentController {
             @RequestParam Long appointmentId,
             @RequestParam(required = false) String cancelReason,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenParam) {
+            @RequestParam(value = "token", required = false) String tokenParam
+    ) {
         try {
             // 提取 token
             String token = tokenUtil.extractToken(authHeader, tokenParam);
@@ -119,7 +126,8 @@ public class PatientAppointmentController {
             // 根据 userId 查 patientId
             Patient patient = patientService.getOne(
                     new QueryWrapper<Patient>().lambda()
-                            .eq(Patient::getUserId, userId));
+                            .eq(Patient::getUserId, userId)
+            );
             if (patient == null) {
                 return Result.error("患者信息不存在");
             }
@@ -146,7 +154,7 @@ public class PatientAppointmentController {
             }
 
             // 执行取消
-            boolean success = appointmentService.cancelAppointment(appointmentId, patientId,1);
+            boolean success = appointmentService.cancelAppointment(appointmentId, patientId);
 
             if (success) {
                 return Result.success("预约取消成功");
@@ -159,13 +167,15 @@ public class PatientAppointmentController {
         }
     }
 
+
     /**
      * 获取当前患者的所有预约
      */
     @GetMapping("/list")
     public Result<List<AppointmentInfoDTO>> getAppointmentsByPatient(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenParam) {
+            @RequestParam(value = "token", required = false) String tokenParam
+    ) {
         try {
             // 提取 token
             String token = tokenUtil.extractToken(authHeader, tokenParam);
@@ -182,7 +192,8 @@ public class PatientAppointmentController {
             // 根据 userId 查 patientId
             Patient patient = patientService.getOne(
                     new QueryWrapper<Patient>().lambda()
-                            .eq(Patient::getUserId, userId));
+                            .eq(Patient::getUserId, userId)
+            );
             if (patient == null) {
                 return Result.error("患者信息不存在");
             }
@@ -199,111 +210,13 @@ public class PatientAppointmentController {
         }
     }
 
-    /**
-     * 患者确认系统自动分配的替代预约
-     */
-    @PutMapping("/confirm-reassign")
-    public Result<String> confirmReassign(
-            @RequestParam Long appointmentId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenParam) {
-        try {
-            String token = tokenUtil.extractToken(authHeader, tokenParam);
-            if (token == null) {
-                return Result.error("未提供 token");
-            }
-            Long userId = tokenUtil.resolveUserIdFromToken(token);
-            if (userId == null) {
-                return Result.error("token 无效或已过期");
-            }
-            Patient patient = patientService.getOne(
-                    new QueryWrapper<Patient>().lambda()
-                            .eq(Patient::getUserId, userId));
-            if (patient == null) {
-                return Result.error("患者信息不存在");
-            }
-
-            appointmentService.confirmReassignedAppointment(appointmentId, patient.getPatientId());
-            return Result.success("已确认新的预约");
-        } catch (RuntimeException e) {
-            return Result.error(e.getMessage());
-        } catch (Exception e) {
-            return Result.error("系统错误：" + e.getMessage());
-        }
-    }
-
-    /**
-     * 患者确认知晓无替代排班的取消
-     */
-    @PutMapping("/acknowledge-cancel")
-    public Result<String> acknowledgeCancel(
-            @RequestParam Long appointmentId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenParam) {
-        try {
-            String token = tokenUtil.extractToken(authHeader, tokenParam);
-            if (token == null) {
-                return Result.error("未提供 token");
-            }
-            Long userId = tokenUtil.resolveUserIdFromToken(token);
-            if (userId == null) {
-                return Result.error("token 无效或已过期");
-            }
-            Patient patient = patientService.getOne(
-                    new QueryWrapper<Patient>().lambda()
-                            .eq(Patient::getUserId, userId));
-            if (patient == null) {
-                return Result.error("患者信息不存在");
-            }
-
-            appointmentService.acknowledgeCancelledAppointment(appointmentId, patient.getPatientId());
-            return Result.success("已知晓该预约取消");
-        } catch (RuntimeException e) {
-            return Result.error(e.getMessage());
-        } catch (Exception e) {
-            return Result.error("系统错误：" + e.getMessage());
-        }
-    }
-
-    /**
-     * 患者拒绝系统自动改期的新预约
-     */
-    @PutMapping("/reject-reassign")
-    public Result<String> rejectReassign(
-            @RequestParam Long appointmentId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenParam) {
-        try {
-            String token = tokenUtil.extractToken(authHeader, tokenParam);
-            if (token == null) {
-                return Result.error("未提供 token");
-            }
-            Long userId = tokenUtil.resolveUserIdFromToken(token);
-            if (userId == null) {
-                return Result.error("token 无效或已过期");
-            }
-            Patient patient = patientService.getOne(
-                    new QueryWrapper<Patient>().lambda()
-                            .eq(Patient::getUserId, userId));
-            if (patient == null) {
-                return Result.error("患者信息不存在");
-            }
-
-            appointmentService.rejectReassignedAppointment(appointmentId, patient.getPatientId());
-            return Result.success("已拒绝改期");
-        } catch (RuntimeException e) {
-            return Result.error(e.getMessage());
-        } catch (Exception e) {
-            return Result.error("系统错误：" + e.getMessage());
-        }
-    }
 
     /**
      * 根据日期查询当前患者当天预约
      */
     @GetMapping("/list/{patientId}/date")
     public Result<List<Appointment>> getAppointmentsByDate(@PathVariable Long patientId,
-            @RequestParam LocalDate date) {
+                                        @RequestParam LocalDate date) {
         List<Appointment> list = appointmentService.getAppointmentsByPatientIdAndDate(patientId, date);
         return Result.success(list);
     }
@@ -312,11 +225,11 @@ public class PatientAppointmentController {
      * 查询可预约的号源（根据排班）
      * 支持按科室、医生、日期范围筛选
      *
-     * @param deptId    科室ID（可选）
-     * @param doctorId  医生ID（可选）
+     * @param deptId 科室ID（可选）
+     * @param doctorId 医生ID（可选）
      * @param startDate 开始日期（可选，默认当天）
-     * @param endDate   结束日期（可选，默认7天后）
-     * @param timeSlot  时间段（可选：0-上午，1-下午，2-晚上）
+     * @param endDate 结束日期（可选，默认7天后）
+     * @param timeSlot 时间段（可选：0-上午，1-下午，2-晚上）
      * @return 可预约的排班列表
      */
     @GetMapping("/available-schedules")
@@ -366,7 +279,7 @@ public class PatientAppointmentController {
      * 常用于患者选择具体就诊日期
      *
      * @param deptId 科室ID
-     * @param date   就诊日期
+     * @param date 就诊日期
      * @return 当天该科室所有可预约的排班
      */
     @GetMapping("/available-schedules/dept/{deptId}")
@@ -413,9 +326,9 @@ public class PatientAppointmentController {
      * 查询指定医生的可预约号源
      * 常用于患者选择指定医生
      *
-     * @param doctorId  医生ID
+     * @param doctorId 医生ID
      * @param startDate 开始日期（可选，默认当天）
-     * @param endDate   结束日期（可选，默认14天后）
+     * @param endDate 结束日期（可选，默认14天后）
      * @return 该医生的可预约排班列表
      */
     @GetMapping("/available-schedules/doctor/{doctorId}")
@@ -513,7 +426,8 @@ public class PatientAppointmentController {
             // 根据 userId 查 patientId
             Patient patient = patientService.getOne(
                     new QueryWrapper<Patient>().lambda()
-                            .eq(Patient::getUserId, userId));
+                            .eq(Patient::getUserId, userId)
+            );
             if (patient == null) {
                 return Result.error("患者信息不存在");
             }
@@ -543,11 +457,12 @@ public class PatientAppointmentController {
         }
     }
 
+
     /**
      * 验证预约是否可以修改
      *
      * @param appointmentId 预约ID
-     * @param patientId     患者ID
+     * @param patientId 患者ID
      * @return 是否可修改
      */
     @GetMapping("/can-update")
@@ -562,7 +477,7 @@ public class PatientAppointmentController {
      * 获取预约详情（用于修改前查看）
      *
      * @param appointmentId 预约ID
-     * @param patientId     患者ID（用于权限验证）
+     * @param patientId 患者ID（用于权限验证）
      * @return 预约详细信息
      */
     @GetMapping("/detail")
@@ -586,8 +501,8 @@ public class PatientAppointmentController {
      * 修改预约备注
      *
      * @param appointmentId 预约ID
-     * @param patientId     患者ID
-     * @param notes         备注内容
+     * @param patientId 患者ID
+     * @param notes 备注内容
      * @return 修改结果
      */
     @PutMapping("/update-notes")
@@ -608,5 +523,6 @@ public class PatientAppointmentController {
             return Result.error(e.getMessage());
         }
     }
+
 
 }

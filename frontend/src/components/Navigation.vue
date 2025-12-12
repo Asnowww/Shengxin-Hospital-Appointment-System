@@ -18,7 +18,7 @@
       </router-link>
 
       <router-link
-    v-if="isLoggedIn && currentRole === 'patient'|| isLoggedIn && currentRole === 'doctor'"
+    v-if="isLoggedIn"
     :to="ChatPath"
     class="nav-item"
     :class="{ active: isActive(ChatPath) }">
@@ -138,7 +138,7 @@ const isLoggedIn = computed(() => !!token.value && !!currentRole.value)
 const roleRoutes = {
   patient: '/patient/profile',
   doctor: '/doctor/profile',
-  admin: '/admin/profile'
+  admin: '/admin/profhatile'
 }
 
 const ChatPath = computed(() => {

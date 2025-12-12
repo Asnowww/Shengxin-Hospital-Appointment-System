@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.backend.dto.*;
 import org.example.backend.mapper.*;
 import org.example.backend.pojo.*;
-import org.example.backend.service.AppointmentService;
 import org.example.backend.service.DoctorLeaveService;
 import org.example.backend.service.NotificationEmailService;
 import org.example.backend.service.ScheduleService;
@@ -17,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -44,94 +43,53 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
     private UserMapper userMapper;
 
     @Autowired
-    private AppointmentRelationsMapper appointmentRelationsMapper;
-
-    @Autowired
     private AppointmentMapper appointmentMapper;
-
 
     @Autowired
     private ScheduleService scheduleService;
 
     @Resource
     private NotificationEmailService notificationEmailService;
-    @Resource
-    private AppointmentService appointmentService;
 
     @Override
     @Transactional
     public void applyLeave(LeaveApplyParam param) {
-        if (param.getScheduleIds() == null || param.getScheduleIds().isEmpty()) {
-            throw new RuntimeException("请选择至少一个需要请假的排班");
-        }
-
         Doctor doctor = doctorMapper.selectOne(
                 new LambdaQueryWrapper<Doctor>()
-                        .eq(Doctor::getUserId, param.getUserId()));
+                        .eq(Doctor::getUserId, param.getUserId())
+        );
+        Long doctorId = doctor.getDoctorId();
+        // 验证医生是否存在
         if (doctor == null) {
             throw new RuntimeException("医生不存在");
         }
-        Long doctorId = doctor.getDoctorId();
 
-        QueryWrapper<Schedule> scheduleQuery = new QueryWrapper<>();
-        scheduleQuery.in("schedule_id", param.getScheduleIds());
-        List<Schedule> targetSchedules = scheduleMapper.selectList(scheduleQuery);
-        if (targetSchedules.size() != param.getScheduleIds().size()) {
-            throw new RuntimeException("存在无效的排班记录，请刷新后重试");
+        // 验证日期
+        if (param.getFromDate().isAfter(param.getToDate())) {
+            throw new RuntimeException("开始日期不能晚于结束日期");
         }
 
-        LocalDate today = LocalDate.now();
-        for (Schedule schedule : targetSchedules) {
-            if (!doctorId.equals(schedule.getDoctorId())) {
-                throw new RuntimeException("排班不属于当前医生，无法申请请假");
-            }
-            if ("cancelled".equals(schedule.getStatus())) {
-                throw new RuntimeException("已取消的排班无需请假");
-            }
-            if (schedule.getWorkDate().isBefore(today)) {
-                throw new RuntimeException("不能对历史排班发起请假申请");
-            }
-        }
-
-        // 检查是否存在针对相同排班的待审批申请
+        // 检查是否有重叠的请假申请
         QueryWrapper<DoctorLeave> wrapper = new QueryWrapper<>();
         wrapper.eq("doctor_id", doctorId)
                 .eq("status", "pending")
-                .and(w -> {
-                    for (int i = 0; i < param.getScheduleIds().size(); i++) {
-                        Integer sid = param.getScheduleIds().get(i);
-                        if (i == 0) {
-                            w.apply("FIND_IN_SET({0}, schedule_ids)", sid);
-                        } else {
-                            w.or().apply("FIND_IN_SET({0}, schedule_ids)", sid);
-                        }
-                    }
-                });
+                .and(w -> w.between("from_date", param.getFromDate(), param.getToDate())
+                        .or()
+                        .between("to_date", param.getFromDate(), param.getToDate()));
 
         if (doctorLeaveMapper.selectCount(wrapper) > 0) {
-            throw new RuntimeException("所选排班中已有待审批的请假申请,请勿重复提交");
+            throw new RuntimeException("该时间段已有待审核的请假申请");
         }
 
-        LocalDate minDate = targetSchedules.stream()
-                .map(Schedule::getWorkDate)
-                .min(LocalDate::compareTo)
-                .orElse(today);
-        LocalDate maxDate = targetSchedules.stream()
-                .map(Schedule::getWorkDate)
-                .max(LocalDate::compareTo)
-                .orElse(today);
-
+        // 创建请假申请
         DoctorLeave leave = new DoctorLeave();
         leave.setDoctorId(doctorId);
-        leave.setFromDate(minDate);
-        leave.setToDate(maxDate);
+        leave.setFromDate(param.getFromDate());
+        leave.setToDate(param.getToDate());
         leave.setReason(param.getReason());
         leave.setStatus("pending");
         leave.setAppliedBy(doctorId);
         leave.setAppliedAt(LocalDateTime.now());
-        leave.setScheduleIds(param.getScheduleIds().stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(",")));
 
         doctorLeaveMapper.insert(leave);
     }
@@ -191,28 +149,21 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
         if ("approve".equals(param.getAction())) {
             leave.setStatus("approved");
 
-            List<Integer> leaveScheduleIds = leave.safeScheduleIds();
-            List<Schedule> affectedSchedules;
+            // 查询该时间段内该医生的所有排班
+            QueryWrapper<Schedule> wrapper = new QueryWrapper<>();
+            wrapper.eq("doctor_id", leave.getDoctorId())
+                    .between("work_date", leave.getFromDate(), leave.getToDate())
+                    .ne("status", "cancelled");
 
-            if (!leaveScheduleIds.isEmpty()) {
-                QueryWrapper<Schedule> q = new QueryWrapper<>();
-                q.in("schedule_id", leaveScheduleIds)
-                        .ne("status", "cancelled");
-                affectedSchedules = scheduleMapper.selectList(q);
-            } else {
-                // 兼容旧数据：按日期范围取消
-                QueryWrapper<Schedule> wrapper = new QueryWrapper<>();
-                wrapper.eq("doctor_id", leave.getDoctorId())
-                        .between("work_date", leave.getFromDate(), leave.getToDate())
-                        .ne("status", "cancelled");
-                affectedSchedules = scheduleMapper.selectList(wrapper);
-            }
+            List<Schedule> affectedSchedules = scheduleMapper.selectList(wrapper);
 
+            // 取消所有排班
             for (Schedule schedule : affectedSchedules) {
                 schedule.setStatus("cancelled");
                 schedule.setUpdatedAt(LocalDateTime.now());
                 scheduleMapper.updateById(schedule);
 
+                // 记录到 schedule_exceptions
                 ScheduleException exception = new ScheduleException();
                 exception.setScheduleId(schedule.getScheduleId());
                 exception.setDoctorId(schedule.getDoctorId());
@@ -224,6 +175,7 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
                 exception.setCreatedAt(LocalDateTime.now());
                 scheduleExceptionMapper.insert(exception);
 
+                // 将受影响患者迁移或通知
                 reassignAppointments(schedule, param.getReviewedBy(), exception.getExceptionId());
             }
 
@@ -263,8 +215,8 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
             Schedule newSchedule = new Schedule();
             newSchedule.setDoctorId(originalSchedule.getDoctorId());
             newSchedule.setDeptId(originalSchedule.getDeptId());
-            newSchedule.setRoomId(exception.getAdjustedRoomId() != null ? exception.getAdjustedRoomId()
-                    : originalSchedule.getRoomId());
+            newSchedule.setRoomId(exception.getAdjustedRoomId() != null ?
+                    exception.getAdjustedRoomId() : originalSchedule.getRoomId());
             newSchedule.setWorkDate(exception.getAdjustedDate());
             newSchedule.setTimeSlot(exception.getAdjustedTimeSlot());
             newSchedule.setAppointmentTypeId(originalSchedule.getAppointmentTypeId());
@@ -299,21 +251,21 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
     }
 
     /**
-     * 处理取消排班后的挂号迁移逻辑（保留旧预约 + 新建新预约）：
-     * 1. 有替代排班：原预约标记为 system_cancel，新建预约 pending_patient_confirm
-     * 2. 无替代排班：原预约 waiting_patient_action
-     * 3. 全流程通知患者
+     * 处理取消排班后的挂号迁移逻辑：
+     * 1. 若存在替代排班：自动迁移但需患者确认(pending_patient_confirm)
+     * 2. 若没有可替代排班：挂号标记为等待操作(waiting_patient_action)
+     * 3. 全流程发送通知提醒患者
      */
-    @Transactional(rollbackFor = Exception.class)
-    public void reassignAppointments(Schedule cancelledSchedule, Long operatorId, Long exceptionId) {
+    private void reassignAppointments(Schedule cancelledSchedule, Long operatorId, Long exceptionId) {
 
         List<Appointment> appointments = appointmentMapper.selectByScheduleId(cancelledSchedule.getScheduleId());
+
         if (appointments == null || appointments.isEmpty()) {
-            log.info("【排班取消】排班 {} 无挂号，无需处理", cancelledSchedule.getScheduleId());
+            log.info("【排班取消】排班 {} 无关联挂号，无需处理", cancelledSchedule.getScheduleId());
             return;
         }
 
-        for (Appointment oldApp : appointments) {
+        for (Appointment appointment : appointments) {
 
             Schedule alternative = findAlternativeSchedule(
                     cancelledSchedule.getDeptId(),
@@ -321,80 +273,47 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
                     cancelledSchedule.getTimeSlot()
             );
 
-            // 系统自动取消并退款
-            boolean cancelled = appointmentService.cancelAppointment(
-                    oldApp.getAppointmentId(),
-                    oldApp.getPatientId(),
-                    2
-            );
-
-            if (!cancelled) {
-                log.error("旧预约 {} 自动取消（含退款）失败", oldApp.getAppointmentId());
-                continue;
-            }
-
+            // ------------------- 情况 ① 有可替代排班 -------------------
             if (alternative != null && alternative.getAvailableSlots() != null && alternative.getAvailableSlots() > 0) {
 
+                // 占号
                 alternative.setAvailableSlots(alternative.getAvailableSlots() - 1);
                 scheduleMapper.updateById(alternative);
 
-                Appointment newApp = new Appointment();
-                newApp.setPatientId(oldApp.getPatientId());
-                newApp.setDeptId(oldApp.getDeptId());
-                newApp.setScheduleId(alternative.getScheduleId());
-                newApp.setRoomId(alternative.getRoomId());
-                newApp.setAppointmentTypeId(alternative.getAppointmentTypeId());
+                // 更新挂号信息进入“待患者确认”状态
+                appointment.setScheduleId(alternative.getScheduleId());
+                appointment.setAppointmentStatus("pending_patient_confirm");
+                appointment.setUpdatedAt(LocalDateTime.now());
+                appointmentMapper.updateById(appointment);
 
-                Integer maxQueue = appointmentMapper.getMaxQueueNumberByScheduleId(Long.valueOf(alternative.getScheduleId()));
-                newApp.setQueueNumber((maxQueue == null ? 0 : maxQueue) + 1);
-
-                newApp.setPaymentStatus("unpaid");
-                newApp.setAppointmentStatus("pending_patient_confirm");
-                newApp.setFeeOriginal(oldApp.getFeeOriginal());
-                newApp.setFeeFinal(oldApp.getFeeFinal());
-                newApp.setCreatedAt(LocalDateTime.now());
-
-                appointmentMapper.insert(newApp);
-
-                // 关联记录
-                AppointmentRelations rel = new AppointmentRelations();
-                rel.setSourceAppointmentId(oldApp.getAppointmentId());
-                rel.setTargetAppointmentId(newApp.getAppointmentId());
-                rel.setRelationType("AUTO_REASSIGN_REFUND");
-                rel.setRemark("排班取消，原预约已自动退款，新建待支付预约");
-                rel.setCreatedBy(operatorId);
-                rel.setCreatedAt(LocalDateTime.now());
-                appointmentRelationsMapper.insert(rel);
-
-                // 通知
+                // 调用邮件服务 → 不手写内容
                 notificationEmailService.sendAppointmentReassignNotification(
-                        oldApp.getPatientId(),
+                        appointment.getPatientId(),
                         cancelledSchedule.getScheduleId(),
                         alternative.getScheduleId(),
-                        "因医生排班调整，原预约已自动取消并退款；系统已生成新的预约，请在 30 分钟内完成支付。"
+                        "因医生排班调整已为您自动分配至替代排班，请确认。"
                 );
 
-                log.info("旧预约 {} 自动退款，新建预约 {}，替代排班 {}。",
-                        oldApp.getAppointmentId(),
-                        newApp.getAppointmentId(),
-                        alternative.getScheduleId());
+                log.info("已为挂号 {} 分配替代排班 {}，等待患者确认", appointment.getAppointmentId(), alternative.getScheduleId());
                 continue;
             }
 
-            // 无替代排班，仅退款
-            oldApp.setAppointmentStatus("waiting_patient_action");
-            oldApp.setUpdatedAt(LocalDateTime.now());
-            appointmentMapper.updateStatusOnly(oldApp);
+            // ------------------- 情况 ② 无替代排班 -------------------
+            appointment.setAppointmentStatus("waiting_patient_action");
+            appointment.setUpdatedAt(LocalDateTime.now());
+            appointmentMapper.updateById(appointment);
 
+            // 调用原邮件方法通知用户自己处理
             notificationEmailService.sendScheduleCancelledNotification(
-                    oldApp.getPatientId(),
+                    appointment.getPatientId(),
                     cancelledSchedule.getScheduleId(),
-                    "因医生排班取消，您的预约已自动取消并退款，当前无可替代排班，请重新选择其他排班挂号。"
+                    "当前暂无替补排班，请自行重新选择或者退号。"
             );
 
-            log.info("旧预约 {} 自动退款（无替代排班）。", oldApp.getAppointmentId());
+            log.info("挂号 {} 未找到替代排班，已通知患者手动处理", appointment.getAppointmentId());
         }
     }
+
 
 
     /**
@@ -449,7 +368,8 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
     public List<DoctorLeave> getDoctorLeaveHistory(Long userId) {
         Doctor doctor = doctorMapper.selectOne(
                 new LambdaQueryWrapper<Doctor>()
-                        .eq(Doctor::getUserId, userId));
+                        .eq(Doctor::getUserId, userId)
+        );
         Long doctorId = doctor.getDoctorId();
         QueryWrapper<DoctorLeave> wrapper = new QueryWrapper<>();
         wrapper.eq("doctor_id", doctorId)
@@ -463,13 +383,14 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
         DoctorLeaveVO vo = new DoctorLeaveVO();
         vo.setLeaveId(leave.getLeaveId());
         vo.setDoctorId(leave.getDoctorId());
+        vo.setFromDate(leave.getFromDate());
+        vo.setToDate(leave.getToDate());
         vo.setReason(leave.getReason());
         vo.setStatus(leave.getStatus());
         vo.setAppliedBy(leave.getAppliedBy());
         vo.setAppliedAt(leave.getAppliedAt());
         vo.setReviewedBy(leave.getReviewedBy());
         vo.setReviewedAt(leave.getReviewedAt());
-        vo.setScheduleIds(leave.getScheduleIds());
 
         // 关联查询医生信息
         Doctor doctor = doctorMapper.selectById(leave.getDoctorId());
@@ -485,53 +406,23 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
             }
         }
 
-        // ============================
-        // 新增：根据 schedule_ids 查询排班
-        // ============================
-        if (leave.getScheduleIds() != null && !leave.getScheduleIds().trim().isEmpty()) {
-            // 1. 字符串转 Long 列表
-            List<Long> ids = Arrays.stream(leave.getScheduleIds().split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .map(Long::valueOf)
-                    .collect(Collectors.toList());
+        // 统计受影响的排班和挂号
+        QueryWrapper<Schedule> scheduleWrapper = new QueryWrapper<>();
+        scheduleWrapper.eq("doctor_id", leave.getDoctorId())
+                .between("work_date", leave.getFromDate(), leave.getToDate());
+        vo.setAffectedScheduleCount(Math.toIntExact(scheduleMapper.selectCount(scheduleWrapper)));
 
-            if (!ids.isEmpty()) {
-                // 2. 批量查询 schedule 表
-                QueryWrapper<Schedule> scheduleQuery = new QueryWrapper<>();
-                scheduleQuery.in("schedule_id", ids);
-                List<Schedule> scheduleList = scheduleMapper.selectList(scheduleQuery);
-
-                // 3. 为 VO 组装前端用的数据结构
-                List<ScheduleInfoVO> infoList = scheduleList.stream().map(s -> {
-                    ScheduleInfoVO si = new ScheduleInfoVO();
-                    si.setScheduleId(s.getScheduleId());
-                    si.setDate(s.getWorkDate()); // 按你的表字段名
-                    si.setTimeSlot(s.getTimeSlot()); // 按你的表字段名
-                    return si;
-                }).collect(Collectors.toList());
-
-                vo.setScheduleInfos(infoList);
-
-                // 4. 顺便统计受影响排班数量
-                vo.setAffectedScheduleCount(infoList.size());
-
-                // 5. 统计受影响的挂号
-                int appointmentCount = 0;
-                for (Schedule s : scheduleList) {
-                    QueryWrapper<Appointment> appointmentWrapper = new QueryWrapper<>();
-                    appointmentWrapper.eq("schedule_id", s.getScheduleId())
-                            .in("appointment_status", "pending", "booked");
-                    appointmentCount += appointmentMapper.selectCount(appointmentWrapper);
-                }
-                vo.setAffectedAppointmentCount(appointmentCount);
-            }
-        } else {
-            vo.setAffectedScheduleCount(0);
-            vo.setAffectedAppointmentCount(0);
+        // 统计受影响的挂号数量
+        List<Schedule> affectedSchedules = scheduleMapper.selectList(scheduleWrapper);
+        int affectedAppointmentCount = 0;
+        for (Schedule schedule : affectedSchedules) {
+            QueryWrapper<Appointment> appointmentWrapper = new QueryWrapper<>();
+            appointmentWrapper.eq("schedule_id", schedule.getScheduleId())
+                    .in("appointment_status", "pending", "booked");
+            affectedAppointmentCount += Math.toIntExact(appointmentMapper.selectCount(appointmentWrapper));
         }
+        vo.setAffectedAppointmentCount(affectedAppointmentCount);
 
         return vo;
     }
-
 }
