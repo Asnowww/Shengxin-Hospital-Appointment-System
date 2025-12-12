@@ -52,6 +52,7 @@ public interface UserMapper extends BaseMapper<User> {
             email = COALESCE(#{email}, email),
             gender = COALESCE(#{gender}, gender),
             status = COALESCE(#{status}, status),
+            phone = COALESCE(#{phone},phone),
             update_time = #{updateTime}
         WHERE user_id = #{userId}
     """)
