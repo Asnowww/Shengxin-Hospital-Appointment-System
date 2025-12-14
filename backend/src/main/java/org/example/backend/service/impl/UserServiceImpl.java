@@ -105,4 +105,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         String encoded = passwordEncoder.encode(newPassword);
         return userMapper.updatePasswordByEmail(email, encoded) > 0;
     }
+
+    @Override
+    public String selectStatusByUserId(Long userId){
+        return userMapper.selectStatusByUserId(userId);
+    }
 }

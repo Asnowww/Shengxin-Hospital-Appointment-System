@@ -68,4 +68,7 @@ public interface UserMapper extends BaseMapper<User> {
     WHERE email = #{email}
 """)
     int updatePasswordByEmail(@Param("email") String email, @Param("newPassword") String newPassword);
+
+    @Select("SELECT status FROM users WHERE user_id = #{userId}")
+    String selectStatusByUserId(@Param("userId") Long userId);
 }
