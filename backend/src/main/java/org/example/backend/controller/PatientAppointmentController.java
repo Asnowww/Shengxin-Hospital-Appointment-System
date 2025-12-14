@@ -3,13 +3,11 @@ package org.example.backend.controller;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.*;
+import org.example.backend.mapper.UserMapper;
 import org.example.backend.pojo.Appointment;
 import org.example.backend.pojo.Doctor;
 import org.example.backend.pojo.Patient;
-import org.example.backend.service.AppointmentService;
-import org.example.backend.service.DoctorService;
-import org.example.backend.service.PatientService;
-import org.example.backend.service.ScheduleService;
+import org.example.backend.service.*;
 import org.example.backend.util.TokenUtil;
 import org.springframework.web.bind.annotation.*;
 import org.example.backend.dto.AppointmentInfoDTO;
@@ -34,6 +32,11 @@ public class PatientAppointmentController {
     @Resource
     private DoctorService doctorService;
 
+    @Resource
+    private UserService userService;
+
+    @Resource
+    private UserMapper userMapper;
     /**
      * 创建预约（患者挂号）
      *
@@ -59,7 +62,12 @@ public class PatientAppointmentController {
             // 解析 userId
             Long userId = tokenUtil.resolveUserIdFromToken(token);
             if (userId == null) {
-                return Result.error("token 无效或已过期");
+                return Result.error("当前登录已过期，请重新登录");
+            }
+
+            String status = userService.selectStatusByUserId(userId);
+            if (!"verified".equalsIgnoreCase(status)) {
+                return Result.error("用户未认证，请前去个人中心认证");
             }
 
             // 如果 param 中没有 patientId，则根据 userId 查询 patientId

@@ -10,6 +10,7 @@ import org.example.backend.pojo.Patient;
 import org.example.backend.pojo.Waitlist;
 import org.example.backend.service.PatientService;
 import org.example.backend.service.ScheduleService;
+import org.example.backend.service.UserService;
 import org.example.backend.service.WaitlistService;
 import org.example.backend.dto.Result;
 import org.example.backend.util.TokenUtil;
@@ -30,6 +31,9 @@ public class WaitlistController {
 
     @Resource
     private ScheduleService scheduleService;
+
+    @Resource
+    private UserService userService;
 
     @Resource
     private TokenUtil tokenUtil;
@@ -57,7 +61,12 @@ public class WaitlistController {
             // 解析 userId
             Long userId = tokenUtil.resolveUserIdFromToken(token);
             if (userId == null) {
-                return Result.error("token 无效或已过期");
+                return Result.error("");
+            }
+
+            String status = userService.selectStatusByUserId(userId);
+            if (!"verified".equalsIgnoreCase(status)) {
+                return Result.error("用户未认证，请前去个人中心认证");
             }
 
             // 如果 param 中没有 patientId，则根据 userId 查询 patientId
