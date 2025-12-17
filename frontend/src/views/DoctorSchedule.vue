@@ -645,8 +645,9 @@ async function fetchTodaySchedule() {
       fetchPatientSchedules(todayStr)
     ])
 
-    const candidate = [...patientSchedules].sort(sortByTimeSlot)[0]
-      || (scheduleList.length ? { ...scheduleList.sort(sortByTimeSlot)[0], patients: [] } : null)
+    const candidate =[...patientSchedules].sort(sortByTimeSlot).find(item => Array.isArray(item.patients) && item.patients.length > 0)
+  || [...patientSchedules].sort(sortByTimeSlot)[0]
+  || (scheduleList.length ? { ...scheduleList.sort(sortByTimeSlot)[0], patients: [] } : null)
 
     if (!candidate) {
       todaySchedule.value = { date: '', timeRange: '', patients: [], scheduleId: null }
