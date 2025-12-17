@@ -95,8 +95,8 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new RuntimeException("号别类型不存在");
         }
 
-        // 6. 生成排队号（当前已预约数 + 1）
-        int queueNumber = schedule.getMaxSlots() - schedule.getAvailableSlots() + 1;
+//        // 6. 生成排队号（当前已预约数 + 1）
+//        int queueNumber = schedule.getMaxSlots() - schedule.getAvailableSlots() + 1;
 
         // 7. 创建预约记录
         Appointment appointment = new Appointment();
@@ -105,7 +105,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setDeptId(schedule.getDeptId());
         appointment.setRoomId(schedule.getRoomId());
         appointment.setAppointmentTypeId(schedule.getAppointmentTypeId());
-        appointment.setQueueNumber(queueNumber);
+//        appointment.setQueueNumber(queueNumber);
+        appointment.setQueueNumber(0); // 占位，表示未进入排队，等支付成功后再排队
 
         // 设置费用
         appointment.setFeeOriginal(appointmentType.getFee());
@@ -139,10 +140,10 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new RuntimeException("预约创建失败");
         }
 
-        // 9. 减少排班可用号源
-        schedule.setAvailableSlots(schedule.getAvailableSlots() - 1);
-        schedule.setUpdatedAt(LocalDateTime.now());
-        scheduleMapper.updateById(schedule);
+//        // 9. 减少排班可用号源
+//        schedule.setAvailableSlots(schedule.getAvailableSlots() - 1);
+//        schedule.setUpdatedAt(LocalDateTime.now());
+//        scheduleMapper.updateById(schedule);
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
             @Override
