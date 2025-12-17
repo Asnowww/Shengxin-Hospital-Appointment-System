@@ -3,8 +3,10 @@ package org.example.backend.task;
 import jakarta.annotation.Resource;
 import org.example.backend.mapper.AppointmentMapper;
 import org.example.backend.mapper.ScheduleMapper;
+import org.example.backend.mapper.WaitlistMapper;
 import org.example.backend.pojo.Appointment;
 import org.example.backend.pojo.Schedule;
+import org.example.backend.pojo.Waitlist;
 import org.example.backend.service.NotificationEmailService;
 import org.example.backend.service.WaitlistService;
 import org.springframework.context.annotation.Lazy;
@@ -32,6 +34,10 @@ public class AppointmentScheduledTask {
     @Resource
     @Lazy
     private WaitlistService waitlistService;
+
+    @Resource
+    private WaitlistMapper waitlistMapper;
+
 
     @Resource
     private NotificationEmailService notificationEmailService;
@@ -133,4 +139,43 @@ public class AppointmentScheduledTask {
             e.printStackTrace();
         }
     }
+
+    /**
+     * 定时任务：每分钟执行一次
+     * 简洁版 - 只更新过期候补状态
+     */
+    @Scheduled(cron = "0 * * * * ?")
+    @Transactional
+    public void handleExpiredWaitlistSimple() {
+        System.out.println("执行过期候补检查...");
+
+        List<Waitlist> expiredWaitlists = waitlistMapper.selectExpiredWaitlistRecords();
+
+        if (expiredWaitlists.isEmpty()) {
+            System.out.println("没有过期候补");
+            return;
+        }
+
+        System.out.println("找到 " + expiredWaitlists.size() + " 个过期候补");
+
+        for (Waitlist waitlist : expiredWaitlists) {
+            if (!"waiting".equals(waitlist.getStatus())) {
+                continue; // 跳过非waiting状态的记录
+            }
+
+            try {
+                waitlist.setStatus("failed");
+                waitlistMapper.updateById(waitlist);
+                Schedule schedule = scheduleMapper.selectById(waitlist.getScheduleId());
+                notificationEmailService.sendWaitlistFailedNotification(waitlist.getPatientId(),
+                        schedule);
+                System.out.println("候补 " + waitlist.getWaitId() + " 已设为failed");
+            } catch (Exception e) {
+                System.err.println("候补 " + waitlist.getWaitId() + " 更新失败: " + e.getMessage());
+            }
+        }
+
+        System.out.println("处理完成");
+    }
 }
+

@@ -259,7 +259,7 @@ public class NotificationEmailService {
             if (user == null || user.getEmail() == null) return;
 
             Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
-            String subject = "【支付成功】您的预约已支付成功";
+            String subject = "【退款成功】您的预约已退款成功";
             String content = buildRefundSuccessEmail(appointment, schedule);
 
             sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
@@ -381,6 +381,25 @@ public class NotificationEmailService {
             sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
         } catch (Exception e) {
             log.error("发送候补转正邮件失败: patientId={}, appointmentId={}", patientId, appointmentId, e);
+        }
+    }
+    /**
+     * 发送候补失败通知
+     */
+    public void sendWaitlistFailedNotification(Long patientId, Schedule schedule) {
+        try {
+            Patient patient = patientMapper.selectById(patientId);
+            if (patient == null) return;
+
+            User user = userMapper.selectById(patient.getUserId());
+            if (user == null || user.getEmail() == null) return;
+
+            String subject = "【候补失败】您的预约候补失败";
+            String content = buildWaitlistFailedEmail(user.getName(), schedule);
+
+            sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
+        } catch (Exception e) {
+            log.error("发送候补失败邮件失败: patientId={}, appointmentId={}", patientId, e);
         }
     }
 
@@ -764,6 +783,9 @@ public class NotificationEmailService {
                 workDate, timeSlot, appointment.getQueueNumber());
     }
 
+    /*
+    叫号邮件模板
+     */
     private String buildAppointmentCallEmail(Appointment appointment, Schedule schedule) {
         String patientName = getPatientName(String.valueOf(appointment.getPatientId()));
         String doctorInfo = getDoctorInfo(schedule.getDoctorId());
@@ -859,6 +881,35 @@ public class NotificationEmailService {
                 </html>
                 """,
                 patientName, deptName, doctorInfo, workDate, timeSlot, queuePosition);
+    }
+
+    /*
+    候补失败邮件模板
+     */
+    private String  buildWaitlistFailedEmail(String patientName, Schedule schedule) {
+        String doctorInfo = getDoctorInfo(schedule.getDoctorId());
+        String deptName = getDeptName(schedule.getDeptId());
+        String workDate = schedule.getWorkDate().format(DATE_FORMATTER);
+        String timeSlot = getTimeSlotName(schedule.getTimeSlot());
+
+        return String.format("""
+            <html>
+            <body>
+                <div style="padding: 20px;">
+                    <h2 style="color: #f44336;">候补失败通知</h2>
+                    <p>尊敬的%s，您好：</p>
+                    <p>您申请的候补预约未能成功。</p>
+                    <div style="background: #f5f5f5; padding: 15px; margin: 15px 0;">
+                        <p><strong>科室：</strong>%s</p>
+                        <p><strong>医生：</strong>%s</p>
+                        <p><strong>时间：</strong>%s %s</p>
+                    </div>
+                    <p>该时间段没有号源释放，候补已结束。请重新预约其他时间。</p>
+                </div>
+            </body>
+            </html>
+            """,
+                patientName, deptName, doctorInfo, workDate, timeSlot);
     }
 
     /**

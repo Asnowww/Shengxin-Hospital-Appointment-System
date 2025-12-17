@@ -216,7 +216,7 @@ CREATE TABLE waitlist (
                           patient_id BIGINT NOT NULL,
                           requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                           priority INT DEFAULT 0 COMMENT '优先级：可基于报销级别/紧急程度/先到先得',
-                          status ENUM('waiting','notified','converted','cancelled') DEFAULT 'waiting' COMMENT '等待中,已通知可挂号,已转正式挂号,取消候补',
+                          status ENUM('waiting','failed','converted','cancelled') DEFAULT 'waiting' COMMENT '等待中,候补失败,已转正式挂号,取消候补',
                           notified_at DATETIME,
                           converted_appointment_id BIGINT COMMENT '对应正式挂号id',
                           FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE,
