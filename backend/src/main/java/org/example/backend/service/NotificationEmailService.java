@@ -315,7 +315,7 @@ public class NotificationEmailService {
     }
 
     /**
-     * 发送就诊提醒
+     * 发送叫号提醒
      */
     public void sendAppointmentCallNotification(Long appointmentId) {
         try {

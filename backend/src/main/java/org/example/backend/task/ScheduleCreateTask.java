@@ -69,7 +69,7 @@ public class ScheduleCreateTask {
     private static final Set<String> DAY_ONLY_PARENT_DEPTS = Set.of("妇产科", "医学检验科");
 
     // 每周五早上8点执行，创建下周的排班
-    @Scheduled(cron = "0 00 8 ? * Fri")
+    @Scheduled(cron = "0 00 8 * * Fri")
     @Transactional
     public void createSchedule() {
         System.out.println("=== 开始自动创建排班任务 ===");
@@ -147,8 +147,12 @@ public class ScheduleCreateTask {
 
         System.out.println("    科室拥有 " + rooms.size() + " 个诊室");
 
-        // 获取工作日
-        List<LocalDate> weekdays = getWeekdays(startDate, endDate);
+        // 获取工作日（周一到周日）
+        List<LocalDate> allDays = getWeekdays(startDate, endDate);
+        // 只有工作日才有专家号/特需号
+        List<LocalDate> weekdaysOnly = allDays.stream()
+                .filter(d -> d.getDayOfWeek() != DayOfWeek.SATURDAY && d.getDayOfWeek() != DayOfWeek.SUNDAY)
+                .collect(Collectors.toList());
 
         // 检查上周是否有专家号/特需号
         boolean lastWeekHadExpertOrSpecial = checkLastWeekHadExpertOrSpecial(deptId, startDate);
@@ -157,24 +161,27 @@ public class ScheduleCreateTask {
         boolean forceExpertSchedule = !expertDoctors.isEmpty() && !lastWeekHadExpertOrSpecial;
 
         // 选择专家号和特需号的日期
-        LocalDate expertDay = null;
+        Set<LocalDate> expertDays = new HashSet<>();
         LocalDate specialDay = null;
 
         if (!expertDoctors.isEmpty()) {
-            // 随机选一天：专家号（仅上午）
-            expertDay = randomSelectDays(weekdays, 1).get(0);
+            // 规则3：随机选择2天作为专家号日期
+            List<LocalDate> selectedExpertDays = randomSelectDays(weekdaysOnly, 2);
+            expertDays.addAll(selectedExpertDays);
 
-            // 如果有主任医师，再随机选一天作为特需号
+            // 如果有主任医师，再随机选1天作为特需号（不能和专家号重复）
             if (!chiefDoctors.isEmpty()) {
-                do {
-                    specialDay = randomSelectDays(weekdays, 1).get(0);
-                } while (specialDay.equals(expertDay));
+                List<LocalDate> remainingDays = weekdaysOnly.stream()
+                        .filter(d -> !expertDays.contains(d))
+                        .collect(Collectors.toList());
+                if (!remainingDays.isEmpty()) {
+                    specialDay = randomSelectDays(remainingDays, 1).get(0);
+                }
             } else if (forceExpertSchedule) {
-                // 如果没有主任医师但上周没有专家号/特需号，至少要有专家号
                 System.out.println("    本周强制安排专家号（上周无专家号/特需号）");
             }
 
-            System.out.println("    专家号上午日期: " + expertDay);
+            System.out.println("    专家号上午日期: " + expertDays);
             if (specialDay != null) {
                 System.out.println("    特需号上午日期: " + specialDay);
             }
@@ -189,84 +196,295 @@ public class ScheduleCreateTask {
         int roomIndex = 0;
 
         // 每个班次需要的医生数
-        int morningDoctorCount = getDoctorCountByDept(parentDeptName, deptName);
-        int afternoonDoctorCount = morningDoctorCount;
+        int daytimeDoctorCount = getDoctorCountByDept(parentDeptName, deptName);
         int eveningDoctorCount = hasEvening ? 1 : 0;
 
-        // 创建一周的排班
-        for (LocalDate date : weekdays) {
+        // 记录本周所有排班，用于最后的合理性检查
+        List<ScheduleRecord> weekSchedules = new ArrayList<>();
 
-            // -------- 上午排班 --------
-            Integer morningType;
-            List<Doctor> morningAvailableDoctors;
-            int morningDoctorCountForThisDay = morningDoctorCount;
+        // 创建一周的排班
+        for (LocalDate date : allDays) {
+            // *** 关键：记录当天已排班的医生（白天时段共享，晚上独立） ***
+            Set<Long> todayDaytimeDoctors = new HashSet<>();
 
             boolean isWeekend = (date.getDayOfWeek() == DayOfWeek.SATURDAY
                     || date.getDayOfWeek() == DayOfWeek.SUNDAY);
 
+            // -------- 上午排班 --------
             if (isWeekend) {
                 // 周末只有普通号
-                morningType = NORMAL_TYPE;
-                morningAvailableDoctors = allDoctors;
+                roomIndex = createTimeSlotSchedules(
+                        deptId, deptName, rooms, roomIndex, date,
+                        MORNING, NORMAL_TYPE, daytimeDoctorCount,
+                        allDoctors, doctorLastScheduleDate, todayDaytimeDoctors,
+                        weekSchedules
+                );
             } else if (specialDay != null && date.equals(specialDay)) {
-                // 特需号日期：上午同时有特需号和普通号
-                // 特需号只需要1个医生，其余医生看普通号
-                morningType = SPECIAL_TYPE;
-                morningAvailableDoctors = chiefDoctors.isEmpty()
-                        ? expertDoctors
-                        : chiefDoctors;
-                morningDoctorCountForThisDay = 1;  // 特需号只需要1个医生
-
-                // 安排完特需号后，立即安排普通号（使用剩余医生）
+                // 特需号日期：1个主任医师看特需号
                 roomIndex = createTimeSlotSchedules(
                         deptId, deptName, rooms, roomIndex, date,
-                        MORNING, NORMAL_TYPE, morningDoctorCount - 1,
-                        allDoctors, doctorLastScheduleDate
+                        MORNING, SPECIAL_TYPE, 1,
+                        chiefDoctors, doctorLastScheduleDate, todayDaytimeDoctors,
+                        weekSchedules
                 );
-            } else if (expertDay != null && date.equals(expertDay)) {
-                // 专家号日期：上午同时有专家号和普通号
-                morningType = EXPERT_TYPE;
-                morningAvailableDoctors = expertDoctors.isEmpty()
-                        ? allDoctors
-                        : expertDoctors;
-                morningDoctorCountForThisDay = 1;  // 专家号只需要1个医生
-
-                // 安排完专家号后，立即安排普通号（使用剩余医生）
+                // 如果需要多个医生，其余看普通号
+                if (daytimeDoctorCount > 1) {
+                    roomIndex = createTimeSlotSchedules(
+                            deptId, deptName, rooms, roomIndex, date,
+                            MORNING, NORMAL_TYPE, daytimeDoctorCount - 1,
+                            allDoctors, doctorLastScheduleDate, todayDaytimeDoctors,
+                            weekSchedules
+                    );
+                }
+            } else if (expertDays.contains(date)) {
+                // 专家号日期：1个专家级医生看专家号
                 roomIndex = createTimeSlotSchedules(
                         deptId, deptName, rooms, roomIndex, date,
-                        MORNING, NORMAL_TYPE, morningDoctorCount - 1,
-                        allDoctors, doctorLastScheduleDate
+                        MORNING, EXPERT_TYPE, 1,
+                        expertDoctors, doctorLastScheduleDate, todayDaytimeDoctors,
+                        weekSchedules
                 );
+                // 如果需要多个医生，其余看普通号
+                if (daytimeDoctorCount > 1) {
+                    roomIndex = createTimeSlotSchedules(
+                            deptId, deptName, rooms, roomIndex, date,
+                            MORNING, NORMAL_TYPE, daytimeDoctorCount - 1,
+                            allDoctors, doctorLastScheduleDate, todayDaytimeDoctors,
+                            weekSchedules
+                    );
+                }
             } else {
-                // 其他工作日正常
-                morningType = NORMAL_TYPE;
-                morningAvailableDoctors = allDoctors;
+                // 其他日期：全部普通号
+                roomIndex = createTimeSlotSchedules(
+                        deptId, deptName, rooms, roomIndex, date,
+                        MORNING, NORMAL_TYPE, daytimeDoctorCount,
+                        allDoctors, doctorLastScheduleDate, todayDaytimeDoctors,
+                        weekSchedules
+                );
             }
 
-            // 安排主要班次（专家号/特需号/普通号）
+            // -------- 下午排班：使用与上午不同的医生 --------
             roomIndex = createTimeSlotSchedules(
                     deptId, deptName, rooms, roomIndex, date,
-                    MORNING, morningType, morningDoctorCountForThisDay,
-                    morningAvailableDoctors, doctorLastScheduleDate
+                    AFTERNOON, NORMAL_TYPE, daytimeDoctorCount,
+                    allDoctors, doctorLastScheduleDate, todayDaytimeDoctors,
+                    weekSchedules
             );
 
-            // -------- 下午排班：永远普通号 --------
-            roomIndex = createTimeSlotSchedules(
-                    deptId, deptName, rooms, roomIndex, date,
-                    AFTERNOON, NORMAL_TYPE, afternoonDoctorCount,
-                    allDoctors, doctorLastScheduleDate
-            );
-
-            // -------- 晚上（如有）：永远普通号 --------
+            // -------- 晚上（如有）：可以使用任何医生，包括白天已排班的 --------
             if (hasEvening) {
+                // 晚上独立排班，不受白天限制
+                Set<Long> eveningDoctors = new HashSet<>();
                 roomIndex = createTimeSlotSchedules(
                         deptId, deptName, rooms, roomIndex, date,
                         EVENING, NORMAL_TYPE, eveningDoctorCount,
-                        allDoctors, doctorLastScheduleDate
+                        allDoctors, doctorLastScheduleDate, eveningDoctors,
+                        weekSchedules
                 );
             }
         }
+
+        // *** 排班完成后进行合理性检查 ***
+        validateSchedules(deptName, weekSchedules, allDoctors);
     }
+
+    /**
+     * 排班记录类（用于验证）
+     */
+    private static class ScheduleRecord {
+        Long doctorId;
+        LocalDate date;
+        Integer timeSlot;
+        Integer appointmentTypeId;
+
+        public ScheduleRecord(Long doctorId,LocalDate date,
+                              Integer timeSlot, Integer appointmentTypeId) {
+            this.doctorId = doctorId;
+            this.date = date;
+            this.timeSlot = timeSlot;
+            this.appointmentTypeId = appointmentTypeId;
+        }
+    }
+
+    /**
+     * 验证排班合理性
+     */
+    private void validateSchedules(String deptName, List<ScheduleRecord> schedules, List<Doctor> allDoctors) {
+        System.out.println("  >> 开始验证 " + deptName + " 排班合理性...");
+
+        boolean hasError = false;
+
+        // 检查1：同一医生同一天同一时段是否有重复排班
+        Map<String, List<ScheduleRecord>> sameSlotGroup = schedules.stream()
+                .collect(Collectors.groupingBy(s ->
+                        s.doctorId + "_" + s.date + "_" + s.timeSlot));
+
+        for (Map.Entry<String, List<ScheduleRecord>> entry : sameSlotGroup.entrySet()) {
+            if (entry.getValue().size() > 1) {
+                ScheduleRecord first = entry.getValue().get(0);
+                System.err.println("错误：医生ID " + first.doctorId +
+                        " 在 " + first.date + " " + getTimeSlotName(first.timeSlot) +
+                        " 重复排班 " + entry.getValue().size() + " 次");
+                hasError = true;
+            }
+        }
+
+        // 检查2：同一医生白天（上午+下午）是否有重复排班
+        Map<String, List<ScheduleRecord>> sameDayGroup = schedules.stream()
+                .filter(s -> s.timeSlot != EVENING) // 只检查白天时段
+                .collect(Collectors.groupingBy(s -> s.doctorId + "_" + s.date));
+
+        for (Map.Entry<String, List<ScheduleRecord>> entry : sameDayGroup.entrySet()) {
+            if (entry.getValue().size() > 1) {
+                ScheduleRecord first = entry.getValue().get(0);
+                System.err.println("错误：医生ID " + first.doctorId +
+                        " 在 " + first.date + " 白天排班 " + entry.getValue().size() +
+                        " 次（应该只排一个时段）");
+                hasError = true;
+            }
+        }
+
+        // 检查3：同一医生是否在3天内连续值班
+        Map<Long, List<ScheduleRecord>> byDoctor = schedules.stream()
+                .collect(Collectors.groupingBy(s -> s.doctorId));
+
+        for (Map.Entry<Long, List<ScheduleRecord>> entry : byDoctor.entrySet()) {
+            List<LocalDate> dates = entry.getValue().stream()
+                    .map(s -> s.date)
+                    .distinct()
+                    .sorted()
+                    .collect(Collectors.toList());
+
+            for (int i = 0; i < dates.size() - 1; i++) {
+                long daysBetween = dates.get(i + 1).toEpochDay() - dates.get(i).toEpochDay();
+                if (daysBetween < 3) {
+                    System.err.println("警告：医生ID " + entry.getKey() +
+                            " 在 " + dates.get(i) + " 和 " + dates.get(i + 1) +
+                            " 之间仅间隔 " + daysBetween + " 天（建议至少3天）");
+                }
+            }
+        }
+
+        // 检查4：统计排班数量
+        System.out.println("本周共创建 " + schedules.size() + " 个排班");
+        System.out.println("涉及 " + byDoctor.size() + " 位医生");
+
+        if (!hasError) {
+            System.out.println("✓ 排班验证通过，无严重错误");
+        } else {
+            System.err.println("✗ 排班验证失败，发现错误");
+        }
+    }
+
+    /**
+     * 为特定时间段创建排班（支持多诊室）
+     * 返回下一个要使用的诊室索引
+     *
+     * @param todayScheduledDoctors 当天已排班的医生集合（用于防止重复）
+     */
+    private int createTimeSlotSchedules(Integer deptId, String deptName,
+                                        List<ConsultationRoom> rooms, int startRoomIndex,
+                                        LocalDate date, Integer timeSlot, Integer appointmentTypeId,
+                                        int doctorCount, List<Doctor> availableDoctors,
+                                        Map<Long, LocalDate> doctorLastScheduleDate,
+                                        Set<Long> todayScheduledDoctors,
+                                        List<ScheduleRecord> weekSchedules) {
+
+        // 过滤出可用医生
+        List<Doctor> eligibleDoctors = availableDoctors.stream()
+                .filter(doctor -> {
+                    // 检查1：三天内未值班
+                    if (!canScheduleDoctor(doctor, date, doctorLastScheduleDate)) {
+                        return false;
+                    }
+                    // 检查2：当天白天时段未排班（晚上除外）
+                    if (timeSlot != EVENING && todayScheduledDoctors.contains(doctor.getDoctorId())) {
+                        return false;
+                    }
+                    return true;
+                })
+                .collect(Collectors.toList());
+
+        if (eligibleDoctors.size() < doctorCount) {
+            // 如果符合规则的医生不够，放宽到只检查当天未排班
+            eligibleDoctors = availableDoctors.stream()
+                    .filter(doctor -> {
+                        if (timeSlot != EVENING && todayScheduledDoctors.contains(doctor.getDoctorId())) {
+                            return false;
+                        }
+                        return true;
+                    })
+                    .collect(Collectors.toList());
+
+            if (eligibleDoctors.size() < doctorCount) {
+                System.out.println("    警告: " + deptName + " " + date + " " + getTimeSlotName(timeSlot) +
+                        " 可用医生不足 (需要" + doctorCount + "个，实际" + eligibleDoctors.size() + "个)");
+                doctorCount = eligibleDoctors.size(); // 降级处理
+            }
+        }
+
+        // 随机选择医生
+        Collections.shuffle(eligibleDoctors);
+        List<Doctor> selectedDoctors = eligibleDoctors.stream()
+                .limit(doctorCount)
+                .collect(Collectors.toList());
+
+        // 当前诊室索引
+        int currentRoomIndex = startRoomIndex % rooms.size();
+
+        // 为每个医生创建排班，使用不同的诊室
+        for (Doctor doctor : selectedDoctors) {
+            // 获取当前诊室
+            ConsultationRoom room = rooms.get(currentRoomIndex);
+
+            // 检查是否已存在排班（防止同一医生同一时段重复排班）
+            QueryWrapper<Schedule> checkWrapper = new QueryWrapper<>();
+            checkWrapper.eq("doctor_id", doctor.getDoctorId())
+                    .eq("work_date", date)
+                    .eq("time_slot", timeSlot);
+            Long existCount = scheduleMapper.selectCount(checkWrapper);
+
+            if (existCount != null && existCount > 0) {
+                // 已有排班，跳过
+                System.out.println("    跳过：医生 " + doctor.getDoctorId() + " 在 " + date +
+                        " " + getTimeSlotName(timeSlot) + " 已有排班");
+                currentRoomIndex = (currentRoomIndex + 1) % rooms.size();
+                continue;
+            }
+
+            ScheduleCreateParam param = new ScheduleCreateParam();
+            param.setDoctorId(doctor.getDoctorId());
+            param.setDeptId(deptId);
+            param.setRoomId(room.getRoomId());
+            param.setDate(date);
+            param.setTimeSlots(Collections.singletonList(timeSlot));
+            param.setAppointmentTypeId(appointmentTypeId);
+            param.setMaxSlots(getMaxSlotsByType(appointmentTypeId));
+
+            scheduleService.createSchedules(param);
+
+            // 更新医生最后值班日期
+            doctorLastScheduleDate.put(doctor.getDoctorId(), date);
+
+            // *** 关键修改：记录到当天已排班集合 ***
+            todayScheduledDoctors.add(doctor.getDoctorId());
+
+            // 记录到周排班列表（用于验证）
+            weekSchedules.add(new ScheduleRecord(
+                    doctor.getDoctorId(),
+                    date,
+                    timeSlot,
+                    appointmentTypeId
+            ));
+
+            // 移动到下一个诊室
+            currentRoomIndex = (currentRoomIndex + 1) % rooms.size();
+        }
+
+        // 返回下一个要使用的诊室索引
+        return currentRoomIndex;
+    }
+
 
     /**
      * 检查上周是否有专家号或特需号
@@ -304,73 +522,6 @@ public class ScheduleCreateTask {
         }
         // 默认1人
         return 1;
-    }
-
-    /**
-     * 为特定时间段创建排班（支持多诊室）
-     * 返回下一个要使用的诊室索引
-     */
-    private int createTimeSlotSchedules(Integer deptId, String deptName,
-                                        List<ConsultationRoom> rooms, int startRoomIndex,
-                                        LocalDate date, Integer timeSlot, Integer appointmentTypeId,
-                                        int doctorCount, List<Doctor> availableDoctors,
-                                        Map<Long, LocalDate> doctorLastScheduleDate) {
-        // 过滤出可用医生（三天内未值班）
-        List<Doctor> eligibleDoctors = availableDoctors.stream()
-                .filter(doctor -> canScheduleDoctor(doctor, date, doctorLastScheduleDate))
-                .collect(Collectors.toList());
-
-        if (eligibleDoctors.size() < doctorCount) {
-            // 如果符合三天规则的医生不够，放宽到所有可用医生
-            eligibleDoctors = new ArrayList<>(availableDoctors);
-            if (eligibleDoctors.size() < doctorCount) {
-                System.out.println("    警告: " + deptName + " " + date + " " + getTimeSlotName(timeSlot) +
-                        " 医生总数不足 (需要" + doctorCount + "个，实际" + eligibleDoctors.size() + "个)");
-            }
-        }
-
-        // 随机选择医生
-        Collections.shuffle(eligibleDoctors);
-        List<Doctor> selectedDoctors = eligibleDoctors.stream()
-                .limit(doctorCount)
-                .collect(Collectors.toList());
-
-        // 当前诊室索引
-        int currentRoomIndex = startRoomIndex % rooms.size();
-
-        // 为每个医生创建排班，使用不同的诊室
-        for (Doctor doctor : selectedDoctors) {
-            try {
-                // 获取当前诊室
-                ConsultationRoom room = rooms.get(currentRoomIndex);
-
-                ScheduleCreateParam param = new ScheduleCreateParam();
-                param.setDoctorId(doctor.getDoctorId());
-                param.setDeptId(deptId);
-                param.setRoomId(room.getRoomId());
-                param.setDate(date);
-                param.setTimeSlots(Collections.singletonList(timeSlot));
-                param.setAppointmentTypeId(appointmentTypeId);
-                param.setMaxSlots(getMaxSlotsByType(appointmentTypeId));
-
-                scheduleService.createSchedules(param);
-
-                // 更新医生最后值班日期
-                doctorLastScheduleDate.put(doctor.getDoctorId(), date);
-
-                // 移动到下一个诊室
-                currentRoomIndex = (currentRoomIndex + 1) % rooms.size();
-
-            } catch (Exception e) {
-                // 如果是重复排班错误，不打印（正常情况）
-                if (!e.getMessage().contains("已有排班")) {
-                    System.err.println("    创建排班失败: " + e.getMessage());
-                }
-            }
-        }
-
-        // 返回下一个要使用的诊室索引
-        return currentRoomIndex;
     }
 
     /**

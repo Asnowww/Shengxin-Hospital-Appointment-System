@@ -612,7 +612,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
             @Override
             public void afterCommit() {
-                notificationEmailService.sendNoShowNotification(appointment.getAppointmentId());
+                notificationEmailService.sendAppointmentCallNotification(appointment.getAppointmentId());
             }
         });
 
