@@ -3,11 +3,7 @@ package org.example.backend.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.*;
-import org.example.backend.mapper.AppointmentMapper;
-import org.example.backend.mapper.AppointmentRelationsMapper;
-import org.example.backend.mapper.AppointmentTypeMapper;
-import org.example.backend.mapper.PatientMapper;
-import org.example.backend.mapper.ScheduleMapper;
+import org.example.backend.mapper.*;
 import org.example.backend.pojo.*;
 import org.example.backend.service.AppointmentService;
 import org.example.backend.service.NotificationEmailService;
@@ -41,6 +37,9 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Resource
     private AppointmentTypeMapper appointmentTypeMapper;
+
+    @Resource
+    private NotificationMapper notificationMapper;
 
     @Resource
     @Lazy
@@ -145,15 +144,35 @@ public class AppointmentServiceImpl implements AppointmentService {
 //        schedule.setUpdatedAt(LocalDateTime.now());
 //        scheduleMapper.updateById(schedule);
 
+        Long appointmentId = appointment.getAppointmentId();
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
             @Override
             public void afterCommit() {
-                CompletableFuture.runAsync(() -> notificationEmailService
-                        .sendAppointmentCreatedNotification(appointment.getAppointmentId()));
+                CompletableFuture.runAsync(() -> {
+                    // 检查是否已发送过预约成功通知
+                    if (!hasWaitlistConversionNotification(appointmentId)) {
+                        notificationEmailService.sendAppointmentCreatedNotification(appointmentId);
+                    } else {
+                        System.out.println("预约 " + appointmentId + " 的创建通知已存在，跳过发送");
+                    }
+                });
             }
         });
 
         return appointment;
+    }
+
+    /**
+     * 检查是否已发送过预约转正通知
+     * @param appointmentId 预约ID
+     * @return true表示已发送过，false表示未发送
+     */
+    private boolean hasWaitlistConversionNotification(Long appointmentId) {
+        QueryWrapper<Notification> wrapper = new QueryWrapper<>();
+        wrapper.eq("appointment_id", appointmentId)
+                .eq("subject", "【候补转正】您的候补预约已成功转为正式预约");
+        Long count = notificationMapper.selectCount(wrapper);
+        return count != null && count > 0;
     }
 
     @Override
