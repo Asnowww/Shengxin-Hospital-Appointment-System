@@ -158,6 +158,17 @@
                   显示第 {{ ((pagination.pageNum - 1) * pagination.pageSize) + 1 }} - {{ Math.min(pagination.pageNum * pagination.pageSize, pagination.total) }} 条，共 {{ pagination.total }} 条
               </div>
               <div class="pagination-buttons">
+                  <div class="jump-container">
+                    <span>跳至</span>
+                    <input 
+                      v-model="jumpPage" 
+                      type="text" 
+                      class="jump-input" 
+                      @keyup.enter="jumpToPage"
+                    />
+                    <span>页</span>
+                    <button class="jump-btn" @click="jumpToPage">确定</button>
+                  </div>
                   <button 
                       :disabled="pagination.pageNum === 1" 
                       @click="handlePageChange(pagination.pageNum - 1)" 
@@ -217,6 +228,7 @@ const pagination = reactive({
   total: 0, // 总记录数
   totalPages: 0, // 总页数
 })
+const jumpPage = ref('')
 
 // 编辑相关状态
 const showEditModal = ref(false)
@@ -342,6 +354,16 @@ function handlePageChange(newPage) {
     window.scrollTo({ top: 0, behavior: 'smooth' })
     pagination.pageNum = newPage
     fetchDoctors()
+  }
+}
+
+function jumpToPage() {
+  const page = parseInt(jumpPage.value)
+  if (!isNaN(page) && page > 0 && page <= pagination.totalPages) {
+    handlePageChange(page)
+    jumpPage.value = ''
+  } else {
+    alert(`请输入 1 到 ${pagination.totalPages} 之间的有效页码`)
   }
 }
 
@@ -1003,4 +1025,9 @@ onUnmounted(() => {
     padding: 1.5rem;
   }
 }
+.jump-container { display: flex; align-items: center; gap: 0.5rem; margin-right: 1rem; font-size: 0.9rem; color: #4a5568; }
+.jump-input { width: 45px; height: 32px; border: 2px solid #e2e8f0; border-radius: 6px; text-align: center; font-size: 0.9rem; transition: all 0.3s; }
+.jump-input:focus { outline: none; border-color: #f5576c; box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.1); }
+.jump-btn { padding: 4px 10px; height: 32px; background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem; font-weight: 600; color: #4a5568; cursor: pointer; transition: all 0.3s; }
+.jump-btn:hover { background: #edf2f7; border-color: #cbd5e0; color: #2d3748; }
 </style>
