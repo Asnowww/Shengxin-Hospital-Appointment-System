@@ -3,18 +3,17 @@ package org.example.backend.service;
 import org.example.backend.dto.DoctorAccountDTO;
 import org.example.backend.dto.DoctorQueryDTO;
 import org.example.backend.dto.PageResult;
-import org.example.backend.dto.Result;
 import org.example.backend.pojo.DoctorBioUpdateRequest;
 
 import java.util.List;
-import java.util.Map;
 
 public interface DoctorAccountService {
 
     /**
      * 查询医生列表(支持筛选)
      */
-    PageResult<DoctorAccountDTO> getDoctorList(DoctorQueryDTO queryDTO) ;
+    PageResult<DoctorAccountDTO> getDoctorList(DoctorQueryDTO queryDTO);
+
     /**
      * 新增医生账号
      */
@@ -26,7 +25,15 @@ public interface DoctorAccountService {
     void updateDoctor(DoctorAccountDTO doctorDTO);
 
     /**
-     * 启用 / 禁用医生账号
+     * 修改医生账号信息--users表中的status字段，以判断启用/停用
+     * 
+     * @param doctorId
+     * @param status
+     */
+    void updateDoctorAccountStatus(Long doctorId, String status);
+
+    /**
+     * 修改医生任职信息
      */
     void updateDoctorStatus(Long doctorId, String status);
 
@@ -40,14 +47,14 @@ public interface DoctorAccountService {
      */
     DoctorAccountDTO getDoctorById(Long doctorId);
 
-    //-----医生端-----//
+    // -----医生端-----//
 
     /**
      * 医生提交修改bio申请
      */
     void submitBioChange(Long userId, String newBio);
 
-    //-----管理端-----//
+    // -----管理端-----//
     /**
      * 管理员审核bio修改申请
      */

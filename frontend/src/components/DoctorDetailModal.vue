@@ -71,22 +71,11 @@
             </div>
           </div>
 
-          <!-- 专业长处 -->
+          <!-- 擅长领域 -->
           <div class="info-section">
-            <h4 class="section-title">专业擅长</h4>
-            <div class="specialty-tags">
-              <span v-for="(tag, index) in specialtyList" :key="index" class="tag">
-                {{ tag }}
-              </span>
-              <span v-if="specialtyList.length === 0" class="empty-text">暂未填写专业长处</span>
-            </div>
-          </div>
-
-          <!-- 个人简介 -->
-          <div class="info-section">
-            <h4 class="section-title">个人简介</h4>
+            <h4 class="section-title">擅长领域</h4>
             <div class="bio-content">
-              {{ doctor?.bio || '该医生非常神秘，暂无个人简介。' }}
+              {{ doctor?.bio || '该医生非常神秘，暂不愿透露。' }}
             </div>
           </div>
         </div>
