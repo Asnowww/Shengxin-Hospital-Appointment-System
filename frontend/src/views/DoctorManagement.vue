@@ -208,6 +208,11 @@
     :departments="departments"
     @success="handleEditSuccess"
   />
+
+  <DoctorDetailModal 
+    v-model="showDetailModal" 
+    :doctor="selectedDoctorDetail" 
+  />
 </template>
 
 <script setup>
@@ -216,6 +221,7 @@ import Navigation from '@/components/Navigation.vue'
 import AdminSidebar from '@/components/AdminSidebar.vue'
 import CreateDocAccount from '@/components/CreateDocAccount.vue'
 import EditDoctorModal from '@/components/EditDoctorModal.vue'
+import DoctorDetailModal from '@/components/DoctorDetailModal.vue'
 import axios from 'axios'
 
 const navRef = ref(null)
@@ -240,6 +246,9 @@ const jumpPage = ref('')
 // 编辑相关状态
 const showEditModal = ref(false)
 const editingDoctor = ref(null)
+
+const showDetailModal = ref(false)
+const selectedDoctorDetail = ref(null)
 
 const filters = reactive({
   department: '',
@@ -398,8 +407,14 @@ async function viewDoctor(doc) {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
     if (data && data.code === 200) {
-      const detail = data.data
-      alert(`医生详情\n姓名：${detail.username}\n科室：${detail.deptName || ''}\n职称：${detail.title || ''}\n状态：${getStatusLabel(detail.doctorStatus)}`)
+      selectedDoctorDetail.value = {
+        ...data.data,
+        id: data.data.doctorId,
+        name: data.data.username,
+        status: data.data.doctorStatus,
+        departmentName: data.data.deptName // 确保外部组件能正确获取科室名
+      }
+      showDetailModal.value = true
     }
   } catch (e) {
     alert('获取医生详情失败')
