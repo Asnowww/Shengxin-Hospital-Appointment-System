@@ -115,31 +115,35 @@
                 </div>
                 <div class="td-actions">
                   <button class="action-btn view-btn" title="查看" @click="viewDoctor(doc)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                       <circle cx="12" cy="12" r="3"></circle>
                     </svg>
+                    <span>查看</span>
                   </button>
                   <button class="action-btn edit-btn" title="编辑" @click="editDoctor(doc)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                     </svg>
+                    <span>编辑</span>
                   </button>
                   <button class="action-btn reset-btn" title="重置密码" @click="resetPassword(doc)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <circle cx="12" cy="12" r="3"></circle>
                       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .69-.28 1.32-.73 1.77A2.5 2.5 0 0 1 19.4 15z"></path>
                     </svg>
+                    <span>重置密码</span>
                   </button>
                   <button class="action-btn status-btn" title="修改状态" @click="cycleStatus(doc)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="23 4 23 10 17 10"></polyline>
                       <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                     </svg>
+                    <span>状态</span>
                   </button>
                   <button class="action-btn delete-btn" title="删除" @click="removeDoctor(doc)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="3 6 5 6 21 6"></polyline>
                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                     </svg>
@@ -750,12 +754,11 @@ onUnmounted(() => {
 .doctor-table { 
   padding-bottom: 1.5rem; /* 在列表下方增加一些间隔 */
 }
-.table-header { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 0.8fr 1.5fr; gap: 1rem; padding: 1rem; background: #f7fafc; border-radius: 10px; font-weight: 600; color: #4a5568; font-size: 0.9rem; }
-.table-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 0.8fr 1.5fr; gap: 1rem; padding: 1rem; background: white; border: 2px solid #e2e8f0; border-radius: 10px; align-items: center; transition: all 0.3s; }
+.table-header { display: grid; grid-template-columns: 1fr 0.8fr 1fr 1fr 0.8fr 2.5fr; gap: 1rem; padding: 1rem; background: #f7fafc; border-radius: 10px; font-weight: 600; color: #4a5568; font-size: 0.9rem; }
+.table-row { display: grid; grid-template-columns: 1fr 0.8fr 1fr 1fr 0.8fr 2.5fr; gap: 1rem; padding: 1rem; background: white; border: 2px solid #e2e8f0; border-radius: 10px; align-items: center; transition: all 0.3s; margin-bottom: 0; }
 .table-row:hover { border-color: #f093fb; box-shadow: 0 2px 8px rgba(240, 147, 251, 0.2); }
-.table-row {
-    margin-bottom: 0;
-}
+.table-header > div, .table-row > div { text-align: left; display: flex; align-items: center; justify-content: flex-start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-actions { flex-wrap: wrap; white-space: normal; }
 .doctor-name { font-weight: 600; color: #2d3748; }
 .department-badge { display: inline-block; padding: 0.25rem 0.75rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #fff; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
 
@@ -764,17 +767,31 @@ onUnmounted(() => {
 .status-badge.on-leave { background: #fff3cd; color: #856404; }
 .status-badge.retired { background: #f8d7da; color: #721c24; }
 
-.td-actions { display: flex; gap: 0.5rem; justify-content: center; }
-.action-btn { width: 32px; height: 32px; border: none; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s ease; }
+.td-actions { display: flex; gap: 0.5rem; justify-content: flex-start; align-items: center; flex-wrap: wrap; }
+.action-btn { 
+    height: 32px; 
+    padding: 0 0.5rem;
+    border: none; 
+    border-radius: 8px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 0.25rem;
+    cursor: pointer; 
+    transition: all 0.3s ease; 
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.action-btn span { display: inline; }
 .view-btn { background: #e3f2fd; color: #2196f3; }
 .view-btn:hover { background: #2196f3; color: #fff; }
 .edit-btn { background: #fff3e0; color: #ff9800; }
 .edit-btn:hover { background: #ff9800; color: #fff; }
-.action-btn.reset-btn { background: #ede7f6; color: #673ab7; }
+.action-btn.reset-btn { background: #ede7f6; color: #673ab7; width: auto; }
 .action-btn.reset-btn:hover { background: #673ab7; color: #fff; }
 .status-btn { background: #f1f8e9; color: #689f38; }
 .status-btn:hover { background: #689f38; color: #fff; }
-.delete-btn { background: #ffebee; color: #f44336; }
+.delete-btn { background: #ffebee; color: #f44336; width: 32px; padding: 0; }
 .delete-btn:hover { background: #f44336; color: #fff; }
 
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; color: #a0aec0; }
@@ -963,7 +980,7 @@ onUnmounted(() => {
 @media (max-width: 1024px) {
   .profile-layout { padding: 1.5rem; gap: 1.5rem; }
   .sidebar { width: 240px; }
-  .table-header, .table-row { grid-template-columns: 1.2fr 1fr 1fr 1fr 0.8fr 1.6fr; }
+  .table-header, .table-row { grid-template-columns: 1fr 0.8fr 1fr 1fr 0.8fr 2.5fr; }
 }
 
 @media (max-width: 768px) {
