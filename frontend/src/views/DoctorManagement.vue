@@ -96,7 +96,7 @@
               <div class="th-doctorId">工号</div>
               <div class="th-dept">科室</div>
               <div class="th-title">职称</div>
-              <div class="th-status">状态</div>
+              <div class="th-status">就职状态</div>
               <div class="th-actions">操作</div>
             </div>
 
@@ -142,19 +142,18 @@
                     </svg>
                     <span>重置密码</span>
                   </button>
-                  <button class="action-btn status-btn" title="修改状态" @click="cycleStatus(doc)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="23 4 23 10 17 10"></polyline>
-                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                    </svg>
-                    <span>状态</span>
-                  </button>
-                  <button class="action-btn delete-btn" title="删除" @click="removeDoctor(doc)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                  </button>
+
+                  <button
+  class="action-btn status-btn"
+  :class="doc.accountStatus === 'verified' ? 'enabled' : 'disabled'"
+  @click="toggleAccountStatus(doc)"
+>
+  <span>
+    {{ doc.accountStatus === 'verified' ? '已启用' : '已停用' }}
+  </span>
+</button>
+
+
                 </div>
               </div>
             </div>
@@ -259,6 +258,45 @@ function toggleDropdown() {
   dropdownVisible.value = !dropdownVisible.value
 }
 
+
+
+
+//更改账号本身状态
+async function toggleAccountStatus(doc) {
+  const isEnabled = doc.accountStatus === 'verified'
+  const nextStatus = isEnabled ? 'unverified' : 'verified'
+
+  const actionText = isEnabled ? '停用' : '启用'
+
+  if (!confirm(`确定要${actionText}医生【${doc.name}】的账号吗？`)) {
+    return
+  }
+
+  try {
+    const token = localStorage.getItem('token')
+
+    const { data } = await axios.put(
+      `/api/admin/doctors/update/account_status/${doc.id}`,
+      null,
+      {
+        params: { doctorId: doc.id, account_status: nextStatus },
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      }
+    )
+
+    if (data.code === 200) {
+      doc.accountStatus = nextStatus
+      alert(`${actionText}成功`)
+    } else {
+      alert(data.message || `${actionText}失败`)
+    }
+  } catch (e) {
+    console.error('更新账号状态失败', e)
+    alert('请求失败，请稍后重试')
+  }
+}
+
+
 function selectChild(child) {
   selectedDeptId.value = child.deptId
   selectedDeptName.value = child.deptName
@@ -333,7 +371,8 @@ async function fetchDoctors() {
         email: d.email,
         specialty: d.specialty,
         bio: d.bio,
-        status: d.doctorStatus || 'active'
+        status: d.doctorStatus || 'active',
+        accountStatus:d.userStatus || 'verified'
       }))
       
       // 更新分页状态
@@ -454,34 +493,34 @@ function getStatusLabel(status) {
   return labels[status] || status
 }
 
-async function cycleStatus(doctor) {
-  const statusCycle = ['active', 'on-leave', 'retired']
-  const currentIndex = statusCycle.indexOf(doctor.status)
-  const nextStatus = statusCycle[(currentIndex + 1) % statusCycle.length]
+// async function cycleStatus(doctor) {
+//   const statusCycle = ['active', 'on-leave', 'retired']
+//   const currentIndex = statusCycle.indexOf(doctor.status)
+//   const nextStatus = statusCycle[(currentIndex + 1) % statusCycle.length]
   
-  const token = localStorage.getItem('token')
+//   const token = localStorage.getItem('token')
 
-  try {
-    const { data } = await axios.put(
-      `/api/admin/doctors/status/${doctor.id}`,
-      null,
-      {
-        params: { status: nextStatus },
-        headers: { Authorization: `Bearer ${token}` }
-      }
-    )
+//   try {
+//     const { data } = await axios.put(
+//       `/api/admin/doctors/status/${doctor.id}`,
+//       null,
+//       {
+//         params: { status: nextStatus },
+//         headers: { Authorization: `Bearer ${token}` }
+//       }
+//     )
 
-    if (data.code === 200) {
-      doctor.status = nextStatus
-      alert(`状态已更新为：${getStatusLabel(nextStatus)}`)
-    } else {
-      alert(data.message || '操作失败')
-    }
-  } catch (e) {
-    console.error('更新医生状态失败', e)
-    alert('请求出错')
-  }
-}
+//     if (data.code === 200) {
+//       doctor.status = nextStatus
+//       alert(`状态已更新为：${getStatusLabel(nextStatus)}`)
+//     } else {
+//       alert(data.message || '操作失败')
+//     }
+//   } catch (e) {
+//     console.error('更新医生状态失败', e)
+//     alert('请求出错')
+//   }
+// }
 
 async function removeDoctor(doc) {
   alert('后端暂未提供删除接口，无法删除该医生账号')
@@ -518,6 +557,7 @@ onUnmounted(() => {
 .page-container {
   min-height: 100vh;
 }
+
 /* ---------------------------------- */
 /* 新增：分页控制样式 */
 /* ---------------------------------- */
@@ -842,8 +882,12 @@ onUnmounted(() => {
 .edit-btn:hover { background: #ff9800; color: #fff; }
 .action-btn.reset-btn { background: #ede7f6; color: #673ab7; width: auto; }
 .action-btn.reset-btn:hover { background: #673ab7; color: #fff; }
-.status-btn { background: #f1f8e9; color: #689f38; }
-.status-btn:hover { background: #689f38; color: #fff; }
+
+.status-btn.enabled { background: #f1f8e9; color: #689f38; }
+.status-btn.enabled:hover { background: #689f38; color: #fff; }
+.status-btn.disabled {background: #fff1f0;   color: #cf1322;        }
+.status-btn.disabled:hover {background: #cf1322;color: #fff;}
+
 .delete-btn { background: #ffebee; color: #f44336; width: 32px; padding: 0; }
 .delete-btn:hover { background: #f44336; color: #fff; }
 

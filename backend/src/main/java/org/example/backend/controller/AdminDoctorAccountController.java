@@ -79,6 +79,21 @@ public class AdminDoctorAccountController {
     }
 
     /**
+     * 停用/启用医生账号
+     */
+    @PutMapping("/update/account_status/{doctorId}")
+    public Result<String> setDoctorAccountStatus(
+            @PathVariable Long doctorId,
+            @RequestParam String account_status) {
+        try {
+            doctorAccountService.updateDoctorAccountStatus(doctorId, account_status);
+            return Result.success("修改账号状态成功");
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
      * 审批医生修改bio的申请
      */
     @PostMapping("/bio/review/{requestId}")

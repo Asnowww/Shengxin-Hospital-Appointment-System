@@ -46,7 +46,7 @@
                       v-for="child in dept.children || []" 
                       :key="child.deptId" 
                       class="dept-option"
-                      :class="{ selected: formData.department === child.deptId }"
+                      :class="{ selected: formData.deptId === child.deptId }"
                       @click.stop="selectDept(child)"
                     >
                       {{ child.deptName }}
@@ -166,7 +166,7 @@ const saving = ref(false)
 const formData = reactive({
   id: '',
   name: '',
-  department: '',
+  deptId: '',
   departmentName: '',
   title: '',
   gender: '',
@@ -201,7 +201,7 @@ const loadDoctorDetail = async (doctorId) => {
       const detail = data.data
       formData.id = detail.doctorId || ''
       formData.name = detail.username || ''
-      formData.department = detail.deptId || ''
+      formData.deptId = detail.deptId || ''
       formData.departmentName = detail.deptName || ''
       formData.title = detail.title || ''
       formData.gender = detail.gender || ''
@@ -218,7 +218,7 @@ const loadDoctorDetail = async (doctorId) => {
 
 // 选择科室
 const selectDept = (child) => {
-  formData.department = child.deptId
+  formData.deptId = child.deptId
   formData.departmentName = child.deptName
   dropdownVisible.value = false
 }
@@ -231,7 +231,7 @@ const handleClose = () => {
 
 // 提交表单
 const handleSubmit = async () => {
-  if (!formData.department) {
+  if (!formData.deptId) {
     alert('请选择科室')
     return
   }
@@ -242,12 +242,11 @@ const handleSubmit = async () => {
     const { data } = await axios.put(
       `/api/admin/doctors/update/${formData.id}`,
       {
-        department: formData.department,
+        deptId: formData.deptId,
         title: formData.title,
         gender: formData.gender,
         phone: formData.phone,
         email: formData.email,
-        specialty: formData.specialty,
         bio: formData.bio,
         doctorStatus: formData.status
       },
