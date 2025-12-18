@@ -41,6 +41,13 @@
 
                 <transition name="fade">
                   <div v-show="dropdownVisible" class="select-options">
+                    <div 
+                      class="dept-option all-depts" 
+                      :class="{ selected: !filters.department }"
+                      @click.stop="clearDeptFilter"
+                    >
+                      全部科室
+                    </div>
                     <div v-for="dept in departments" :key="dept.deptId" class="dept-group">
                       <div class="dept-group-title">{{ dept.deptName }}</div>
                       <div 
@@ -255,6 +262,15 @@ function selectChild(child) {
 
 function closeDropdown() {
   dropdownVisible.value = false
+}
+
+function clearDeptFilter() {
+  selectedDeptId.value = ''
+  selectedDeptName.value = '全部科室'
+  filters.department = ''
+  dropdownVisible.value = false
+  pagination.pageNum = 1
+  fetchDoctors()
 }
 
 async function fetchDepartments() {
