@@ -12,19 +12,18 @@
             <circle cx="12" cy="16" r="1"/>
           </svg>
           <span>
-      有 {{ emptyDepts.length }} 个科室尚未分配医生：
-      <span v-for="(dept, index) in emptyDepts" :key="dept.deptId" class="empty-dept-item">
-        {{ dept.deptName }}
-        <button class="delete-btn" @click="deleteDepartment(dept.deptId)">删除</button>
-        <span v-if="index < emptyDepts.length - 1">，</span>
-      </span>
-    </span>
+            有 {{ emptyDepts.length }} 个科室尚未分配医生：
+            <span v-for="(dept, index) in emptyDepts" :key="dept.deptId" class="empty-dept-item">
+              {{ dept.deptName }}
+              <button class="delete-btn" @click="deleteDepartment(dept.deptId)">删除</button>
+              <span v-if="index < emptyDepts.length - 1">，</span>
+            </span>
+          </span>
         </div>
         <button class="assign-btn" @click="goAssignDoctors">
           去分配
         </button>
       </div>
-
 
       <!-- 标题和创建按钮 -->
       <div class="header-section">
@@ -85,19 +84,51 @@
             <span class="sub-count">{{ (dept.subDepartments || []).length }}</span>
           </div>
 
-          <div class="sub-departments">
-            <div v-for="subDept in (dept.subDepartments || [])" :key="subDept.id" class="sub-dept-card">
-              <div class="card-content">
-                <h3>{{ subDept.name }}</h3>
+          <div v-for="subDept in (dept.subDepartments || [])"
+               :key="subDept.id"
+               class="sub-dept-card">
+            <div class="card-content">
+              <h3>{{ subDept.name }}</h3>
+              <div class="dept-location">
+                <span class="location-tag">{{ subDept.building }}</span>
+                <span class="location-tag">{{ subDept.floor }}楼</span>
+                <span class="location-tag">主诊室：{{ subDept.room }}室</span>
               </div>
             </div>
+
+            <button class="edit-btn" @click="openEdit(subDept)">
+              编辑
+            </button>
           </div>
+
         </div>
       </div>
 
       <!-- 创建结果反馈弹窗 -->
       <div v-if="toast.visible" class="toast">
         {{ toast.message }}
+      </div>
+
+      <!-- 编辑科室弹窗 -->
+      <div v-if="showEditForm" class="modal-overlay" @click.self="showEditForm = false">
+        <div class="create-form">
+          <h3>修改科室信息</h3>
+
+          <div class="form-item">
+            <label>科室名称</label>
+            <input v-model="editDept.deptName" />
+          </div>
+
+          <div class="form-item">
+            <label>科室描述</label>
+            <textarea v-model="editDept.description" rows="4" />
+          </div>
+
+          <div class="form-actions">
+            <button class="confirm-btn" @click="submitEdit">保存</button>
+            <button class="cancel-btn" @click="showEditForm = false">取消</button>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -124,6 +155,9 @@ const newDeptDescription = ref('')
 
 const router = useRouter()
 
+const showEditForm = ref(false)
+const editDept = ref({})
+
 function goAssignDoctors() {
   // 跳转到医生管理页面
   router.push({ name: 'doctorManagement' })
@@ -139,6 +173,7 @@ function showToast(message, duration = 2000) {
 
 // 空科室数组
 const emptyDepts = ref([])
+
 // 获取空科室
 async function fetchEmptyDepartments() {
   try {
@@ -194,11 +229,51 @@ async function deleteDepartment(deptId) {
   }
 }
 
+async function openEdit(subDept) {
+  try {
+    // 从接口获取完整的科室信息
+    const res = await axios.get(`/api/departments/${subDept.id}`)
+    const deptData = res.data?.data
+
+    if (deptData) {
+      editDept.value = {
+        deptId: deptData.deptId,
+        deptName: deptData.deptName,
+        description: deptData.description || ''
+      }
+      showEditForm.value = true
+    } else {
+      showToast('获取科室信息失败')
+    }
+  } catch (err) {
+    console.error(err)
+    showToast('获取科室信息失败')
+  }
+}
+
+async function submitEdit() {
+  try {
+    await axios.put(
+        `/api/departments/${editDept.value.deptId}`,
+        editDept.value
+    )
+    showToast('修改成功')
+    showEditForm.value = false
+    await fetchDepartments()
+    await fetchEmptyDepartments()
+  } catch (err) {
+    console.error(err)
+    showToast('修改失败')
+  }
+}
 
 function updateNavHeight() {
   if (navRef.value?.$el) navHeight.value = navRef.value.$el.offsetHeight + 30
 }
-function handleResize() { updateNavHeight() }
+
+function handleResize() {
+  updateNavHeight()
+}
 
 async function fetchDepartments() {
   try {
@@ -207,16 +282,26 @@ async function fetchDepartments() {
     departments.value = list.map(dept => ({
       id: dept.deptId,
       name: dept.deptName,
-      subDepartments: (dept.children || []).map(sub => ({ id: sub.deptId, name: sub.deptName }))
+      subDepartments: (dept.children || []).map(sub => ({
+        id: sub.deptId,
+        name: sub.deptName,
+        building: sub.building,
+        floor: sub.floor,
+        room: sub.room
+      }))
     }))
-  } catch (err) { console.error(err) }
+  } catch (err) {
+    console.error(err)
+  }
 }
 
 async function fetchAreas() {
   try {
     const res = await axios.get('/api/departments/available-areas')
     availableAreas.value = res.data.data || []
-  } catch (err) { console.error(err) }
+  } catch (err) {
+    console.error(err)
+  }
 }
 
 async function createDepartment() {
@@ -244,7 +329,7 @@ async function createDepartment() {
     selectedArea.value = null
     await fetchDepartments()
     await fetchAreas()
-    await fetchEmptyDepartments() // 刷新空科室
+    await fetchEmptyDepartments()
     showToast('科室创建成功')
   } catch (err) {
     console.error(err)
@@ -265,35 +350,209 @@ onUnmounted(() => window.removeEventListener('resize', handleResize))
 </script>
 
 <style scoped>
-.page-container { min-height: 100vh; }
-.overview-wrapper { max-width: 1400px; margin: 0 auto; padding: 2rem; min-height: calc(100vh - 140px); }
+.page-container {
+  min-height: 100vh;
+}
 
-.header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-.create-btn { padding: 0.5rem 1rem; border-radius: 8px; background: #667eea; color: white; cursor: pointer; border: none; transition: all 0.2s; }
-.create-btn:hover { background: #5563c1; }
+.overview-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  min-height: calc(100vh - 140px);
+}
 
-.departments-list { display: flex; flex-direction: column; gap: 1.5rem; }
-.department-group { background: white; border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-.primary-department { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 1rem; margin-bottom: 1rem; background: #f7fafc; border-radius: 10px; }
-.sub-departments { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
-.sub-dept-card { background: #f0f4ff; border-radius: 10px; padding: 1rem; display: flex; align-items: center; justify-content: space-between; }
-.card-content h3 { margin: 0; color: #2d3748; font-size: 1rem; font-weight: 600; }
+.header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
 
-.modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.create-form { background: white; border-radius: 12px; padding: 2rem; width: 400px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-.create-form h3 { margin-top: 0; margin-bottom: 1rem; color: #2d3748; }
-.form-item { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
-.form-item input, .form-item textarea, .form-item select { padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e0; font-size: 0.95rem; }
-.form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 1rem; }
-.confirm-btn { background: #667eea; color: white; padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; }
-.confirm-btn:hover { background: #5563c1; }
-.cancel-btn { background: #e2e8f0; padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; }
-.cancel-btn:hover { background: #cbd5e0; }
+.create-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  background: #667eea;
+  color: white;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
 
-.toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); padding: 0.75rem 1.5rem; border-radius: 8px; background-color: #667eea; color: white; font-weight: 500; z-index: 2000; }
+.create-btn:hover {
+  background: #5563c1;
+}
 
-.empty-dept-alert { display: flex; justify-content: space-between; align-items: center; background: linear-gradient(90deg, #fff8e1, #fff3cd); color: #856404; padding: 12px 16px; border-radius: 12px; margin-bottom: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); font-weight: 500; }
-.alert-content { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
+.departments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.department-group {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+.primary-department {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+  background: #f7fafc;
+  border-radius: 10px;
+}
+
+.sub-departments {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.sub-dept-card {
+  background: #f0f4ff;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-content h3 {
+  margin: 0 0 0.5rem 0;
+  color: #2d3748;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.dept-location {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.location-tag {
+  background: #e2e8f0;
+  color: #4a5568;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.create-form {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+
+.create-form h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #2d3748;
+}
+
+.form-item {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-item input,
+.form-item textarea,
+.form-item select {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e0;
+  font-size: 0.95rem;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 1rem;
+}
+
+.confirm-btn {
+  background: #667eea;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.confirm-btn:hover {
+  background: #5563c1;
+}
+
+.cancel-btn {
+  background: #e2e8f0;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn:hover {
+  background: #cbd5e0;
+}
+
+.toast {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  background-color: #667eea;
+  color: white;
+  font-weight: 500;
+  z-index: 2000;
+}
+
+.empty-dept-alert {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(90deg, #fff8e1, #fff3cd);
+  color: #856404;
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  font-weight: 500;
+}
+
+.alert-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
 .assign-btn {
   background: #ffbb33;
   border: none;
@@ -322,4 +581,17 @@ onUnmounted(() => window.removeEventListener('resize', handleResize))
   background: #a59e9e;
 }
 
+.edit-btn {
+  background: #edf2f7;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.edit-btn:hover {
+  background: #e2e8f0;
+}
 </style>

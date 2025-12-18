@@ -35,4 +35,9 @@ public interface DepartmentService extends IService<Department> {
      */
     List<Department> getParentDepartments();
 
+    /**
+     * 根据ID获取科室信息
+     */
+    Department getDepartmentById(Integer deptId);
+
 }
