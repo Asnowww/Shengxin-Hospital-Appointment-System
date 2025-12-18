@@ -891,31 +891,61 @@ public class NotificationEmailService {
     /*
     候补失败邮件模板
      */
-    private String  buildWaitlistFailedEmail(String patientName, Schedule schedule) {
+    private String buildWaitlistFailedEmail(String patientName, Schedule schedule) {
         String doctorInfo = getDoctorInfo(schedule.getDoctorId());
         String deptName = getDeptName(schedule.getDeptId());
         String workDate = schedule.getWorkDate().format(DATE_FORMATTER);
         String timeSlot = getTimeSlotName(schedule.getTimeSlot());
 
         return String.format("""
-            <html>
-            <body>
-                <div style="padding: 20px;">
-                    <h2 style="color: #f44336;">候补失败通知</h2>
-                    <p>尊敬的%s，您好：</p>
-                    <p>您申请的候补预约未能成功。</p>
-                    <div style="background: #f5f5f5; padding: 15px; margin: 15px 0;">
-                        <p><strong>科室：</strong>%s</p>
-                        <p><strong>医生：</strong>%s</p>
-                        <p><strong>时间：</strong>%s %s</p>
+                <html>
+                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                        <!-- 头部 -->
+                        <div style="
+                            background: linear-gradient(135deg, #f44336 0%%, #e57373 100%%);
+                            color: white;
+                            padding: 30px;
+                            text-align: center;
+                            border-radius: 10px 10px 0 0;
+                        ">
+                            <h1>候补失败通知</h1>
+                        </div>
+                        <div style="
+                            background: #f9f9f9;
+                            padding: 30px;
+                            border-radius: 0 0 10px 10px;
+                        ">
+                            <p>尊敬的 <strong>%s</strong> 患者，您好！</p>
+                            <p>很遗憾地通知您，您申请的候补预约未能成功。</p>
+                            <div style="
+                                background: white;
+                                padding: 20px;
+                                margin: 20px 0;
+                                border-left: 4px solid #f44336;
+                                border-radius: 5px;
+                            ">
+                                <h3 style="color: #f44336; margin-top: 0;">📋 候补预约信息</h3>
+                                <p><strong>就诊科室：</strong>%s</p>
+                                <p><strong>就诊医生：</strong>%s</p>
+                                <p><strong>就诊时间：</strong>%s %s</p>
+                            </div>
+                            <p>在候补有效期内，该时间段未有号源释放，
+                                系统已自动结束您的候补预约。</p>
+                            <p style="color: #666;">
+                                您可以重新选择其他时间段或医生进行预约，
+                                感谢您的理解与支持。</p>
+                            <p style="margin-top: 30px; color: #999; font-size: 0.9em;">
+                                如有疑问，请联系医院服务台或通过系统客服进行咨询。
+                            </p>
+                        </div>
                     </div>
-                    <p>该时间段没有号源释放，候补已结束。请重新预约其他时间。</p>
-                </div>
-            </body>
-            </html>
-            """,
+                </body>
+                </html>
+                """,
                 patientName, deptName, doctorInfo, workDate, timeSlot);
     }
+
 
     /**
      * 候补转正邮件模板
@@ -943,7 +973,6 @@ public class NotificationEmailService {
                                 <p><strong>就诊科室：</strong>%s</p>
                                 <p><strong>就诊医生：</strong>%s</p>
                                 <p><strong>就诊时间：</strong>%s %s</p>
-                                <p><strong>排队号：</strong>%d号</p>
                             </div>
                             
                             <p style="color: #e74c3c; font-weight: bold;">⚠️ 重要提醒：请在30分钟内完成支付，否则预约将自动取消！</p>
@@ -953,7 +982,7 @@ public class NotificationEmailService {
                 </html>
                 """,
                 patientName, appointment.getAppointmentId(), deptName, doctorInfo,
-                workDate, timeSlot, appointment.getQueueNumber());
+                workDate, timeSlot);
     }
 
     /**
