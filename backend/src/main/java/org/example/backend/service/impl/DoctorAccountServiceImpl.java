@@ -1,6 +1,7 @@
 package org.example.backend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.DoctorAccountDTO;
 import org.example.backend.dto.DoctorQueryDTO;
@@ -14,6 +15,7 @@ import org.example.backend.pojo.User;
 import org.example.backend.mapper.DoctorMapper;
 import org.example.backend.mapper.UserMapper;
 import org.example.backend.service.DoctorAccountService;
+import org.example.backend.service.UserService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -40,6 +42,9 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
 
     @Resource
     private AppointmentMapper appointmentMapper;
+
+    @Autowired
+    private UserService userService;
 
     @Autowired
     private PasswordEncoder passwordEncoder; // Spring Security 密码加密器
@@ -145,8 +150,28 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
     }
 
     /**
-     * 修改医生账号状态(启用 / 禁用)
+     * 修改医生账号状态(启用verified / 禁用 unverified)
      */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateDoctorAccountStatus(Long doctorId, String status) {
+
+        Doctor doctor = doctorMapper.selectById(doctorId);
+        if (doctor == null || doctor.getUserId() == null) {
+            throw new IllegalArgumentException("医生或绑定用户不存在");
+        }
+
+        LambdaUpdateWrapper<User> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(User::getUserId, doctor.getUserId())
+                .set(User::getStatus, status);
+
+        boolean success = userService.update(wrapper);
+        if (!success) {
+            throw new IllegalArgumentException("用户状态更新失败");
+        }
+    }
+
+
     /**
      * 修改医生账号状态 (在职 / 休假 / 退休)
      */

@@ -260,11 +260,5 @@ public class DoctorServiceImpl extends ServiceImpl<DoctorMapper, Doctor> impleme
         vo.setBioStatus(latestRequest != null ? latestRequest.getStatus() : null);
 
         return vo;
-
-
     }
-
-
-
-
 }
