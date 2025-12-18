@@ -111,7 +111,7 @@
                 <div class="td-dept"><span class="department-badge">{{ doc.departmentName || getDepartmentName(doc.department) }}</span></div>
                 <div class="td-title">{{ doc.title || '-' }}</div>
                 <div class="td-status">
-                  <span :class="['status-badge', doc.enabled ? 'active' : 'disabled']">{{ doc.enabled ? '启用' : '停用' }}</span>
+                  <span :class="['status-badge', doc.status]">{{ getStatusLabel(doc.status) }}</span>
                 </div>
                 <div class="td-actions">
                   <button class="action-btn view-btn" title="查看" @click="viewDoctor(doc)">
@@ -132,13 +132,10 @@
                       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .69-.28 1.32-.73 1.77A2.5 2.5 0 0 1 19.4 15z"></path>
                     </svg>
                   </button>
-                  <button class="action-btn status-btn" :title="doc.enabled ? '停用' : '启用'" @click="toggleStatus(doc)">
-                    <svg v-if="doc.enabled" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <line x1="18" y1="6" x2="6" y2="18"></line>
-                      <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
+                  <button class="action-btn status-btn" title="修改状态" @click="cycleStatus(doc)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="23 4 23 10 17 10"></polyline>
+                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                     </svg>
                   </button>
                   <button class="action-btn delete-btn" title="删除" @click="removeDoctor(doc)">
@@ -295,8 +292,7 @@ async function fetchDoctors() {
         email: d.email,
         specialty: d.specialty,
         bio: d.bio,
-        // 根据后端字段判断状态，确保逻辑不变
-        enabled: (d.doctorStatus === 'active') && (d.userStatus === 'verified')
+        status: d.doctorStatus || 'active'
       }))
       
       // 更新分页状态
@@ -361,7 +357,7 @@ async function viewDoctor(doc) {
     })
     if (data && data.code === 200) {
       const detail = data.data
-      alert(`医生详情\n姓名：${detail.username}\n科室：${detail.deptName || ''}\n职称：${detail.title || ''}\n状态：${detail.doctorStatus || ''}`)
+      alert(`医生详情\n姓名：${detail.username}\n科室：${detail.deptName || ''}\n职称：${detail.title || ''}\n状态：${getStatusLabel(detail.doctorStatus)}`)
     }
   } catch (e) {
     alert('获取医生详情失败')
@@ -392,23 +388,35 @@ async function resetPassword(doc) {
   }
 }
 
-async function toggleStatus(doctor) {
+function getStatusLabel(status) {
+  const labels = {
+    'active': '在职',
+    'on-leave': '休假',
+    'retired': '退休'
+  }
+  return labels[status] || status
+}
+
+async function cycleStatus(doctor) {
+  const statusCycle = ['active', 'on-leave', 'retired']
+  const currentIndex = statusCycle.indexOf(doctor.status)
+  const nextStatus = statusCycle[(currentIndex + 1) % statusCycle.length]
+  
   const token = localStorage.getItem('token')
-  const newStatus = doctor.enabled ? 'rejected' : 'verified'
 
   try {
     const { data } = await axios.put(
       `/api/admin/doctors/status/${doctor.id}`,
       null,
       {
-        params: { status: newStatus },
+        params: { status: nextStatus },
         headers: { Authorization: `Bearer ${token}` }
       }
     )
 
     if (data.code === 200) {
-      doctor.enabled = !doctor.enabled
-      alert(data.message)
+      doctor.status = nextStatus
+      alert(`状态已更新为：${getStatusLabel(nextStatus)}`)
     } else {
       alert(data.message || '操作失败')
     }
@@ -753,7 +761,8 @@ onUnmounted(() => {
 
 .status-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; text-align: center; }
 .status-badge.active { background: #d4edda; color: #28a745; }
-.status-badge.disabled { background: #ffe6e6; color: #d93025; }
+.status-badge.on-leave { background: #fff3cd; color: #856404; }
+.status-badge.retired { background: #f8d7da; color: #721c24; }
 
 .td-actions { display: flex; gap: 0.5rem; justify-content: center; }
 .action-btn { width: 32px; height: 32px; border: none; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s ease; }

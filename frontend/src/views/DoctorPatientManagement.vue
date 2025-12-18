@@ -144,7 +144,7 @@ const cards = computed(() => {
 })
 
 function statusLabel(status) {
-  if (status === 'no_show') return '已过号'
+  if (status === 'no_show' || status === 'missed') return '过号'
   if (status === 'booked') return '待就诊'
   if (status === 'completed') return '已就诊'
   if (status === 'cancelled') return '已取消'
@@ -155,7 +155,7 @@ function statusLabel(status) {
 }
 
 function statusClass(status) {
-  if (status === 'no_show') return 'missed'
+  if (status === 'no_show' || status === 'missed') return 'missed'
   if (status === 'booked') return 'booked'
   if (status === 'completed') return 'completed'
   if (status === 'cancelled') return 'cancelled'

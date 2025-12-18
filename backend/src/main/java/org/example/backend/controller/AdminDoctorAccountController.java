@@ -50,15 +50,14 @@ public class AdminDoctorAccountController {
     }
 
     /**
-     * 禁用/启用医生账号
+     * 修改医生状态 (在职 / 休假 / 退休)
      */
     @PutMapping("/status/{doctorId}")
     public Result<String> updateDoctorStatus(
             @PathVariable Long doctorId,
             @RequestParam String status) {
         doctorAccountService.updateDoctorStatus(doctorId, status);
-        String msg = "verified".equals(status) ? "启用成功" : "禁用成功";
-        return Result.success(msg);
+        return Result.success("医生状态已更新");
     }
 
     /**
@@ -86,8 +85,7 @@ public class AdminDoctorAccountController {
     public Result<String> review(
             @PathVariable Long requestId,
             @RequestParam boolean approved,
-            @RequestParam(required = false) String reason
-    ) {
+            @RequestParam(required = false) String reason) {
         try {
             doctorAccountService.reviewRequest(requestId, approved, reason);
             return Result.success(approved ? "审核通过" : "已拒绝");

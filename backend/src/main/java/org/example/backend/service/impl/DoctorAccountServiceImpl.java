@@ -147,32 +147,32 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
     /**
      * 修改医生账号状态(启用 / 禁用)
      */
+    /**
+     * 修改医生账号状态 (在职 / 休假 / 退休)
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateDoctorStatus(Long doctorId, String status) {
+    public void updateDoctorStatus(Long doctorId, String doctorStatus) {
         // 1. 查询医生
         Doctor doctor = doctorMapper.selectById(doctorId);
         if (doctor == null) {
             throw new IllegalArgumentException("医生不存在");
         }
 
-        // 2. 更新 user 表状态(账号层面)
-        User user = userMapper.selectById(doctor.getUserId());
-        user.setStatus(status);
-        user.setUpdateTime(LocalDateTime.now());
-        userMapper.updateById(user);
+        // 2. 更新医生表状态
+        doctor.setStatus(doctorStatus);
+        doctor.setUpdatedAt(LocalDateTime.now());
+        doctorMapper.updateById(doctor);
 
-        // 3. 同步更新医生状态
-        if ("rejected".equals(status)) {
-            // 禁用账号时,标记医生为退休
-            doctor.setStatus("retired");
-            doctor.setUpdatedAt(LocalDateTime.now());
-            doctorMapper.updateById(doctor);
-        } else if ("verified".equals(status)) {
-            // 启用账号时,恢复医生为在职状态
-            doctor.setStatus("active");
-            doctor.setUpdatedAt(LocalDateTime.now());
-            doctorMapper.updateById(doctor);
+        // 3. 同步更新 user 表状态 (账号层面)
+        // 退休账号禁用，在职和休假账号启用
+        String userStatus = "retired".equals(doctorStatus) ? "rejected" : "verified";
+
+        User user = userMapper.selectById(doctor.getUserId());
+        if (user != null) {
+            user.setStatus(userStatus);
+            user.setUpdateTime(LocalDateTime.now());
+            userMapper.updateById(user);
         }
     }
 

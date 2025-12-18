@@ -105,6 +105,15 @@
           
 
           <div class="form-group">
+            <label class="form-label">状态</label>
+            <select class="form-input" v-model="formData.status">
+              <option value="active">在职</option>
+              <option value="on-leave">休假</option>
+              <option value="retired">退休</option>
+            </select>
+          </div>
+
+          <div class="form-group">
             <label class="form-label">擅长领域</label>
             <textarea
               class="form-textarea"
@@ -163,7 +172,8 @@ const formData = reactive({
   gender: '',
   phone: '',
   email: '',
-  bio: ''
+  bio: '',
+  status: 'active'
 })
 
 // 监听医生数据变化，填充表单
@@ -198,6 +208,7 @@ const loadDoctorDetail = async (doctorId) => {
       formData.phone = detail.phone || ''
       formData.email = detail.email || ''
       formData.bio = detail.bio || ''
+      formData.status = detail.doctorStatus || 'active'
     }
   } catch (e) {
     console.error('加载医生详情失败', e)
@@ -237,7 +248,8 @@ const handleSubmit = async () => {
         phone: formData.phone,
         email: formData.email,
         specialty: formData.specialty,
-        bio: formData.bio
+        bio: formData.bio,
+        doctorStatus: formData.status
       },
       {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
