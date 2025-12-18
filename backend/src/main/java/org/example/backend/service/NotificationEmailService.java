@@ -659,6 +659,9 @@ public class NotificationEmailService {
                 workDate, timeSlot, appointment.getQueueNumber(), appointment.getFeeFinal());
     }
 
+    /*
+    退款成功邮件模板
+     */
     private String buildRefundSuccessEmail(Appointment appointment, Schedule schedule) {
         String patientName = getPatientName(String.valueOf(appointment.getPatientId()));
         String deptName = getDeptName(schedule.getDeptId());
@@ -698,7 +701,9 @@ public class NotificationEmailService {
                 appointment.getFeeFinal());
     }
 
-
+    /*
+    预约过期邮件模板
+     */
     private String buildAppointmentExpiredEmail(Appointment appointment, Schedule schedule) {
         String patientName = getPatientName(String.valueOf(appointment.getPatientId()));
         String doctorInfo = getDoctorInfo(schedule.getDoctorId());
