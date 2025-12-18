@@ -566,7 +566,8 @@ function mapAppointmentStatus(status) {
   if (status === 'completed') return 'completed'
   if (status === 'missed' || status === 'no_show') return 'missed'
   if (status === 'cancelled' || status === 'refunded') return 'cancelled'
-  if (status === 'pending') return 'pending'
+  if (status === 'pending' || status === 'pending_patient_confirm' || status === 'waiting_patient_action') return 'pending'
+  if (status === 'booked') return 'waiting'
   return 'confirmed'
 }
 
@@ -718,7 +719,7 @@ function getStatusText(status) {
     completed: '已完成',
     cancelled: '已取消',
     missed: '已过号',
-    pending: '待支付'
+    pending: '待确认/支付'
   }
   return map[status] || '未知'
 }

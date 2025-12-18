@@ -144,29 +144,31 @@ const cards = computed(() => {
 })
 
 function statusLabel(status) {
-  if (status === 'no_show' || status === 'missed') return '过号'
+  if (status === 'no_show') return '已过号'
   if (status === 'booked') return '待就诊'
   if (status === 'completed') return '已就诊'
   if (status === 'cancelled') return '已取消'
   if (status === 'pending') return '待支付'
+  if (status === 'pending_patient_confirm') return '待患者确认'
+  if (status === 'waiting_patient_action') return '待患者处理'
   return '未知'
 }
 
 function statusClass(status) {
-  if (status === 'no_show' || status === 'missed') return 'missed'
+  if (status === 'no_show') return 'missed'
   if (status === 'booked') return 'booked'
   if (status === 'completed') return 'completed'
   if (status === 'cancelled') return 'cancelled'
-  if (status === 'pending') return 'pending'
+  if (status === 'pending' || status === 'pending_patient_confirm' || status === 'waiting_patient_action') return 'pending'
   return 'unknown'
 }
 
 function disableMark(status, isFirst) {
-  return !isFirst || status === 'completed' || status === 'no_show' || status === 'cancelled'
+  return !isFirst || status !== 'booked'
 }
 
 function disableCall(status, isFirst) {
-  return !isFirst || status === 'completed' || status === 'no_show' || status === 'cancelled'
+  return !isFirst || status !== 'booked'
 }
 
 function formatDate(dateStr) {
