@@ -181,4 +181,78 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     List<DailyNewPatientStats> selectDailyNewPatientStats(
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+
+    /**
+     * 患者端：查询患者所有预约（连表查询，返回DTO）
+     */
+    @Select("""
+        SELECT
+            a.appointment_id,
+            a.patient_id,
+            u_patient.username AS patient_name,
+            u_doctor.username AS doctor_name,
+            doc.title AS doctor_title,
+            doc.bio AS doctor_info,
+            d.dept_name,
+            r.building,
+            r.room_name,
+            t.type_name,
+            CONCAT(
+                        DATE_FORMAT(s.work_date, '%Y年%m月%d日 '),
+                        CASE s.time_slot
+                            WHEN 0 THEN '上午'
+                            WHEN 1 THEN '下午'
+                            WHEN 2 THEN '晚上'
+                            ELSE ''
+                        END
+                    ) AS appointmentTime,
+            DATE_FORMAT(a.booking_time, '%Y-%m-%d %H:%i:%s') AS bookingTime,
+            a.appointment_status AS status,
+            a.fee_original,
+            a.fee_final,
+            a.notes AS remarks,
+
+            -- 关联预约信息
+            ar.source_appointment_id AS sourceAppointmentId,
+
+            -- 源预约时间
+            CONCAT(
+                        DATE_FORMAT(src_s.work_date, '%Y年%m月%d日 '),
+                        CASE src_s.time_slot
+                            WHEN 0 THEN '上午'
+                            WHEN 1 THEN '下午'
+                            WHEN 2 THEN '晚上'
+                            ELSE ''
+                        END
+                    ) AS sourceAppointmentTime,
+            src_app.appointment_status AS sourceStatus,
+
+            -- 新增：源预约医生信息
+            src_user.username AS sourceDoctorName,
+            src_doc.title AS sourceDoctorTitle
+
+        FROM appointments a
+        JOIN patients p ON a.patient_id = p.patient_id
+        JOIN users u_patient ON p.user_id = u_patient.user_id
+        JOIN schedules s ON a.schedule_id = s.schedule_id
+        JOIN doctors doc ON s.doctor_id = doc.doctor_id
+        JOIN users u_doctor ON doc.user_id = u_doctor.user_id
+        JOIN departments d ON a.dept_id = d.dept_id
+        JOIN consultation_rooms r ON a.room_id = r.room_id
+        JOIN appointment_types t ON t.appointment_type_id = s.appointment_type_id
+
+        -- 关联旧预约
+        LEFT JOIN appointment_relations ar ON ar.target_appointment_id = a.appointment_id
+        LEFT JOIN appointments src_app ON ar.source_appointment_id = src_app.appointment_id
+        LEFT JOIN schedules src_s ON src_app.schedule_id = src_s.schedule_id
+
+        -- 新增：源预约医生 JOIN
+        LEFT JOIN doctors src_doc ON src_s.doctor_id = src_doc.doctor_id
+        LEFT JOIN users src_user ON src_doc.user_id = src_user.user_id
+
+        WHERE a.patient_id = #{patientId}
+            AND a.appointment_status = 'completed'
+        ORDER BY a.visit_time DESC
+        """)
+    List<AppointmentInfoDTO> selectCompletedAppointmentsByPatientId(@Param("patientId") Long patientId);
 }
