@@ -37,67 +37,100 @@
 
       <!-- 排班列表 -->
       <div v-else class="schedule-content">
-        <!-- 今日排班 -->
+        <!-- ================= 今日排班（多排班） ================= -->
         <div v-if="activeDate === 'today'" class="schedule-section">
-          <div class="schedule-info-card">
-            <div class="info-row">
-              <span class="label">出诊日期：</span>
-              <span class="value">{{ todaySchedule.date }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">出诊时间：</span>
-              <span class="value">{{ todaySchedule.timeRange }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">预约患者：</span>
-              <span class="value highlight">{{ todaySchedule.patients.length }} 人</span>
-            </div>
-          </div>
 
-          <!-- 患者列表 -->
-          <div class="patients-section">
-            <h3>预约患者列表</h3>
-            <div v-if="todaySchedule.patients.length === 0" class="empty-state">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-              <p>今日暂无患者预约</p>
+          <div
+            v-for="schedule in todaySchedules"
+            :key="schedule.scheduleId"
+            class="schedule-block"
+          >
+            <!-- 排班信息 -->
+            <div class="schedule-info-card">
+              <div class="info-row">
+                <span class="label">出诊日期：</span>
+                <span class="value">{{ schedule.date }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">出诊时间：</span>
+                <span class="value">{{ schedule.timeRange }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">预约患者：</span>
+                <span class="value highlight">
+                  {{ schedule.patients.length }} 人
+                </span>
+              </div>
             </div>
-            <div v-else class="patients-list">
-              <div 
-                v-for="patient in todaySchedule.patients" 
-                :key="patient.appointmentId"
-                class="patient-card"
-                @click="showPatientDetail(patient)">
-                <div class="patient-header">
-                  <div class="patient-basic">
-                    <h4>{{ patient.name }}</h4>
-                    <span :class="['status-badge', patient.status]">
-                      {{ getStatusText(patient.status) }}
+
+            <!-- 患者列表 -->
+            <div class="patients-section">
+              <h3>预约患者列表</h3>
+
+              <div
+                v-if="schedule.patients.length === 0"
+                class="empty-state"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <p>该时间段暂无患者预约</p>
+              </div>
+
+              <div v-else class="patients-list">
+                <div
+                  v-for="patient in schedule.patients"
+                  :key="patient.appointmentId"
+                  class="patient-card"
+                  @click="showPatientDetail(patient)"
+                >
+                  <div class="patient-header">
+                    <div class="patient-basic">
+                      <h4>{{ patient.name }}</h4>
+                      <span :class="['status-badge', patient.status]">
+                        {{ getStatusText(patient.status) }}
+                      </span>
+                    </div>
+                    <span class="appointment-time">
+                      {{ patient.appointmentTime }}
                     </span>
                   </div>
-                  <span class="appointment-time">{{ patient.appointmentTime }}</span>
-                </div>
-                <div class="patient-info">
-                  <div class="info-item">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
-                    <span>{{ patient.gender }} / {{ patient.age }}岁</span>
+
+                  <div class="patient-info">
+                    <div class="info-item">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                      </svg>
+                      <span>{{ patient.gender }} / {{ patient.age }}岁</span>
+                    </div>
                   </div>
-                </div>
-                <div v-if="patient.hasVisited" class="history-tag">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                  </svg>
-                  曾就诊患者
+
+                  <div v-if="patient.hasVisited" class="history-tag">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                      viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    曾就诊患者
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+
+          <div
+            v-if="todaySchedules.length === 0"
+            class="empty-state"
+          >
+            <p>今日暂无排班</p>
+          </div>
+          </div>
 
         <!-- 未来排班 -->
         <div v-else class="schedule-section">
@@ -232,14 +265,6 @@
                     {{ visit.date }}
                   </div>
                   <div class="history-content">
-                    <!-- <div class="history-row">
-                      <span class="history-label">诊断：</span>
-                      <span class="history-value">{{ visit.diagnosis }}</span>
-                    </div>
-                    <div v-if="visit.notes" class="history-row">
-                      <span class="history-label">备注：</span>
-                      <span class="history-value">{{ visit.notes }}</span>
-                    </div> -->
                     <div class="history-row">
                       <span class="history-label">主诉：</span>
                       <span class="history-value">{{ visit.illness }}</span>
@@ -538,6 +563,8 @@ const detailSchedule = ref({
 })
 const detailPatients = ref([])
 const detailLoading = ref(false)
+const todaySchedules = ref([])
+
 
 const minDate = computed(() => {
   const tomorrow = new Date()
@@ -668,20 +695,43 @@ async function fetchTodaySchedule() {
       fetchPatientSchedules(todayStr)
     ])
 
-    const candidate =[...patientSchedules].sort(sortByTimeSlot).find(item => Array.isArray(item.patients) && item.patients.length > 0)
-  || [...patientSchedules].sort(sortByTimeSlot)[0]
-  || (scheduleList.length ? { ...scheduleList.sort(sortByTimeSlot)[0], patients: [] } : null)
+    // 以 scheduleId 为准，优先用 patientSchedules
+    const scheduleMap = new Map()
 
-    if (!candidate) {
-      todaySchedule.value = { date: '', timeRange: '', patients: [], scheduleId: null }
-      return
-    }
+    // 先放入带 patients 的排班
+    patientSchedules.forEach(item => {
+      scheduleMap.set(item.scheduleId, {
+        scheduleId: item.scheduleId,
+        date: buildDateLabel(item.workDate),
+        timeSlot: item.timeSlot,
+        timeRange: item.timeSlotName || formatTimeSlot(item.timeSlot),
+        patients: transformPatients(
+          item.patients || [],
+          item.timeSlotName || formatTimeSlot(item.timeSlot)
+        )
+      })
+    })
 
-    todaySchedule.value = {
-      scheduleId: candidate.scheduleId,
-      date: buildDateLabel(candidate.workDate),
-      timeRange: candidate.timeSlotName || formatTimeSlot(candidate.timeSlot),
-      patients: transformPatients(candidate.patients || [], candidate.timeSlotName || formatTimeSlot(candidate.timeSlot))
+    // 再补充没有患者的排班
+    scheduleList.forEach(item => {
+      if (!scheduleMap.has(item.scheduleId)) {
+        scheduleMap.set(item.scheduleId, {
+          scheduleId: item.scheduleId,
+          date: buildDateLabel(item.workDate),
+          timeSlot: item.timeSlot,
+          timeRange: item.timeSlotName || formatTimeSlot(item.timeSlot),
+          patients: []
+        })
+      }
+    })
+
+    // 转成数组并排序（上午 → 下午）
+    todaySchedules.value = Array.from(scheduleMap.values())
+      .sort(sortByTimeSlot)
+
+    // 没有排班兜底
+    if (todaySchedules.value.length === 0) {
+      todaySchedules.value = []
     }
   } catch (err) {
     loadError.value = err?.response?.data?.message || err?.message || '获取今日排班失败'

@@ -643,12 +643,22 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointmentMapper.updateById(appointment);
 
         /* 发送已就诊通知 */
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
-            @Override
-            public void afterCommit() {
-                notificationEmailService.sendCompletedNotification(appointment.getAppointmentId());
-            }
-        });
+//        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+//            @Override
+//            public void afterCommit() {
+//                notificationEmailService.sendCompletedNotification(appointment.getAppointmentId());
+//            }
+//        });
+        // ⚠️ 关键点：afterCommit + @Async = 真正不阻塞请求
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronizationAdapter() {
+                    @Override
+                    public void afterCommit() {
+                        notificationEmailService
+                                .sendCompletedNotification(appointment.getAppointmentId());
+                    }
+                }
+        );
 
         return true;
     }

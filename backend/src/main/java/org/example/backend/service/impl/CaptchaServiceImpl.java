@@ -38,17 +38,62 @@ public class CaptchaServiceImpl implements CaptchaService {
         return sendMailCaptcha(key, EmailTemplateEnum.VERIFICATION_CODE_EMAIL_HTML);
     }
 
+//    private boolean sendMailCaptcha(String key, EmailTemplateEnum template) {
+//        BoundHashOperations<String, String, String> hashOps = stringRedisTemplate.boundHashOps(key);
+//
+//        String lastSendTimestamp = hashOps.get("lastSendTimestamp");
+//        String sendCount = hashOps.get("sendCount");
+//
+//        if (StringUtils.isNotBlank(sendCount) && Integer.parseInt(sendCount) >= 5) {
+//            hashOps.expire(24, TimeUnit.HOURS);
+//            throw new RuntimeException("验证码请求太频繁（每天最多5次）");
+//        }
+//
+//        if (StringUtils.isNotBlank(lastSendTimestamp)) {
+//            long lastSendTime = Long.parseLong(lastSendTimestamp);
+//            if ((System.currentTimeMillis() - lastSendTime) < 60_000) {
+//                throw new RuntimeException("验证码请求太频繁（每分钟最多1次）");
+//            }
+//        }
+//
+//        int newSendCount = StringUtils.isNotBlank(sendCount) ? Integer.parseInt(sendCount) + 1 : 1;
+//        String captcha = RandomStringUtils.randomNumeric(6);
+//
+//        // 同步等待邮件发送
+//        try {
+//            Boolean sendResult = sendCaptchaMail(key, captcha, template).get(10, TimeUnit.SECONDS);
+//            if (!Boolean.TRUE.equals(sendResult)) {
+//                throw new RuntimeException("邮件发送失败");
+//            }
+//        } catch (Exception e) {
+//            log.error("发送验证码邮件失败", e);
+//            throw new RuntimeException("验证码发送失败，请稍后重试");
+//        }
+//
+//        // 邮件发送成功后才保存到 Redis
+//        Map<String, String> payload = new HashMap<>(3);
+//        payload.put("captcha", captcha);
+//        payload.put("lastSendTimestamp", String.valueOf(System.currentTimeMillis()));
+//        payload.put("sendCount", String.valueOf(newSendCount));
+//        hashOps.putAll(payload);
+//        hashOps.expire(5, TimeUnit.MINUTES);
+//
+//        return true;
+//    }
     private boolean sendMailCaptcha(String key, EmailTemplateEnum template) {
-        BoundHashOperations<String, String, String> hashOps = stringRedisTemplate.boundHashOps(key);
+        BoundHashOperations<String, String, String> hashOps =
+                stringRedisTemplate.boundHashOps(key);
 
         String lastSendTimestamp = hashOps.get("lastSendTimestamp");
         String sendCount = hashOps.get("sendCount");
 
-        if (StringUtils.isNotBlank(sendCount) && Integer.parseInt(sendCount) >= 5) {
+        // 每天最多 5 次
+        if (StringUtils.isNotBlank(sendCount) && Integer.parseInt(sendCount) >= 10) {
             hashOps.expire(24, TimeUnit.HOURS);
-            throw new RuntimeException("验证码请求太频繁（每天最多5次）");
+            throw new RuntimeException("验证码请求太频繁（每天最多10次）");
         }
 
+        // 每分钟最多 1 次
         if (StringUtils.isNotBlank(lastSendTimestamp)) {
             long lastSendTime = Long.parseLong(lastSendTimestamp);
             if ((System.currentTimeMillis() - lastSendTime) < 60_000) {
@@ -56,30 +101,36 @@ public class CaptchaServiceImpl implements CaptchaService {
             }
         }
 
-        int newSendCount = StringUtils.isNotBlank(sendCount) ? Integer.parseInt(sendCount) + 1 : 1;
+        int newSendCount =
+                StringUtils.isNotBlank(sendCount) ? Integer.parseInt(sendCount) + 1 : 1;
+
         String captcha = RandomStringUtils.randomNumeric(6);
+        long now = System.currentTimeMillis();
 
-        // 同步等待邮件发送
-        try {
-            Boolean sendResult = sendCaptchaMail(key, captcha, template).get(10, TimeUnit.SECONDS);
-            if (!Boolean.TRUE.equals(sendResult)) {
-                throw new RuntimeException("邮件发送失败");
-            }
-        } catch (Exception e) {
-            log.error("发送验证码邮件失败", e);
-            throw new RuntimeException("验证码发送失败，请稍后重试");
-        }
-
-        // 邮件发送成功后才保存到 Redis
+        // ✅ 1. 先写 Redis（这是关键）
         Map<String, String> payload = new HashMap<>(3);
         payload.put("captcha", captcha);
-        payload.put("lastSendTimestamp", String.valueOf(System.currentTimeMillis()));
+        payload.put("lastSendTimestamp", String.valueOf(now));
         payload.put("sendCount", String.valueOf(newSendCount));
         hashOps.putAll(payload);
         hashOps.expire(5, TimeUnit.MINUTES);
 
+        // ✅ 2. 异步发送邮件（不等待）
+        sendCaptchaMail(key, captcha, template)
+                .thenAccept(success -> {
+                    if (!Boolean.TRUE.equals(success)) {
+                        log.warn("验证码邮件发送失败（异步）: {}", key);
+                    }
+                })
+                .exceptionally(ex -> {
+                    log.error("验证码邮件发送异常（异步）: {}", key, ex);
+                    return null;
+                });
+
+        // ✅ 3. 直接返回成功
         return true;
     }
+
 
 
     private CompletableFuture<Boolean> sendCaptchaMail(String hashKey, String captcha, EmailTemplateEnum template) {

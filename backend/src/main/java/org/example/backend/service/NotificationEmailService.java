@@ -196,7 +196,10 @@ public class NotificationEmailService {
     /**
      * 发送就诊通知
      */
+    @Async
     public void sendCompletedNotification(Long appointmentId) {
+        log.info("sendCompletedNotification thread = {}", Thread.currentThread().getName());
+
         try {
             Appointment appointment = appointmentMapper.selectById(appointmentId);
             if (appointment == null) return;
