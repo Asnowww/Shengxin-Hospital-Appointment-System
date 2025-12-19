@@ -51,9 +51,9 @@
             <label>诊断结果</label>
             <p class="diagnosis">{{ record.diagnosis }}</p>
           </div>
-          <div class="info-item" v-if="record.treatmentPlan">
+          <div class="info-item" v-if="record.treatment">
             <label>处理意见/处方</label>
-            <p>{{ record.treatmentPlan }}</p>
+            <p>{{ record.treatment }}</p>
           </div>
         </div>
       </div>
@@ -75,11 +75,68 @@ async function fetchRecords() {
     const res = await axios.get('/api/patient/medical-record/my-history', {
       headers: { Authorization: `Bearer ${token}` }
     })
+
+    console.log('病历API完整响应:', res.data) // 查看完整响应
+
     if (res.data.code === 200) {
-      records.value = res.data.data
+      const originalRecords = res.data.data
+      console.log('原始病历记录:', originalRecords) // 查看病历数据
+
+      // 提取所有不重复的医生ID
+      const doctorIds = [...new Set(
+          originalRecords
+              .map(record => record.doctorId)
+              .filter(id => id)
+      )]
+
+      console.log('提取的医生IDs:', doctorIds) // 确认医生ID是否提取成功
+
+      if (doctorIds.length > 0) {
+        const doctorPromises = doctorIds.map(id =>
+            axios.get(`/api/doctor/doctorId/${id}`)
+                .then(res => {
+                  console.log(`医生${id}的完整响应:`, res.data) // 查看每个医生API响应
+                  return res.data
+                })
+                .catch(err => {
+                  console.error(`获取医生 ${id} 信息失败:`, err)
+                  return null
+                })
+        )
+
+        const doctorsData = await Promise.all(doctorPromises)
+        console.log('所有医生数据:', doctorsData) // 查看获取到的医生数据
+
+        const doctorMap = {}
+        doctorsData.forEach(doctor => {
+          if (doctor && doctor.doctorId) {
+            doctorMap[doctor.doctorId] = doctor
+          }
+        })
+
+        console.log('医生映射表:', doctorMap)
+
+        // 合并医生信息到病历记录
+        records.value = originalRecords.map(record => {
+          console.log(`处理病历 ${record.recordId}, doctorId: ${record.doctorId}`) // 查看每条病历的处理
+          const doctor = doctorMap[record.doctorId]
+          console.log(`找到的医生信息:`, doctor)
+
+          return {
+            ...record,
+            doctorName: doctor?.doctorName || '未知医生',
+            deptName: doctor?.deptName || '未知科室',
+            title: doctor?.title || ''
+          }
+        })
+      } else {
+        records.value = originalRecords
+      }
+
+      console.log('最终病历数据:', records.value)
     }
   } catch (err) {
-    console.error('获取病历失败', err)
+    console.error('获取病历失败:', err)
   } finally {
     loading.value = false
   }
