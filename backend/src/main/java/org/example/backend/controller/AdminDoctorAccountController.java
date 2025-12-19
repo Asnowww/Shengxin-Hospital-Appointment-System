@@ -50,15 +50,14 @@ public class AdminDoctorAccountController {
     }
 
     /**
-     * 禁用/启用医生账号
+     * 修改医生状态 (在职 / 休假 / 退休)
      */
     @PutMapping("/status/{doctorId}")
     public Result<String> updateDoctorStatus(
             @PathVariable Long doctorId,
             @RequestParam String status) {
         doctorAccountService.updateDoctorStatus(doctorId, status);
-        String msg = "verified".equals(status) ? "启用成功" : "禁用成功";
-        return Result.success(msg);
+        return Result.success("医生状态已更新");
     }
 
     /**
@@ -80,14 +79,28 @@ public class AdminDoctorAccountController {
     }
 
     /**
+     * 停用/启用医生账号
+     */
+    @PutMapping("/update/account_status/{doctorId}")
+    public Result<String> setDoctorAccountStatus(
+            @PathVariable Long doctorId,
+            @RequestParam String account_status) {
+        try {
+            doctorAccountService.updateDoctorAccountStatus(doctorId, account_status);
+            return Result.success("修改账号状态成功");
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
      * 审批医生修改bio的申请
      */
     @PostMapping("/bio/review/{requestId}")
     public Result<String> review(
             @PathVariable Long requestId,
             @RequestParam boolean approved,
-            @RequestParam(required = false) String reason
-    ) {
+            @RequestParam(required = false) String reason) {
         try {
             doctorAccountService.reviewRequest(requestId, approved, reason);
             return Result.success(approved ? "审核通过" : "已拒绝");

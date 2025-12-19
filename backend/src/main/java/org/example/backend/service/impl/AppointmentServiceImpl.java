@@ -3,11 +3,7 @@ package org.example.backend.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.*;
-import org.example.backend.mapper.AppointmentMapper;
-import org.example.backend.mapper.AppointmentRelationsMapper;
-import org.example.backend.mapper.AppointmentTypeMapper;
-import org.example.backend.mapper.PatientMapper;
-import org.example.backend.mapper.ScheduleMapper;
+import org.example.backend.mapper.*;
 import org.example.backend.pojo.*;
 import org.example.backend.service.AppointmentService;
 import org.example.backend.service.NotificationEmailService;
@@ -43,6 +39,9 @@ public class AppointmentServiceImpl implements AppointmentService {
     private AppointmentTypeMapper appointmentTypeMapper;
 
     @Resource
+    private NotificationMapper notificationMapper;
+
+    @Resource
     @Lazy
     private WaitlistService waitlistService;
 
@@ -57,6 +56,9 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Resource
     private AppointmentRelationsMapper appointmentRelationsMapper;
+
+    @Resource
+    private WaitlistMapper waitlistMapper;
 
     // === 病人端 ===
 
@@ -87,6 +89,46 @@ public class AppointmentServiceImpl implements AppointmentService {
         Long existCount = appointmentMapper.selectCount(checkWrapper);
         if (existCount > 0) {
             throw new RuntimeException("您已预约该排班，请勿重复挂号");
+        }
+
+        // 验证患者是否已在该排班的候补队列中
+        QueryWrapper<Waitlist> waitlistCheckWrapper = new QueryWrapper<>();
+        waitlistCheckWrapper.eq("patient_id", param.getPatientId())
+                .eq("schedule_id", param.getScheduleId())
+                .in("status", "waiting"); // 等待中
+        Long waitlistCount = waitlistMapper.selectCount(waitlistCheckWrapper);
+        if (waitlistCount > 0) {
+            throw new RuntimeException("您已在该排班的候补队列中，请勿重复操作");
+        }
+
+        //验证患者在同一时段是否已有其他预约或候补（防止时间冲突）
+        LocalDate workDate = schedule.getWorkDate();
+        Integer timeSlot = schedule.getTimeSlot();
+
+        //检查是否有同时段的预约
+        QueryWrapper<Appointment> timeConflictWrapper = new QueryWrapper<>();
+        timeConflictWrapper.eq("patient_id", param.getPatientId())
+                .in("appointment_status", "pending", "booked")
+                .exists("SELECT 1 FROM schedules s WHERE s.schedule_id = appointments.schedule_id " +
+                        "AND s.work_date = {0} AND s.time_slot = {1}", workDate, timeSlot);
+
+        Long conflictCount = appointmentMapper.selectCount(timeConflictWrapper);
+        if (conflictCount > 0) {
+            String timeSlotName = getTimeSlotName(timeSlot);
+            throw new RuntimeException("您在" + workDate + " " + timeSlotName + "已有预约，无法重复预约同一时段");
+        }
+
+        // 检查是否有同时段的候补
+        QueryWrapper<Waitlist> waitlistTimeConflictWrapper = new QueryWrapper<>();
+        waitlistTimeConflictWrapper.eq("patient_id", param.getPatientId())
+                .in("status", "waiting")
+                .exists("SELECT 1 FROM schedules s WHERE s.schedule_id = waitlist.schedule_id " +
+                        "AND s.work_date = {0} AND s.time_slot = {1}", workDate, timeSlot);
+
+        Long waitlistConflictCount = waitlistMapper.selectCount(waitlistTimeConflictWrapper);
+        if (waitlistConflictCount > 0) {
+            String timeSlotName = getTimeSlotName(timeSlot);
+            throw new RuntimeException("您在" + workDate + " " + timeSlotName + "已有候补，无法重复操作");
         }
 
         // 5. 查询号别费用
@@ -140,20 +182,52 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new RuntimeException("预约创建失败");
         }
 
-//        // 9. 减少排班可用号源
-//        schedule.setAvailableSlots(schedule.getAvailableSlots() - 1);
-//        schedule.setUpdatedAt(LocalDateTime.now());
-//        scheduleMapper.updateById(schedule);
+        // 9. 减少排班可用号源
+        schedule.setAvailableSlots(schedule.getAvailableSlots() - 1);
+        schedule.setUpdatedAt(LocalDateTime.now());
+        scheduleMapper.updateById(schedule);
 
+        Long appointmentId = appointment.getAppointmentId();
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
             @Override
             public void afterCommit() {
-                CompletableFuture.runAsync(() -> notificationEmailService
-                        .sendAppointmentCreatedNotification(appointment.getAppointmentId()));
+                CompletableFuture.runAsync(() -> {
+                    // 检查是否已发送过候补转正通知
+                    if (!hasWaitlistConversionNotification(appointmentId)) {
+                        notificationEmailService.sendAppointmentCreatedNotification(appointmentId);
+                    } else {
+                        System.out.println("预约 " + appointmentId + " 的创建通知已存在，跳过发送");
+                    }
+                });
             }
         });
 
         return appointment;
+    }
+
+    private String getTimeSlotName(Integer timeSlot) {
+        if (timeSlot == 0) {
+            return "上午";
+        }else if (timeSlot == 1) {
+            return "下午";
+        }else if (timeSlot == 2) {
+            return "晚上";
+        }
+
+        return " ";
+    }
+
+    /**
+     * 检查是否已发送过预约转正通知
+     * @param appointmentId 预约ID
+     * @return true表示已发送过，false表示未发送
+     */
+    private boolean hasWaitlistConversionNotification(Long appointmentId) {
+        QueryWrapper<Notification> wrapper = new QueryWrapper<>();
+        wrapper.eq("appointment_id", appointmentId)
+                .eq("subject", "【候补转正】您的候补预约已成功转为正式预约");
+        Long count = notificationMapper.selectCount(wrapper);
+        return count != null && count > 0;
     }
 
     @Override
@@ -196,8 +270,10 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new RuntimeException("该预约已取消或已退款");
         }
 
+        boolean wasPaid = "paid".equals(appointment.getPaymentStatus());
+
         // ========== 已支付 → 执行退款 ==========
-        if ("paid".equals(appointment.getPaymentStatus())) {
+        if (wasPaid) {
             try {
                 String refundReason = (cancelType != null && cancelType == 2)
                         ? "系统自动执行退款"
@@ -252,6 +328,11 @@ public class AppointmentServiceImpl implements AppointmentService {
             scheduleMapper.updateById(schedule);
 
             Integer scheduleId = appointment.getScheduleId();
+
+            if (wasPaid) {
+                appointmentMapper.recalculateQueueNumbers(scheduleId);
+            }
+
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
                 @Override
                 public void afterCommit() {
@@ -283,6 +364,10 @@ public class AppointmentServiceImpl implements AppointmentService {
                 && !"pending".equals(appointment.getAppointmentStatus())) {
             throw new RuntimeException("当前预约状态不允许修改");
         }
+
+        Integer oldScheduleId = appointment.getScheduleId();
+        boolean needRecalculate = false;
+        boolean wasPaid = "paid".equals(appointment.getPaymentStatus());
 
         // 3. 如果修改排班（改期改时间）
         if (param.getNewScheduleId() != null &&
@@ -331,6 +416,14 @@ public class AppointmentServiceImpl implements AppointmentService {
             appointment.setDeptId(newSchedule.getDeptId());
             appointment.setRoomId(newSchedule.getRoomId());
 
+            if (wasPaid) {
+                int newQueueNumber = appointmentMapper.countPaidAppointments(param.getNewScheduleId()) + 1;
+                appointment.setQueueNumber(newQueueNumber);
+                needRecalculate = true;
+            } else {
+                appointment.setQueueNumber(0); // 未支付仍为0
+            }
+
             // 重新生成排队号（需要根据新排班的已预约数量）
             int newQueueNumber = newSchedule.getMaxSlots() - newSchedule.getAvailableSlots();
             appointment.setQueueNumber(newQueueNumber);
@@ -349,8 +442,15 @@ public class AppointmentServiceImpl implements AppointmentService {
             appointment.setAppointmentStatus(param.getAppointmentStatus());
         }
 
+
         // 6. 更新时间戳
         appointment.setUpdatedAt(LocalDateTime.now());
+
+        // 7. 更新预约排队好
+        if (needRecalculate && wasPaid) {
+            appointmentMapper.recalculateQueueNumbers(oldScheduleId);  // 原排班
+            appointmentMapper.recalculateQueueNumbers(param.getNewScheduleId()); // 新排班
+        }
 
         return appointmentMapper.updateById(appointment) > 0;
     }
@@ -612,7 +712,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
             @Override
             public void afterCommit() {
-                notificationEmailService.sendNoShowNotification(appointment.getAppointmentId());
+                notificationEmailService.sendAppointmentCallNotification(appointment.getAppointmentId());
             }
         });
 

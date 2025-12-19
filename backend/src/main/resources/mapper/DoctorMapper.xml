@@ -27,7 +27,9 @@
         LEFT JOIN departments dep ON d.dept_id = dep.dept_id
         <where>
             <if test="deptId != null"> AND d.dept_id = #{deptId} </if>
-            <if test="username != null and username.trim() != ''"> AND u.username LIKE CONCAT('%', #{username}, '%') </if>
+            <if test="username != null and username.trim() != ''">
+                AND (u.username LIKE CONCAT('%', #{username}, '%') OR CAST(d.doctor_id AS CHAR) = #{username})
+            </if>
             <if test="status != null"> AND u.status = #{status} </if>
             <if test="doctorStatus != null"> AND d.status = #{doctorStatus} </if>
         </where>
@@ -43,7 +45,9 @@
         LEFT JOIN departments dep ON d.dept_id = dep.dept_id
         <where>
             <if test="deptId != null"> AND d.dept_id = #{deptId} </if>
-            <if test="username != null and username.trim() != ''"> AND u.username LIKE CONCAT('%', #{username}, '%') </if>
+            <if test="username != null and username.trim() != ''">
+                AND (u.username LIKE CONCAT('%', #{username}, '%') OR CAST(d.doctor_id AS CHAR) = #{username})
+            </if>
             <if test="status != null"> AND u.status = #{status} </if>
             <if test="doctorStatus != null"> AND d.status = #{doctorStatus} </if>
         </where>

@@ -76,6 +76,11 @@ public class DepartmentServiceImpl extends ServiceImpl<DepartmentMapper, Departm
         return departmentMapper.deleteById(id) > 0;
     }
 
+
+    @Override
+    public Department getDepartmentById(Integer deptId) {
+        return departmentMapper.selectById(deptId);
+    }
     /**
      * 获取所有可用的科室区域（按楼层分组）
      */

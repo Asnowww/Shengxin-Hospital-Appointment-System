@@ -74,7 +74,7 @@
                     class="mini-btn primary"
                     :disabled="actionLoading === p.appointmentId || disableCall(p.appointmentStatus, p.waitingNumber === 1)"
                     :title="p.waitingNumber !== 1 ? '仅能对第一位患者叫号' : ''"
-                    @click="callPatient(p)"
+                    @click="callPatient(p.appointmentId)"
                 >
                   叫号
                 </button>
@@ -149,6 +149,8 @@ function statusLabel(status) {
   if (status === 'completed') return '已就诊'
   if (status === 'cancelled') return '已取消'
   if (status === 'pending') return '待支付'
+  if (status === 'pending_patient_confirm') return '待患者确认'
+  if (status === 'waiting_patient_action') return '待患者处理'
   return '未知'
 }
 
@@ -157,16 +159,16 @@ function statusClass(status) {
   if (status === 'booked') return 'booked'
   if (status === 'completed') return 'completed'
   if (status === 'cancelled') return 'cancelled'
-  if (status === 'pending') return 'pending'
+  if (status === 'pending' || status === 'pending_patient_confirm' || status === 'waiting_patient_action') return 'pending'
   return 'unknown'
 }
 
 function disableMark(status, isFirst) {
-  return !isFirst || status === 'completed' || status === 'no_show' || status === 'cancelled'
+  return !isFirst || status !== 'booked'
 }
 
 function disableCall(status, isFirst) {
-  return !isFirst || status === 'completed' || status === 'no_show' || status === 'cancelled'
+  return !isFirst || status !== 'booked'
 }
 
 function formatDate(dateStr) {
@@ -220,6 +222,49 @@ function stopAutoRefresh() {
     clearInterval(autoRefreshTimer.value)
     autoRefreshTimer.value = null
   }
+}
+
+async function callPatient(id){
+  try {
+
+    // 构建请求参数
+    const requestOptions = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    };
+
+    const response = await fetch(`/api/doctor/patient/${id}/call`, requestOptions);
+
+    // 检查HTTP状态码
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    // 解析响应数据
+    const result = await response.json();
+
+    if (result.code === 200 || result.success) {
+      alert('叫号成功')
+      return {
+        success: true,
+        message: result.message || result.data || '叫号成功',
+        data: result.data
+      };
+    } else {
+      throw new Error(result.message || result.error || '叫号失败');
+    }
+
+    } catch (error) {
+      console.error('叫号失败:', error);
+      return {
+        success: false,
+        message: error.message || '网络请求失败，请稍后重试',
+        error: error
+      };
+    }
 }
 
 // 病历弹窗

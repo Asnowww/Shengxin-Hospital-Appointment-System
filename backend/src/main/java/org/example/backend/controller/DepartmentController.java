@@ -147,5 +147,22 @@ public class DepartmentController {
         }
     }
 
+    /**
+     * 根据ID获取科室详细信息
+     * 前端：编辑科室时获取当前科室信息
+     */
+    @GetMapping("/{id}")
+    public Result<Department> getDepartmentById(@PathVariable Integer id) {
+        try {
+            Department department = departmentService.getDepartmentById(id);
+            if (department == null) {
+                return Result.error("科室不存在");
+            }
+            return Result.success(department);
+        } catch (Exception e) {
+            return Result.error("获取科室信息失败: " + e.getMessage());
+        }
+    }
+
 
 }

@@ -183,7 +183,7 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
             @Param("endDate") LocalDate endDate);
 
     /**
-     * 患者端：查询患者所有预约（连表查询，返回DTO）
+     * 患者端：查询患者所有已完成预约（连表查询，返回DTO）
      */
     @Select("""
         SELECT
@@ -255,4 +255,71 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
         ORDER BY a.visit_time DESC
         """)
     List<AppointmentInfoDTO> selectCompletedAppointmentsByPatientId(@Param("patientId") Long patientId);
+
+
+    /**
+     * 计算指定排班下已支付预约的数量
+     * 用于生成新的排队号（只统计已支付的预约）
+     *
+     * @param scheduleId 排班ID
+     * @return 已支付的预约数量
+     */
+    @Select("SELECT COUNT(*) FROM appointments " +
+            "WHERE schedule_id = #{scheduleId} " +
+            "AND payment_status = 'paid' " +
+            "AND appointment_status NOT IN ('cancelled', 'no_show')")
+    int countPaidAppointments(@Param("scheduleId") Integer scheduleId);
+
+    /**
+     * 获取指定排班下的最大排队号
+     * 用于生成新排队号时的参考
+     *
+     * @param scheduleId 排班ID
+     * @return 最大排队号，如果没有记录则返回0
+     */
+    @Select("SELECT COALESCE(MAX(queue_number), 0) FROM appointments " +
+            "WHERE schedule_id = #{scheduleId} " +
+            "AND payment_status = 'paid' " +
+            "AND appointment_status NOT IN ('cancelled', 'no_show')")
+    int getMaxQueueNumber(@Param("scheduleId") Integer scheduleId);
+
+    /**
+     * 重新计算并更新指定排班下所有已支付预约的排队号
+     * 按照 booking_time 升序重新分配排队号（1, 2, 3...）
+     *
+     * @param scheduleId 排班ID
+     * @return 受影响的行数
+     */
+    @Update("UPDATE appointments a " +
+            "JOIN ( " +
+            "    SELECT appointment_id, " +
+            "           ROW_NUMBER() OVER (ORDER BY booking_time ASC) as new_queue " +
+            "    FROM appointments " +
+            "    WHERE schedule_id = #{scheduleId} " +
+            "    AND payment_status = 'paid' " +
+            "    AND appointment_status NOT IN ('cancelled', 'no_show') " +
+            ") b ON a.appointment_id = b.appointment_id " +
+            "SET a.queue_number = b.new_queue, " +
+            "    a.updated_at = NOW()")
+    int recalculateQueueNumbers(@Param("scheduleId") Integer scheduleId);
+
+    /**
+     * 批量更新排队号（优化版本，适用于大批量更新）
+     *
+     * @param queueMap
+     */
+    @Update("<script>" +
+            "UPDATE appointments " +
+            "SET queue_number = CASE appointment_id " +
+            "<foreach collection='queueMap' index='appointmentId' item='queueNum' separator=' '>" +
+            "WHEN #{appointmentId} THEN #{queueNum} " +
+            "</foreach>" +
+            "END, " +
+            "updated_at = NOW() " +
+            "WHERE appointment_id IN " +
+            "<foreach collection='queueMap.keySet()' item='id' open='(' separator=',' close=')'>" +
+            "#{id}" +
+            "</foreach>" +
+            "</script>")
+    int batchUpdateQueueNumbers(@Param("queueMap") Map<Long, Integer> queueMap);
 }

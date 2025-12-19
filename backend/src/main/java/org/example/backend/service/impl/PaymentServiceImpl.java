@@ -83,26 +83,26 @@ public class PaymentServiceImpl implements PaymentService {
         if (!"pending".equals(appointment.getAppointmentStatus())) {
             return true;
         }
-
-        // 3. 扣减号源（关键修复点）
+//
+//        // 3. 扣减号源（关键修复点）
         Schedule schedule =
                 scheduleMapper.selectById(appointment.getScheduleId());
-        if (schedule == null) {
-            throw new RuntimeException("排班不存在");
-        }
-
-        if (schedule.getAvailableSlots() <= 0) {
-            throw new RuntimeException("号源不足，无法完成挂号");
-        }
-
-        schedule.setAvailableSlots(schedule.getAvailableSlots() - 1);
-        schedule.setUpdatedAt(LocalDateTime.now());
-        scheduleMapper.updateById(schedule);
+//        if (schedule == null) {
+//            throw new RuntimeException("排班不存在");
+//        }
+//
+//        if (schedule.getAvailableSlots() <= 0) {
+//            throw new RuntimeException("号源不足，无法完成挂号");
+//        }
+//
+//        schedule.setAvailableSlots(schedule.getAvailableSlots() - 1);
+//        schedule.setUpdatedAt(LocalDateTime.now());
+//        scheduleMapper.updateById(schedule);
 
         // 4. 生成最终 queueNumber（现在才是稳定的）
-        int queueNumber =
-                schedule.getMaxSlots() - schedule.getAvailableSlots();
-        appointment.setQueueNumber(queueNumber);
+        int currentPaidCount = appointmentMapper.countPaidAppointments(appointment.getScheduleId());
+        appointment.setQueueNumber(currentPaidCount + 1);
+
 
         // 5. 更新预约状态
         appointment.setPaymentStatus("paid");
