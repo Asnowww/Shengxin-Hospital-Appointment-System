@@ -2,14 +2,9 @@ package org.example.backend.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
-import org.example.backend.dto.AppointmentInfoDTO;
-import org.example.backend.dto.DoctorSchedulePatientsVO;
-import org.example.backend.dto.Result;
-import org.example.backend.dto.SchedulePatientVO;
+import org.example.backend.dto.*;
 import org.example.backend.pojo.Doctor;
-import org.example.backend.service.AppointmentService;
-import org.example.backend.service.DoctorService;
-import org.example.backend.service.ScheduleService;
+import org.example.backend.service.*;
 import org.example.backend.util.TokenUtil;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,6 +26,9 @@ public class DoctorPatientController {
 
     @Resource
     private TokenUtil tokenUtil;
+
+    @Resource
+    private MedicalRecordService  medicalRecordService;
 
     /**
      * 获取医生指定日期的所有排班患者列表
@@ -113,7 +111,7 @@ public class DoctorPatientController {
         }
     }
     /**
-     * 获取患者的所有历史就诊记录
+     * 获取患者的所有历史就诊记录（这个方法只返回预约记录，和/api/patient/appointment/list返回的一样）
      */
     @GetMapping("/{patientId}/history")
     public Result<List<AppointmentInfoDTO>> getPatientHistory(
@@ -126,4 +124,18 @@ public class DoctorPatientController {
             return Result.error(e.getMessage());
         }
     }
+
+    @GetMapping("/{patientId}/visit-records")
+    public Result<List<VisitRecordDTO>> getPatientVisitRecords(
+            @PathVariable Long patientId,
+            @RequestParam(value = "limit", defaultValue = "50") Integer limit) {
+        try {
+            List<VisitRecordDTO> records =
+                    medicalRecordService.getVisitRecordsByPatient(patientId, limit);
+            return Result.success("获取成功", records);
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
 }

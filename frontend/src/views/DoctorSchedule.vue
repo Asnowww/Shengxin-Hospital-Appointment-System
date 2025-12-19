@@ -67,7 +67,7 @@
             <div v-else class="patients-list">
               <div 
                 v-for="patient in todaySchedule.patients" 
-                :key="patient.id"
+                :key="patient.appointmentId"
                 class="patient-card"
                 @click="showPatientDetail(patient)">
                 <div class="patient-header">
@@ -232,14 +232,34 @@
                     {{ visit.date }}
                   </div>
                   <div class="history-content">
-                    <div class="history-row">
+                    <!-- <div class="history-row">
                       <span class="history-label">诊断：</span>
                       <span class="history-value">{{ visit.diagnosis }}</span>
                     </div>
                     <div v-if="visit.notes" class="history-row">
                       <span class="history-label">备注：</span>
                       <span class="history-value">{{ visit.notes }}</span>
+                    </div> -->
+                    <div class="history-row">
+                      <span class="history-label">主诉：</span>
+                      <span class="history-value">{{ visit.illness }}</span>
                     </div>
+
+                    <div class="history-row">
+                      <span class="history-label">诊断：</span>
+                      <span class="history-value">{{ visit.diagnosis }}</span>
+                    </div>
+
+                    <div class="history-row">
+                      <span class="history-label">治疗：</span>
+                      <span class="history-value">{{ visit.treatment }}</span>
+                    </div>
+
+                    <div class="history-row">
+                      <span class="history-label">医嘱：</span>
+                      <span class="history-value">{{ visit.advice }}</span>
+                    </div>
+
                   </div>
                 </div>
               </div>
@@ -576,11 +596,13 @@ function transformPatients(patients, slotName) {
   return patients.map(p => {
     const status = mapAppointmentStatus(p.appointmentStatus)
     return {
-      id: p.appointmentId || p.patientId,
+      // id: p.appointmentId || p.patientId,
+      appointmentId: p.appointmentId,   // ✅ 明确
+      patientId: p.patientId,           // ✅ 明确
       name: p.patientName || '患者',
       gender: p.gender === 'M' ? '男' : (p.gender === 'F' ? '女' : '未知'),
       age: p.age ?? '--',
-      appointmentTime: buildAppointmentTime(p.bookingTime, slotName, p.queueNumber),
+      appointmentTime: buildAppointmentTime(p.timeSlot, slotName, p.queueNumber),
       status,
       hasVisited: status === 'completed',
       visitHistory: []
@@ -711,6 +733,26 @@ async function fetchFutureSchedules() {
   }
 }
 
+// 获取患者就诊历史
+async function fetchPatientHistory(patientId) {
+  const headers = token.value
+    ? { Authorization: `Bearer ${token.value}` }
+    : {}
+
+  const { data } = await axios.get(
+    `/api/doctor/medical-record/history/${patientId}`,
+    { headers }
+  )
+
+  if (data?.code !== 200) {
+    throw new Error(data?.message || '获取就诊历史失败')
+  }
+  console.log('history param =', patientId, 'selectedPatient=', selectedPatient.value)
+
+
+  return Array.isArray(data.data) ? data.data : []
+}
+
 // 获取状态文案
 function getStatusText(status) {
   const map = {
@@ -725,9 +767,35 @@ function getStatusText(status) {
 }
 
 // 显示患者详情
-function showPatientDetail(patient) {
-  selectedPatient.value = patient
+async function showPatientDetail(patient) {
+  // 先展示基础信息
+  selectedPatient.value = {
+    ...patient,
+    visitHistory: []   // 先清空，避免上一个患者残留
+  }
   showPatientModal.value = true
+
+  try {
+    const history = await fetchPatientHistory(patient.patientId)
+
+    // 映射成前端需要的结构
+    selectedPatient.value.visitHistory = history.map(item => ({
+      date: item.createdAt?.slice(0, 10) || '—',
+      diagnosis: item.diagnosis || '—',
+      illness: item.presentIllness || '—',
+      treatment: item.treatment || '—',
+      advice: item.doctorAdvice || '—',
+      notes: item.notes || ''
+    }))
+
+    // 如果有历史，标记为曾就诊
+    selectedPatient.value.hasVisited =
+      selectedPatient.value.visitHistory.length > 0
+
+  } catch (err) {
+    console.error('获取就诊历史失败', err)
+    alert(err.message || '获取就诊历史失败')
+  }
 }
 
 // 关闭患者详情
