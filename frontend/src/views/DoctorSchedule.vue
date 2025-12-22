@@ -204,7 +204,11 @@
 
     <!-- 患者详情弹窗 -->
     <transition name="modal">
-      <div v-if="showPatientModal" class="modal-overlay" @click.self="closePatientModal">
+      <div
+        v-if="showPatientModal"
+        class="modal-overlay patient-modal-overlay"
+        @click.self="closePatientModal"
+      >
         <div class="modal-container">
           <button @click="closePatientModal" class="close-btn">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -343,7 +347,8 @@
                 <div 
                   v-for="patient in detailPatients" 
                   :key="patient.id"
-                  class="patient-card compact">
+                  class="patient-card compact"
+                  @click="showPatientDetail(patient)">
                   <div class="patient-header">
                     <div class="patient-basic">
                       <h4>{{ patient.name }}</h4>
@@ -1219,7 +1224,7 @@ h1 {
 }
 
 .patient-card.compact {
-  cursor: default;
+  cursor: pointer;
 }
 
 .patient-card:hover {
@@ -1611,6 +1616,16 @@ h1 {
   padding: 1rem;
   z-index: 1000;
   backdrop-filter: blur(4px);
+}
+
+/* 二级弹窗：患者详情 */
+.patient-modal-overlay {
+  z-index: 1100; /* 一定要高于排班详情 */
+}
+
+.patient-modal-overlay .modal-container {
+  position: relative;
+  z-index: 1101;
 }
 
 .modal-container {
