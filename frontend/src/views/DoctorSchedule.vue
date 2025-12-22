@@ -643,12 +643,27 @@ function transformPatients(patients, slotName) {
 }
 
 function calculatePatientCount(schedule) {
-  if (typeof schedule?.bookedSlots === 'number') return schedule.bookedSlots
-  if (typeof schedule?.maxSlots === 'number' && typeof schedule?.availableSlots === 'number') {
+  // ✅ 最高优先级：患者列表
+  if (Array.isArray(schedule?.patients)) {
+    return schedule.patients.length
+  }
+
+  // 次优先：后端直接给的已预约数
+  if (typeof schedule?.bookedSlots === 'number') {
+    return schedule.bookedSlots
+  }
+
+  // 最后兜底：号源 - 剩余
+  if (
+    typeof schedule?.maxSlots === 'number' &&
+    typeof schedule?.availableSlots === 'number'
+  ) {
     return Math.max(schedule.maxSlots - schedule.availableSlots, 0)
   }
+
   return 0
 }
+
 
 function sortByTimeSlot(a, b) {
   return (a?.timeSlot ?? 0) - (b?.timeSlot ?? 0)
