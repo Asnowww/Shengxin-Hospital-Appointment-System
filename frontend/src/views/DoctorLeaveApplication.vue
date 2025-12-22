@@ -133,6 +133,7 @@ function formatDateLabel(dateStr) {
 function mapScheduleOptions(list) {
   return list
     .filter(item => item.status !== 'cancelled')
+    .filter(item => !item.leaveApplied)
     .map(item => {
       const patientCount = typeof item.bookedSlots === 'number'
         ? item.bookedSlots
@@ -217,6 +218,11 @@ async function submit() {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
     alert('已提交，请等待审批')
+     // 重置表单
+     form.value.scheduleIds = []
+    form.value.reason = ''
+    // 刷新排班（避免已请假的还能再选）
+    fetchScheduleOptions()
     // 提交后刷新历史（等待服务器处理可能需要一点时间）
     fetchHistory()
   } catch (e) {
