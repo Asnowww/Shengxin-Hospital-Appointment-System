@@ -82,7 +82,8 @@ import { ref, onMounted, nextTick } from 'vue'
 import axios from 'axios'
 import Navigation from '@/components/Navigation.vue'
 
-const today = new Date().toISOString().split('T')[0]
+const now = new Date()
+const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
 const navRef = ref(null)
 const navHeight = ref(110)
@@ -131,9 +132,26 @@ function formatDateLabel(dateStr) {
 }
 
 function mapScheduleOptions(list) {
+  const now = new Date()
   return list
     .filter(item => item.status !== 'cancelled')
     .filter(item => !item.leaveApplied)
+    // 过滤已过去的排班
+    .filter(item => {
+      // 未来日期：直接显示
+      if (item.workDate > today) return true
+
+      // 今天的排班：判断时间段
+      if (item.workDate === today) {
+        // timeSlot: 0=上午, 1=下午, 2=晚上
+        if (item.timeSlot === 0 && currentHour < 12) return true
+        if (item.timeSlot === 1 && currentHour < 18) return true
+        if (item.timeSlot === 2) return true
+        return false
+      }
+      // 过去日期：不显示
+      return false
+    })
     .map(item => {
       const patientCount = typeof item.bookedSlots === 'number'
         ? item.bookedSlots
@@ -157,7 +175,7 @@ async function fetchScheduleOptions() {
     const startDate = today
     const end = new Date()
     end.setDate(end.getDate() + 30)
-    const endDate = end.toISOString().split('T')[0]
+    const endDate = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`
     const { data } = await axios.get('/api/doctor/schedules/my', {
       params: { userId: getUserIdFromStorage(), startDate, endDate }
     })
