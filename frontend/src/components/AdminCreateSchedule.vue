@@ -113,9 +113,13 @@
                 required
               >
                 <option value="">请选择号别类型</option>
-                <option value="1">普通号</option>
-                <option value="2">专家号</option>
-                <option value="3">特需号</option>
+                <option
+                  v-for="t in visibleAppointmentTypes"
+                  :key="t.id"
+                  :value="t.id"
+                >
+                  {{ t.label }}
+                </option>
               </select>
             </div>
 
@@ -244,6 +248,34 @@ const scheduleForm = reactive({
   weekdays: []
 })
 
+const APPOINTMENT_TYPES = [
+  { id: '1', label: '普通号' },
+  { id: '2', label: '专家号' },
+  { id: '3', label: '特需号' }
+]
+
+// 根据医生职级过滤号别：
+// 住院医师、主治医师 -> 仅普通
+// 主任医师 -> 普通 + 专家
+// 其它放开全部
+const visibleAppointmentTypes = computed(() => {
+  const selected = doctors.value.find(d => d.doctorId === scheduleForm.doctorId)
+  const title = (selected?.title || '').trim()
+
+  // 住院医师 / 主治医师：仅普通号
+  if (title.includes('住院') || title.includes('主治')) {
+    return APPOINTMENT_TYPES.filter(t => t.id === '1')
+  }
+
+  // 副主任医师：普通 + 专家
+  if (title.includes('副主任')) {
+    return APPOINTMENT_TYPES.filter(t => t.id === '1' || t.id === '2')
+  }
+
+  // 其它：默认全显示（你没时间细分就别动它）
+  return APPOINTMENT_TYPES
+})
+
 const errors = reactive({
   doctorId: '',
   date: '',
@@ -303,6 +335,12 @@ watch(
   (newDoctorId) => {
     const selected = doctors.value.find(d => d.doctorId === newDoctorId)
     scheduleForm.deptId = selected ? selected.deptId : ''
+
+    // 如果当前已选号别不在允许列表中，自动重置
+    const allowedIds = visibleAppointmentTypes.value.map(t => t.id)
+    if (scheduleForm.appointmentTypeId && !allowedIds.includes(String(scheduleForm.appointmentTypeId))) {
+      scheduleForm.appointmentTypeId = ''
+    }
   }
 )
 
@@ -390,6 +428,12 @@ function validateForm() {
     ok = false
   }
 
+  // 号别必须在允许范围内
+  const allowedIds = visibleAppointmentTypes.value.map(t => t.id)
+  if (!scheduleForm.appointmentTypeId || !allowedIds.includes(String(scheduleForm.appointmentTypeId))) {
+    alert('该医生职级不允许选择该号别，请重新选择')
+    ok = false
+  }
   return ok
 }
 

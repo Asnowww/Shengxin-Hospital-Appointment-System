@@ -48,34 +48,42 @@
                 <div v-for="(slot, slotIdx) in timeSlots" :key="slotIdx" class="slot-cell">
                   <div class="slot-container" :class="{ disabled: !canOperate(date, slotIdx) }">
                      <div
-    v-for="schedule in getSchedules(room.roomId, date, slotIdx)"
-    :key="schedule.scheduleId"
-    class="schedule-item"
-    :class="{ disabled: !canOperate(date, slotIdx) }"
-    @click="!canOperate(date, slotIdx) || editSchedule(schedule)"
-  >
+                        v-for="schedule in getSchedules(room.roomId, date, slotIdx)"
+                        :key="schedule.scheduleId"
+                        class="schedule-item"
+                        :class="{ disabled: !canOperate(date, slotIdx) }"
+                        @click="!canOperate(date, slotIdx) || editSchedule(schedule)"
+                      >
                       <div class="doctor-info">
-  <div class="doctor-name">
-    {{ schedule.doctorName }}
-    <span class="type-tag" :class="'type-' + schedule.appointmentTypeId">
-      {{ getTypeLabel(schedule.appointmentTypeId) }}
-    </span>
-  </div>
-  <div class="appointments">
-    预约: {{ schedule.bookedSlots }}/{{ schedule.maxSlots }}
-  </div>
-</div>
-
+                        <div class="doctor-name">
+                          {{ schedule.doctorName }}
+                          <span class="type-tag" :class="'type-' + schedule.appointmentTypeId">
+                            {{ getTypeLabel(schedule.appointmentTypeId) }}
+                          </span>
+                        </div>
+                        <div class="appointments">
+                          预约: {{ schedule.bookedSlots }}/{{ schedule.maxSlots }}
+                        </div>
+                      </div>
                       <div class="actions" @click.stop>
                         <!-- <button @click.stop="editSchedule(schedule)" class="btn-edit" title="编辑">编</button> -->
                         <button @click.stop="deleteSchedule(schedule)" class="btn-delete" title="删除">删</button>
                       </div>
                     </div>
-                     <button
-    class="btn-add"
-    :disabled="!canOperate(date, slotIdx)"
-    @click="canOperate(date, slotIdx) && addSchedule(room.roomId, date, slotIdx)"
-  >+</button>
+                    <button
+                      class="btn-add"
+                      :disabled="
+                        !canOperate(date, slotIdx) ||
+                        hasScheduleInSlot(room.roomId, date, slotIdx)
+                      "
+                      @click="
+                        canOperate(date, slotIdx) &&
+                        !hasScheduleInSlot(room.roomId, date, slotIdx) &&
+                        addSchedule(room.roomId, date, slotIdx)
+                      "
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
               </div>
@@ -132,26 +140,24 @@
           </div>
 
          <div class="form-group">
-  <label>时间段</label>
-  <select 
-    v-model="formData.timeSlot" 
-    :disabled="editingSchedule||creatingFromTable " 
-    class="form-input" 
-    required
-  >
-    <option value="">请选择时间段</option>
-    <option 
-      v-for="(slot, idx) in timeSlots" 
-      :key="idx" 
-      :value="idx"
-      :disabled="!canOperate(formData.workDate, idx)"
-    >
-      {{ slot }}
-    </option>
-  </select>
-</div>
-
-
+          <label>时间段</label>
+          <select 
+            v-model="formData.timeSlot" 
+            :disabled="editingSchedule||creatingFromTable " 
+            class="form-input" 
+            required
+          >
+            <option value="">请选择时间段</option>
+            <option 
+              v-for="(slot, idx) in timeSlots" 
+              :key="idx" 
+              :value="idx"
+              :disabled="!canOperate(formData.workDate, idx)"
+            >
+              {{ slot }}
+            </option>
+          </select>
+        </div>
           <div class="form-group">
             <label>最大预约数</label>
             <input v-model.number="formData.maxSlots" type="number" min="1" class="form-input" required />
@@ -192,6 +198,10 @@ const getTypeLabel = (typeId) => {
   if (typeId === 2) return '专'
   if (typeId === 3) return '特'
   return ''
+}
+
+const hasScheduleInSlot = (roomId, date, timeSlot) => {
+  return getSchedules(roomId, date, timeSlot).length > 0
 }
 
 const formData = ref({
