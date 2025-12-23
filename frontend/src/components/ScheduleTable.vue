@@ -107,7 +107,7 @@
             <select v-model="formData.doctorId" class="form-input" required>
               <option value="">请选择医生</option>
               <option v-for="doctor in doctors" :key="doctor.doctorId" :value="doctor.doctorId">
-                {{ doctor.doctorName }}
+                {{ doctor.doctorName }} - {{ doctor.deptName }} - {{ doctor.title }}
               </option>
             </select>
           </div>
