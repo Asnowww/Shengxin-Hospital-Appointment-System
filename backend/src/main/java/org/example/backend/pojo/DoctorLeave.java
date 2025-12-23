@@ -51,6 +51,8 @@ public class DoctorLeave {
     @TableField("schedule_ids")
     private String scheduleIds;
 
+    private Integer affectedAppointmentCount;
+
     public List<Integer> safeScheduleIds() {
         if (scheduleIds == null || scheduleIds.trim().isEmpty()) {
             return Collections.emptyList();

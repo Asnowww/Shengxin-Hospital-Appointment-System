@@ -208,6 +208,29 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
                 affectedSchedules = scheduleMapper.selectList(wrapper);
             }
 
+            // ✅ 冻结受影响预约人数（审批通过时只算一次）
+            int affectedAppointmentCount;
+            if (leave.getScheduleIds() != null && !leave.getScheduleIds().trim().isEmpty()) {
+                affectedAppointmentCount = appointmentService.countAffectedAppointments(leave.getScheduleIds());
+            } else {
+                // 兼容旧数据：没有 scheduleIds 时，用 affectedSchedules 统计
+                List<Integer> sids = affectedSchedules.stream()
+                        .map(Schedule::getScheduleId)
+                        .collect(Collectors.toList());
+
+                if (sids.isEmpty()) {
+                    affectedAppointmentCount = 0;
+                } else {
+                    QueryWrapper<Appointment> qw = new QueryWrapper<>();
+                    qw.in("schedule_id", sids)
+                            .in("appointment_status", "pending", "booked");
+                    affectedAppointmentCount = Math.toIntExact(appointmentMapper.selectCount(qw));
+                }
+            }
+
+            leave.setAffectedAppointmentCount(affectedAppointmentCount);
+            leave.setStatus("approved");
+
             for (Schedule schedule : affectedSchedules) {
                 schedule.setStatus("cancelled");
                 schedule.setUpdatedAt(LocalDateTime.now());
@@ -516,15 +539,19 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
                 // 4. 顺便统计受影响排班数量
                 vo.setAffectedScheduleCount(infoList.size());
 
-                // 5. 统计受影响的挂号
-                int appointmentCount = 0;
-                for (Schedule s : scheduleList) {
-                    QueryWrapper<Appointment> appointmentWrapper = new QueryWrapper<>();
-                    appointmentWrapper.eq("schedule_id", s.getScheduleId())
-                            .in("appointment_status", "pending", "booked");
-                    appointmentCount += appointmentMapper.selectCount(appointmentWrapper);
-                }
-                vo.setAffectedAppointmentCount(appointmentCount);
+                //这段逻辑不对。审批通过后就没有患者的状态还是"pending", "booked"了。应当冻结到审批之前的人数，只看审批前有多少人被影响
+//                // 5. 统计受影响的挂号
+//                int appointmentCount = 0;
+//                for (Schedule s : scheduleList) {
+//                    QueryWrapper<Appointment> appointmentWrapper = new QueryWrapper<>();
+//                    appointmentWrapper.eq("schedule_id", s.getScheduleId())
+//                            .in("appointment_status", "pending", "booked");
+//                    appointmentCount += appointmentMapper.selectCount(appointmentWrapper);
+//                }
+//                vo.setAffectedAppointmentCount(appointmentCount);
+                vo.setAffectedAppointmentCount(
+                        leave.getAffectedAppointmentCount()
+                );
             }
         } else {
             vo.setAffectedScheduleCount(0);

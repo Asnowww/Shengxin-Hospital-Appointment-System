@@ -20,11 +20,13 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 public class AppointmentServiceImpl implements AppointmentService {
@@ -848,5 +850,31 @@ public class AppointmentServiceImpl implements AppointmentService {
         target.setUpdatedAt(LocalDateTime.now());
         appointmentMapper.updateById(target);
     }
+
+    @Override
+    public int countAffectedAppointments(String scheduleIds) {
+        if (scheduleIds == null || scheduleIds.trim().isEmpty()) {
+            return 0;
+        }
+
+        // 1. 解析 scheduleIds
+        List<Long> ids = Arrays.stream(scheduleIds.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Long::valueOf)
+                .collect(Collectors.toList());
+
+        if (ids.isEmpty()) {
+            return 0;
+        }
+
+        // 2. 一条 SQL 统计所有受影响预约（避免 N+1）
+        QueryWrapper<Appointment> wrapper = new QueryWrapper<>();
+        wrapper.in("schedule_id", ids)
+                .in("appointment_status", "pending", "booked");
+
+        return Math.toIntExact(appointmentMapper.selectCount(wrapper));
+    }
+
 
 }

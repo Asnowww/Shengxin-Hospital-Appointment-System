@@ -156,4 +156,10 @@ public interface AppointmentService {
      * @param patientId           患者ID
      */
     void rejectReassignedAppointment(Long targetAppointmentId, Long patientId);
+
+    /**
+     * 统计请假审批时，受影响的预约人数
+     * 只用于审批通过时冻结受影响人数
+     */
+    int countAffectedAppointments(String scheduleIds);
 }
