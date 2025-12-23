@@ -116,9 +116,13 @@
             <label>号别</label>
             <select v-model="formData.appointmentTypeId" class="form-input" required>
               <option value="">请选择号别类型</option>
-              <option value="1">普通</option>
-              <option value="2">专家</option>
-              <option value="3">特需</option>
+              <option
+                  v-for="t in visibleAppointmentTypes"
+                  :key="t.id"
+                  :value="t.id"
+                >
+                  {{ t.label }}
+                </option>
             </select>
           </div>
 
@@ -196,6 +200,31 @@ const formData = ref({
   workDate: '',
   timeSlot: '',
   maxSlots: ''
+})
+
+const APPOINTMENT_TYPES = [
+  { id: '1', label: '普通号' },
+  { id: '2', label: '专家号' },
+  { id: '3', label: '特需号' }
+]
+
+// 根据医生职级过滤号别：
+// 住院医师、主治医师 -> 仅普通
+// 主任医师 -> 普通 + 专家
+// 其它放开全部
+const visibleAppointmentTypes = computed(() => {
+  const selected = doctors.value.find(d => d.doctorId === formData.value.doctorId)
+  const title = (selected?.title || '').trim()
+
+  if (title.includes('住院') || title.includes('主治')) {
+    return APPOINTMENT_TYPES.filter(t => t.id === '1')
+  }
+
+  if (title.includes('副主任')) {
+    return APPOINTMENT_TYPES.filter(t => t.id === '1' || t.id === '2')
+  }
+
+  return APPOINTMENT_TYPES
 })
 
 // 判断日期限制
@@ -341,6 +370,7 @@ const addSchedule = (roomId, date, timeSlot) => {
     doctorId: '',
     workDate: formatDate(date),
     timeSlot: timeSlot.toString(),
+    appointmentTypeId: '',
     maxSlots: 10
   }
   showModal.value = true
@@ -385,14 +415,14 @@ const saveSchedule = async () => {
       })
     } else {
     await axios.post('/api/admin/schedules/create', {
-  roomId: formData.value.roomId,
-  deptId: props.deptId,
-  appointmentTypeId: 1,
-  doctorId: formData.value.doctorId,
-  startDate: formData.value.workDate,  
-  timeSlots: [parseInt(formData.value.timeSlot)],  
-  maxSlots: formData.value.maxSlots
-})
+      roomId: formData.value.roomId,
+      deptId: props.deptId,
+      doctorId: formData.value.doctorId,
+      startDate: formData.value.workDate,  
+      timeSlots: [parseInt(formData.value.timeSlot)],  
+      appointmentTypeId: parseInt(formData.value.appointmentTypeId),
+      maxSlots: formData.value.maxSlots
+    })
 
     }
     alert('保存成功')
