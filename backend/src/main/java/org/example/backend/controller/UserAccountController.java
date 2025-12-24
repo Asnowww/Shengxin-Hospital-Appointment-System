@@ -1,6 +1,7 @@
 package org.example.backend.controller;
 
 import jakarta.annotation.Resource;
+import org.example.backend.dto.ChangePasswordDTO;
 import org.example.backend.dto.Result;
 import org.example.backend.pojo.User;
 import org.example.backend.service.CaptchaService;
@@ -76,7 +77,7 @@ public class UserAccountController {
     }
 
     /**
-     * 修改密码接口
+     * 通过邮箱验证码重置密码接口
      */
     @PostMapping("/resetPassword")
     public Result<Void> resetPassword(@RequestBody Map<String, String> body) {
@@ -108,4 +109,43 @@ public class UserAccountController {
 
         return new Result<>(200, "密码修改成功", null);
     }
+
+    /**
+     * 修改密码接口
+     */
+    @PutMapping("/changePassword")
+    public Result<Void> changePassword(@RequestBody ChangePasswordDTO dto) {
+
+        if (dto.getUserId() == null) {
+            return Result.error("用户ID不能为空");
+        }
+
+        if (dto.getOldPassword() == null || dto.getOldPassword().isBlank()) {
+            return Result.error("旧密码不能为空");
+        }
+
+        if (dto.getNewPassword() == null || dto.getNewPassword().isBlank()) {
+            return Result.error("新密码不能为空");
+        }
+
+        if (dto.getNewPassword().length() < 6) {
+            return Result.error("密码长度至少6位");
+        }
+
+        try {
+            userService.changePassword(
+                    dto.getUserId(),
+                    dto.getOldPassword(),
+                    dto.getNewPassword()
+            );
+            return Result.success();
+        } catch (IllegalArgumentException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("密码修改失败，请稍后重试");
+        }
+    }
+
+
 }

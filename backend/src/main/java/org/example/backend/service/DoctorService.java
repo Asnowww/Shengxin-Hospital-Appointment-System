@@ -22,6 +22,7 @@ public interface DoctorService extends IService<Doctor> {
 
     void updateDoctorInfo(DoctorVO doctorVO);
 
+    void updateDoctorInfoBySelf(DoctorVO doctorVO);
     List<DoctorWorkloadStats> getDoctorWorkloadStats(LocalDate startDate, LocalDate endDate);
 
     List<DoctorAttendanceStats> getDoctorAttendanceStats(LocalDate startDate, LocalDate endDate);

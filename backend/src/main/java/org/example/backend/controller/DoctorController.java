@@ -78,6 +78,23 @@ public class DoctorController {
             return Result.error("修改失败：" + e.getMessage());
         }
     }
+    /**
+     * 医生修改自己的信息
+     */
+    @PutMapping("/{doctorId}/update-contact")
+    public Result<String> updateDoctorInfoBySelf(
+            @PathVariable Long doctorId,
+            @RequestBody DoctorVO doctorVO) {
+        try {
+
+            doctorVO.setDoctorId(doctorId);
+            doctorService.updateDoctorInfoBySelf(doctorVO);
+            return Result.success("修改成功");
+        } catch (RuntimeException e) {
+            return Result.error("修改失败：" + e.getMessage());
+        }
+    }
+
 
     /**
      * 删除医生

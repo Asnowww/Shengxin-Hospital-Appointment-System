@@ -106,6 +106,13 @@ public class LoginController {
             return new Result<>(403, "账户或密码错误", null);
         }
 
+        // ===== 医生账号状态校验（status 在 user 表）=====
+        if ("doctor".equalsIgnoreCase(roleType)) {
+            if ("unverified".equalsIgnoreCase(user.getStatus())) {
+                return new Result<>(403, "您的账号已停用，请联系管理员", null);
+            }
+        }
+
         // 生成 token（UUID）
         String token = UUID.randomUUID().toString();
 
