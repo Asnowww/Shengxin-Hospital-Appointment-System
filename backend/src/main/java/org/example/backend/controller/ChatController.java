@@ -1,17 +1,17 @@
 package org.example.backend.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import lombok.RequiredArgsConstructor;
 import org.example.backend.config.ChatWebSocketHandler;
 import org.example.backend.dto.ChatSessionSummaryDTO;
 import org.example.backend.pojo.ChatMessage;
 import org.example.backend.pojo.ChatSession;
-import org.example.backend.pojo.Patient;
 import org.example.backend.service.ChatMessageService;
 import org.example.backend.service.ChatSessionService;
 import org.example.backend.service.PatientService;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/chat")
@@ -34,8 +34,13 @@ public class ChatController {
 
     @GetMapping("/messages")
     public IPage<ChatMessage> pageMessages(@RequestParam Long sessionId,
+            @RequestParam Long userId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
+        ChatSession session = chatSessionService.getById(sessionId);
+        if (!isParticipant(session, userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "user is not a participant of this session");
+        }
         return chatMessageService.pageMessages(sessionId, page, size);
     }
 
@@ -59,5 +64,15 @@ public class ChatController {
     @GetMapping("/sessions/doctor/{doctorId}")
     public java.util.List<ChatSessionSummaryDTO> listDoctorSessions(@PathVariable Long doctorId) {
         return chatSessionService.listSessionSummariesForDoctor(doctorId);
+    }
+
+    /**
+     * 检查用户是否是会话的参与者（医生或患者）
+     */
+    private boolean isParticipant(ChatSession session, Long userId) {
+        if (session == null || userId == null) {
+            return false;
+        }
+        return userId.equals(session.getDoctorId()) || userId.equals(session.getPatientId());
     }
 }

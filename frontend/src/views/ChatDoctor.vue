@@ -244,7 +244,16 @@ const handleMessageSent = () => {
 }
 
 const handleMessageReceived = (message) => {
-  chatMessages.value = [...chatMessages.value, message]
+  // 去重检查：通过消息ID或内容+发送者+时间戳进行判断
+  const isDuplicate = chatMessages.value.some(
+    (m) => m.id === message.id || 
+    (m.content === message.content && 
+     m.senderId === message.senderId && 
+     Math.abs(new Date(m.timestamp) - new Date(message.timestamp)) < 5000)
+  )
+  if (!isDuplicate) {
+    chatMessages.value = [...chatMessages.value, message]
+  }
   if (message.role === 'patient') {
     const targetSession = sessions.value.find((session) => session.patientId === message.senderId)
     if (targetSession) {
