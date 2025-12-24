@@ -14,6 +14,8 @@ import org.example.backend.service.DoctorService;
 import org.example.backend.service.OnlineStatusService;
 import org.example.backend.service.PatientService;
 import org.example.backend.service.UserService;
+import org.example.backend.service.AuditLogService;
+import org.example.backend.dto.AuditLogCreateDTO;
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -21,6 +23,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -46,9 +49,13 @@ public class LoginController {
     @Resource
     private OnlineStatusService onlineStatusService;
 
+    @Resource
+    private AuditLogService auditLogService;
+
     @PostMapping("/login")
     @ResponseBody
-    public Result<Map<String, Object>> login(@RequestBody Map<String, String> loginMap) {
+    public Result<Map<String, Object>> login(@RequestBody Map<String, String> loginMap,
+            HttpServletRequest request) {
         String account = loginMap.get("account");
         String password = loginMap.get("password");
         String roleType = loginMap.get("roleType");
@@ -134,6 +141,15 @@ public class LoginController {
                 onlineStatusService.markDoctorOnline(doctor.getDoctorId());
             }
         }
+
+        // 审计：登录成功
+        AuditLogCreateDTO logDto = new AuditLogCreateDTO();
+        logDto.setAction("login");
+        logDto.setResourceType("auth");
+        logDto.setResourceId(user.getUserId());
+        logDto.setMessage("login role=" + roleType + " account=" + account);
+        logDto.setIp(request != null ? request.getRemoteAddr() : null);
+        auditLogService.recordLog(user.getUserId(), logDto);
 
         return new Result<>(200, "登录成功", data);
     }
