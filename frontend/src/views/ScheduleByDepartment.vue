@@ -229,6 +229,13 @@ import axios from 'axios'
 import Navigation from '@/components/Navigation.vue'
 import Payment from '@/components/Payment.vue'
 
+function getLocalDateStr(date = new Date()) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 const showPaymentModal = ref(false)
 const paymentData = ref({
   appointmentId: null
@@ -289,7 +296,7 @@ const dateOptions = computed(() => {
     const date = new Date(today)
     date.setDate(date.getDate() + i)
     
-    const dateStr = date.toISOString().split('T')[0]
+    const dateStr = getLocalDateStr(date)
     let label = ''
     
     if (i === 0) label = '今天'
@@ -358,7 +365,7 @@ function getCurrentTypeId() {
 const availableTimeSlots = computed(() => {
   const now = new Date()
   const hour = now.getHours()
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = getLocalDateStr()
   const isToday = selectedDate.value === todayStr
 
   scheduleNotice.value = '' // 默认无提示
@@ -384,7 +391,7 @@ const filteredSchedules = computed(() => {
   const typeId = getCurrentTypeId()
   const now = new Date()
   const hour = now.getHours()
-  const todayStr = now.toISOString().split('T')[0]
+  const todayStr = getLocalDateStr(now)
   const isToday = selectedDate.value === todayStr
 
   scheduleNotice.value = ''
@@ -530,8 +537,7 @@ function updateNavHeight() {
 function initializeTimeSlot() {
   const now = new Date()
   const hour = now.getHours()
-  const todayStr = new Date().toISOString().split('T')[0]
-
+  const todayStr = getLocalDateStr()
   if (selectedDate.value === todayStr) {
     if (hour >= 17) {
       selectedTimeSlot.value = '' // 不可用

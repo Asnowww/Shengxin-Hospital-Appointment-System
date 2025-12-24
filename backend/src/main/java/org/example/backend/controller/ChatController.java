@@ -40,11 +40,13 @@ public class ChatController {
     }
 
     @PostMapping("/session/close")
-    public void closeSession(@RequestParam Long sessionId) {
+    public void closeSession(@RequestParam Long sessionId,
+            @RequestParam Long userId) {
         ChatSession session = chatSessionService.getById(sessionId);
-        if (session != null) {
+        // 验证用户是会话的参与方
+        if (session != null && (session.getDoctorId().equals(userId) || session.getPatientId().equals(userId))) {
             chatSessionService.closeSession(sessionId);
-            chatWebSocketHandler.closeUserConnections(session.getDoctorId(), session.getPatientId());
+            chatWebSocketHandler.notifySessionClosed(session.getDoctorId(), session.getPatientId(), sessionId);
         }
     }
 

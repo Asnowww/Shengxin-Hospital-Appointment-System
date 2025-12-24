@@ -7,6 +7,12 @@ import org.example.backend.mapper.UserMapper;
 import org.example.backend.pojo.Appointment;
 import org.example.backend.pojo.Doctor;
 import org.example.backend.pojo.Patient;
+import org.example.backend.service.AppointmentService;
+import org.example.backend.service.DoctorService;
+import org.example.backend.service.PatientService;
+import org.example.backend.service.ScheduleService;
+import org.example.backend.service.AuditLogService;
+import org.example.backend.dto.AuditLogCreateDTO;
 import org.example.backend.service.*;
 import org.example.backend.util.TokenUtil;
 import org.springframework.web.bind.annotation.*;
@@ -14,7 +20,7 @@ import org.example.backend.dto.AppointmentInfoDTO;
 
 import java.time.LocalDate;
 import java.util.List;
-
+import jakarta.servlet.http.HttpServletRequest;
 /**
  * 患者端预约控制器
  * 支持查看、创建、取消预约、改约
@@ -47,11 +53,15 @@ public class PatientAppointmentController {
     @Resource
     private PatientService patientService;
 
+    @Resource
+    private AuditLogService auditLogService;
+
     @PostMapping("/create")
     public Result<Appointment> createAppointment(
             @RequestBody AppointmentCreateParam param,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenParam) {
+            @RequestParam(value = "token", required = false) String tokenParam,
+            HttpServletRequest request) {
         try {
             // 提取 token
             String token = tokenUtil.extractToken(authHeader, tokenParam);
@@ -89,6 +99,11 @@ public class PatientAppointmentController {
             // 创建预约
             Appointment appointment = appointmentService.createAppointmentByPatient(param);
 
+            recordAudit(userId, "create", "appointment",
+                    appointment.getAppointmentId(),
+                    "患者创建预约 scheduleId=" + param.getScheduleId(),
+                    request);
+
             return Result.success(appointment);
 
         } catch (RuntimeException e) {
@@ -110,7 +125,8 @@ public class PatientAppointmentController {
             @RequestParam Long appointmentId,
             @RequestParam(required = false) String cancelReason,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenParam) {
+            @RequestParam(value = "token", required = false) String tokenParam,
+            HttpServletRequest request) {
         try {
             // 提取 token
             String token = tokenUtil.extractToken(authHeader, tokenParam);
@@ -157,6 +173,10 @@ public class PatientAppointmentController {
             boolean success = appointmentService.cancelAppointment(appointmentId, patientId,1);
 
             if (success) {
+                recordAudit(userId, "delete", "appointment",
+                        appointmentId,
+                        "患者取消预约 reason=" + cancelReason,
+                        request);
                 return Result.success("预约取消成功");
             } else {
                 return Result.error("预约取消失败");
@@ -166,6 +186,7 @@ public class PatientAppointmentController {
             return Result.error("系统错误：" + e.getMessage());
         }
     }
+
 
     /**
      * 获取当前患者的所有预约
@@ -480,6 +501,12 @@ public class PatientAppointmentController {
             if (success) {
                 // 返回更新后的预约信息
                 Appointment updatedAppointment = appointmentService.getById(param.getAppointmentId());
+
+                // 无 token，这里直接用传入 patientId 作为 userId 记录
+                recordAudit(param.getPatientId(), "update", "appointment",
+                        param.getAppointmentId(),
+                        "患者修改预约 newScheduleId=" + param.getNewScheduleId(),
+                        null);
                 return Result.success(updatedAppointment);
             } else {
                 return Result.error("预约修改失败");
@@ -504,7 +531,8 @@ public class PatientAppointmentController {
             @RequestParam Long appointmentId,
             @RequestParam String paymentMethod,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenParam) {
+            @RequestParam(value = "token", required = false) String tokenParam,
+            HttpServletRequest request) {
         try {
             // 提取 token
             String token = tokenUtil.extractToken(authHeader, tokenParam);
@@ -539,6 +567,11 @@ public class PatientAppointmentController {
             if (success) {
                 // 返回更新后的预约信息
                 Appointment updatedAppointment = appointmentService.getById(appointmentId);
+
+                recordAudit(userId, "update", "payment",
+                        appointmentId,
+                        "预约支付方式=" + paymentMethod,
+                        request);
                 return Result.success(updatedAppointment);
             } else {
                 return Result.error("支付失败");
@@ -602,7 +635,8 @@ public class PatientAppointmentController {
     public Result<String> updateNotes(
             @RequestParam Long appointmentId,
             @RequestParam Long patientId,
-            @RequestParam String notes) {
+            @RequestParam String notes,
+            HttpServletRequest request) {
 
         AppointmentUpdateParam param = new AppointmentUpdateParam();
         param.setAppointmentId(appointmentId);
@@ -611,9 +645,31 @@ public class PatientAppointmentController {
 
         try {
             boolean success = appointmentService.updateAppointment(param);
-            return success ? Result.success("备注修改成功") : Result.error("备注修改失败");
+            if (success) {
+                recordAudit(patientId, "update", "appointment",
+                        appointmentId,
+                        "患者修改备注",
+                        request);
+                return Result.success("备注修改成功");
+            }
+            return Result.error("备注修改失败");
         } catch (Exception e) {
             return Result.error(e.getMessage());
+        }
+    }
+
+    private void recordAudit(Long userId, String action, String resourceType,
+            Long resourceId, String message, HttpServletRequest request) {
+        try {
+            AuditLogCreateDTO dto = new AuditLogCreateDTO();
+            dto.setAction(action);
+            dto.setResourceType(resourceType);
+            dto.setResourceId(resourceId);
+            dto.setMessage(message);
+            dto.setIp(request != null ? request.getRemoteAddr() : null);
+            auditLogService.recordLog(userId, dto);
+        } catch (Exception e) {
+            // 审计失败不影响主流程
         }
     }
 

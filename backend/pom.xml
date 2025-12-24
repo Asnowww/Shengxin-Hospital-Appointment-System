@@ -46,6 +46,11 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
+		<!-- AOP for audit logging -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-aop</artifactId>
+		</dependency>
 		<!--		mybatis-plus-->
 		<dependency>
 			<groupId>com.baomidou</groupId>

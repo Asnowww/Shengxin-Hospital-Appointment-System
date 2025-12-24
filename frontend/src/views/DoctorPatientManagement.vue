@@ -127,8 +127,12 @@ const autoRefreshTimer = ref(null)
 const AUTO_REFRESH_INTERVAL = 30000
 
 function formatInputDate(date) {
-  return date.toISOString().split('T')[0]
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
+
 
 function updateNavHeight() {
   if (navRef.value?.$el) navHeight.value = navRef.value.$el.offsetHeight + 20

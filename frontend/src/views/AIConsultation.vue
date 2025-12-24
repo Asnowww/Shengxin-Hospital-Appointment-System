@@ -140,6 +140,7 @@ const formatMessage = (content) => {
 }
 
 const sendMessage = async () => {
+  const token = localStorage.getItem('token')
   if (!userInput.value.trim() || isLoading.value) return
 
   const text = userInput.value
@@ -162,6 +163,11 @@ const sendMessage = async () => {
     const response = await axios.post('http://localhost:8080/api/consultation/chat', {
       message: text,
       history: history
+    },
+    {
+      headers: token
+        ? { Authorization: `Bearer ${token}` }
+        : {}
     })
 
     messages.value.pop() // Remove loading
