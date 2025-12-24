@@ -131,8 +131,11 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
             user.setUsername(doctorDTO.getUsername());
         if (doctorDTO.getEmail() != null)
             user.setEmail(doctorDTO.getEmail());
+        if (doctorDTO.getPhone() != null)
+            user.setPhone(doctorDTO.getPhone());
         if (doctorDTO.getGender() != null)
             user.setGender(doctorDTO.getGender());
+
         user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
 
