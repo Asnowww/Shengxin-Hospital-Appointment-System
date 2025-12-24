@@ -19,7 +19,7 @@
               <div class="hero-badges">
                 <span class="title-tag">{{ doctor?.title }}</span>
                 <span class="gender-tag" :class="doctor?.gender">
-                  {{ doctor?.gender === 'male' ? '男' : '女' }}
+                  {{ doctor?.gender === 'M' ? '男' : '女' }}
                 </span>
               </div>
             </div>
