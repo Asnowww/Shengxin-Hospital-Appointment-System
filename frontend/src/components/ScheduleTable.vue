@@ -48,34 +48,42 @@
                 <div v-for="(slot, slotIdx) in timeSlots" :key="slotIdx" class="slot-cell">
                   <div class="slot-container" :class="{ disabled: !canOperate(date, slotIdx) }">
                      <div
-    v-for="schedule in getSchedules(room.roomId, date, slotIdx)"
-    :key="schedule.scheduleId"
-    class="schedule-item"
-    :class="{ disabled: !canOperate(date, slotIdx) }"
-    @click="!canOperate(date, slotIdx) || editSchedule(schedule)"
-  >
+                        v-for="schedule in getSchedules(room.roomId, date, slotIdx)"
+                        :key="schedule.scheduleId"
+                        class="schedule-item"
+                        :class="{ disabled: !canOperate(date, slotIdx) }"
+                        @click="!canOperate(date, slotIdx) || editSchedule(schedule)"
+                      >
                       <div class="doctor-info">
-  <div class="doctor-name">
-    {{ schedule.doctorName }}
-    <span class="type-tag" :class="'type-' + schedule.appointmentTypeId">
-      {{ getTypeLabel(schedule.appointmentTypeId) }}
-    </span>
-  </div>
-  <div class="appointments">
-    预约: {{ schedule.bookedSlots }}/{{ schedule.maxSlots }}
-  </div>
-</div>
-
+                        <div class="doctor-name">
+                          {{ schedule.doctorName }}
+                          <span class="type-tag" :class="'type-' + schedule.appointmentTypeId">
+                            {{ getTypeLabel(schedule.appointmentTypeId) }}
+                          </span>
+                        </div>
+                        <div class="appointments">
+                          预约: {{ schedule.bookedSlots }}/{{ schedule.maxSlots }}
+                        </div>
+                      </div>
                       <div class="actions" @click.stop>
                         <!-- <button @click.stop="editSchedule(schedule)" class="btn-edit" title="编辑">编</button> -->
                         <button @click.stop="deleteSchedule(schedule)" class="btn-delete" title="删除">删</button>
                       </div>
                     </div>
-                     <button
-    class="btn-add"
-    :disabled="!canOperate(date, slotIdx)"
-    @click="canOperate(date, slotIdx) && addSchedule(room.roomId, date, slotIdx)"
-  >+</button>
+                    <button
+                      class="btn-add"
+                      :disabled="
+                        !canOperate(date, slotIdx) ||
+                        hasScheduleInSlot(room.roomId, date, slotIdx)
+                      "
+                      @click="
+                        canOperate(date, slotIdx) &&
+                        !hasScheduleInSlot(room.roomId, date, slotIdx) &&
+                        addSchedule(room.roomId, date, slotIdx)
+                      "
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
               </div>
@@ -107,7 +115,7 @@
             <select v-model="formData.doctorId" class="form-input" required>
               <option value="">请选择医生</option>
               <option v-for="doctor in doctors" :key="doctor.doctorId" :value="doctor.doctorId">
-                {{ doctor.doctorName }}
+                {{ doctor.doctorName }} - {{ doctor.deptName }} - {{ doctor.title }}
               </option>
             </select>
           </div>
@@ -116,9 +124,13 @@
             <label>号别</label>
             <select v-model="formData.appointmentTypeId" class="form-input" required>
               <option value="">请选择号别类型</option>
-              <option value="1">普通</option>
-              <option value="2">专家</option>
-              <option value="3">特需</option>
+              <option
+                  v-for="t in visibleAppointmentTypes"
+                  :key="t.id"
+                  :value="t.id"
+                >
+                  {{ t.label }}
+                </option>
             </select>
           </div>
 
@@ -128,26 +140,24 @@
           </div>
 
          <div class="form-group">
-  <label>时间段</label>
-  <select 
-    v-model="formData.timeSlot" 
-    :disabled="editingSchedule||creatingFromTable " 
-    class="form-input" 
-    required
-  >
-    <option value="">请选择时间段</option>
-    <option 
-      v-for="(slot, idx) in timeSlots" 
-      :key="idx" 
-      :value="idx"
-      :disabled="!canOperate(formData.workDate, idx)"
-    >
-      {{ slot }}
-    </option>
-  </select>
-</div>
-
-
+          <label>时间段</label>
+          <select 
+            v-model="formData.timeSlot" 
+            :disabled="editingSchedule||creatingFromTable " 
+            class="form-input" 
+            required
+          >
+            <option value="">请选择时间段</option>
+            <option 
+              v-for="(slot, idx) in timeSlots" 
+              :key="idx" 
+              :value="idx"
+              :disabled="!canOperate(formData.workDate, idx)"
+            >
+              {{ slot }}
+            </option>
+          </select>
+        </div>
           <div class="form-group">
             <label>最大预约数</label>
             <input v-model.number="formData.maxSlots" type="number" min="1" class="form-input" required />
@@ -190,12 +200,41 @@ const getTypeLabel = (typeId) => {
   return ''
 }
 
+const hasScheduleInSlot = (roomId, date, timeSlot) => {
+  return getSchedules(roomId, date, timeSlot).length > 0
+}
+
 const formData = ref({
   roomId: '',
   doctorId: '',
   workDate: '',
   timeSlot: '',
   maxSlots: ''
+})
+
+const APPOINTMENT_TYPES = [
+  { id: '1', label: '普通号' },
+  { id: '2', label: '专家号' },
+  { id: '3', label: '特需号' }
+]
+
+// 根据医生职级过滤号别：
+// 住院医师、主治医师 -> 仅普通
+// 主任医师 -> 普通 + 专家
+// 其它放开全部
+const visibleAppointmentTypes = computed(() => {
+  const selected = doctors.value.find(d => d.doctorId === formData.value.doctorId)
+  const title = (selected?.title || '').trim()
+
+  if (title.includes('住院') || title.includes('主治')) {
+    return APPOINTMENT_TYPES.filter(t => t.id === '1')
+  }
+
+  if (title.includes('副主任')) {
+    return APPOINTMENT_TYPES.filter(t => t.id === '1' || t.id === '2')
+  }
+
+  return APPOINTMENT_TYPES
 })
 
 // 判断日期限制
@@ -341,6 +380,7 @@ const addSchedule = (roomId, date, timeSlot) => {
     doctorId: '',
     workDate: formatDate(date),
     timeSlot: timeSlot.toString(),
+    appointmentTypeId: '',
     maxSlots: 10
   }
   showModal.value = true
@@ -385,14 +425,14 @@ const saveSchedule = async () => {
       })
     } else {
     await axios.post('/api/admin/schedules/create', {
-  roomId: formData.value.roomId,
-  deptId: props.deptId,
-  appointmentTypeId: 1,
-  doctorId: formData.value.doctorId,
-  startDate: formData.value.workDate,  
-  timeSlots: [parseInt(formData.value.timeSlot)],  
-  maxSlots: formData.value.maxSlots
-})
+      roomId: formData.value.roomId,
+      deptId: props.deptId,
+      doctorId: formData.value.doctorId,
+      startDate: formData.value.workDate,  
+      timeSlots: [parseInt(formData.value.timeSlot)],  
+      appointmentTypeId: parseInt(formData.value.appointmentTypeId),
+      maxSlots: formData.value.maxSlots
+    })
 
     }
     alert('保存成功')

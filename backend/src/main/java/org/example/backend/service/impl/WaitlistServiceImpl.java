@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationAdapter;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -94,6 +95,23 @@ public class WaitlistServiceImpl extends ServiceImpl<WaitlistMapper, Waitlist> i
         Long appointmentCount = appointmentMapper.selectCount(appointmentCheck);
         if (appointmentCount > 0) {
             throw new RuntimeException("您已预约该排班");
+        }
+
+        //验证患者在同一时段是否已有其他预约或候补（防止时间冲突）
+        LocalDate workDate = schedule.getWorkDate();
+        Integer timeSlot = schedule.getTimeSlot();
+
+        //检查是否有同时段的预约
+        QueryWrapper<Appointment> timeConflictWrapper = new QueryWrapper<>();
+        timeConflictWrapper.eq("patient_id", param.getPatientId())
+                .in("appointment_status", "pending", "booked")
+                .exists("SELECT 1 FROM schedules s WHERE s.schedule_id = appointments.schedule_id " +
+                        "AND s.work_date = {0} AND s.time_slot = {1}", workDate, timeSlot);
+
+        Long conflictCount = appointmentMapper.selectCount(timeConflictWrapper);
+        if (conflictCount > 0) {
+            String timeSlotName = getTimeSlotName(timeSlot);
+            throw new RuntimeException("您在" + workDate + " " + timeSlotName + "已有预约，无法重复预约同一时段");
         }
 
         // 6. 验证候补队列是否已满（最多5人）
@@ -339,6 +357,18 @@ public class WaitlistServiceImpl extends ServiceImpl<WaitlistMapper, Waitlist> i
             }
 
             try {
+
+                waitlist.setStatus("processing");
+                waitlistMapper.updateById(waitlist);
+
+
+
+                // 将同时段其他候补改为failed
+                markSameTimeSlotWaitlistsAsFailed(waitlist.getPatientId(),
+                        schedule.getWorkDate(),
+                        schedule.getTimeSlot(),
+                        waitlist.getWaitId());
+
                 // 4. 自动创建预约订单
                 AppointmentCreateParam appointmentParam = new AppointmentCreateParam();
                 appointmentParam.setPatientId(waitlist.getPatientId());
@@ -354,7 +384,9 @@ public class WaitlistServiceImpl extends ServiceImpl<WaitlistMapper, Waitlist> i
                 waitlist.setConvertedAppointmentId(appointment.getAppointmentId());
                 waitlistMapper.updateById(waitlist);
 
-                // 6. 发送转正通知
+
+
+                // 7. 发送转正通知
                 notificationEmailService.sendWaitlistConversionNotification(
                         waitlist.getPatientId(),
                         appointment.getAppointmentId(),
@@ -375,6 +407,26 @@ public class WaitlistServiceImpl extends ServiceImpl<WaitlistMapper, Waitlist> i
             }
         }
     }
+
+    /**
+     * 将同时段其他候补标记为失败
+     */
+    private void markSameTimeSlotWaitlistsAsFailed(Long patientId, LocalDate workDate,
+                                                   Integer timeSlot, Long excludeWaitId) {
+        // 查询同一时段的其他候补
+        List<Waitlist> sameTimeSlotWaitlists = waitlistMapper.selectSameTimeSlotWaitlists(
+                patientId, workDate, timeSlot, excludeWaitId);
+
+        // 批量更新为失败状态
+        for (Waitlist otherWaitlist : sameTimeSlotWaitlists) {
+            otherWaitlist.setStatus("failed");
+            waitlistMapper.updateById(otherWaitlist);
+
+            System.out.println("标记冲突候补为失败: waitId=" + otherWaitlist.getWaitId() +
+                    ", patientId=" + patientId + ", 时间=" + workDate + " " + timeSlot);
+        }
+    }
+
 
     /**
      * 检查某个排班是否有候补队列

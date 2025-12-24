@@ -10,6 +10,10 @@ import org.example.backend.pojo.User;
 public interface UserService extends IService<User> {
 
     /**
+     * 查询用户状态
+     */
+    String selectStatusByUserId(Long userId);
+    /**
      * 注册用户
      * 
      * @param user 用户对象

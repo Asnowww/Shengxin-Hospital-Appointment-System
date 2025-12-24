@@ -331,9 +331,11 @@ onUnmounted(() => {
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(15, 23, 42, 0.08);
   padding: 1.5rem;
-  min-height: 520px;
+  height: 600px;
+  max-height: 600px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .panel-header {
@@ -419,6 +421,7 @@ onUnmounted(() => {
   flex: 1;
   overflow-y: auto;
   padding-right: 0.5rem;
+  min-height: 0;
 }
 
 .session-list.empty {
@@ -531,7 +534,8 @@ onUnmounted(() => {
 }
 
 .conversation-panel {
-  min-height: 600px;
+  height: 600px;
+  max-height: 600px;
 }
 
 .placeholder {
@@ -593,6 +597,8 @@ onUnmounted(() => {
 .conversation-body {
   margin-top: 1rem;
   flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 @media (max-width: 1024px) {

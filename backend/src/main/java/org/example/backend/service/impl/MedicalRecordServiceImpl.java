@@ -2,8 +2,11 @@ package org.example.backend.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
+import org.example.backend.dto.AppointmentInfoDTO;
 import org.example.backend.dto.MedicalRecordDTO;
 import org.example.backend.dto.MedicalRecordParam;
+import org.example.backend.dto.VisitRecordDTO;
+import org.example.backend.mapper.AppointmentMapper;
 import org.example.backend.mapper.MedicalRecordMapper;
 import org.example.backend.pojo.MedicalRecord;
 import org.example.backend.pojo.Patient;
@@ -15,7 +18,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.BeanUtils;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,6 +34,8 @@ public class MedicalRecordServiceImpl extends ServiceImpl<MedicalRecordMapper, M
     @Autowired
     private UserService userService;
 
+    @Resource
+    private AppointmentMapper appointmentMapper;// 👈 复用旧 service
     /**
      * 根据患者id获取病历信息
      */
@@ -159,5 +166,47 @@ public class MedicalRecordServiceImpl extends ServiceImpl<MedicalRecordMapper, M
         }
 
         return dto;
+    }
+
+    @Override
+    public List<VisitRecordDTO> getVisitRecordsByPatient(Long patientId, Integer limit) {
+
+        // 1. 查询已完成的预约
+        List<AppointmentInfoDTO> appointments =
+                appointmentMapper.selectCompletedAppointmentsByPatientId(patientId);
+
+        if (appointments.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 2. 一次性查该患者的病例流水（复用旧逻辑）
+        List<MedicalRecordDTO> records =
+                this.getHistoryByPatientId(patientId, limit);
+
+        // 3. 按 appointmentId 组织病例
+        Map<Long, MedicalRecordDTO> recordMap = records.stream()
+                .filter(r -> r.getAppointmentId() != null)
+                .collect(Collectors.toMap(
+                        MedicalRecordDTO::getAppointmentId,
+                        r -> r,
+                        (a, b) -> a
+                ));
+
+        // 4. 组装“就诊记录”
+        return appointments.stream().map(appt -> {
+
+            VisitRecordDTO dto = new VisitRecordDTO();
+            dto.setAppointmentId(appt.getAppointmentId());
+            dto.setDoctorName(appt.getDoctorName());
+            dto.setDeptName(appt.getDeptName());
+            dto.setAppointmentTime(appt.getAppointmentTime());
+
+            dto.setMedicalRecord(
+                    recordMap.get(appt.getAppointmentId())
+            );
+
+            return dto;
+
+        }).collect(Collectors.toList());
     }
 }

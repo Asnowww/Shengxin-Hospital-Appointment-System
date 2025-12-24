@@ -96,8 +96,8 @@
             :disabled="!isEditing"
             class="form-control">
             <option value="">请选择</option>
-            <option value="male">男</option>
-            <option value="female">女</option>
+            <option value="M">男</option>
+            <option value="F">女</option>
           </select>
         </div>
 
@@ -270,6 +270,18 @@ function validateForm() {
     isValid = false
   }
 
+  if (profile.emergencyPhone && !/^(?:\+?86)?1[3-9]\d{9}$/.test(profile.emergencyPhone)) {
+    // We don't have a specific error field for emergencyPhone in the errors object shown in the original code,
+    // so we might need to alert or add it to errors if we assume it exists or just rely on the return value if not.
+    // However, looking at the template, there is no error display for emergencyPhone.
+    // Let's add an alert for consistency or just return false, but user wanted validation.
+    // Ideally we update the errors object but the template needs to show it.
+    // For now, let's use alert if it's invalid, or purely rely on isValid = false.
+    // Actually, let's just use alert as a quick feedback since UI doesn't support inline error for this field yet.
+    alert('紧急联系人电话格式不正确')
+    isValid = false
+  }
+
   return isValid
 }
 
@@ -313,19 +325,33 @@ async function fetchProfile() {
 async function handleSave() {
   if (!validateForm()) return
 
-  try {
-    const token = localStorage.getItem('token')
-    await axios.put('/api/patient/profile/update', profile, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    })
-    alert('保存成功！')
-    isEditing.value = false
-  } catch (err) {
-    console.error(err)
+try {
+  const token = localStorage.getItem('token')
+  const res = await axios.put('/api/patient/profile/update', profile, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  })
+
+  // 根据后端返回值显示 message
+  if (res.data && res.data.message) {
+    alert(res.data.message)
+  } else {
+    alert('操作成功')
+  }
+
+  isEditing.value = false
+} catch (err) {
+  console.error(err)
+
+  // 如果后端也返回了 message（错误情况）
+  if (err.response && err.response.data && err.response.data.message) {
+    alert(err.response.data.message)
+  } else {
     alert('保存失败，请稍后再试')
   }
+}
+
 }
 
 // 认证成功回调

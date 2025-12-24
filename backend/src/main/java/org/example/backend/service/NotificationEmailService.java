@@ -196,7 +196,10 @@ public class NotificationEmailService {
     /**
      * 发送就诊通知
      */
+    @Async
     public void sendCompletedNotification(Long appointmentId) {
+        log.info("sendCompletedNotification thread = {}", Thread.currentThread().getName());
+
         try {
             Appointment appointment = appointmentMapper.selectById(appointmentId);
             if (appointment == null) return;
@@ -259,7 +262,7 @@ public class NotificationEmailService {
             if (user == null || user.getEmail() == null) return;
 
             Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
-            String subject = "【支付成功】您的预约已支付成功";
+            String subject = "【退款成功】您的预约已退款成功";
             String content = buildRefundSuccessEmail(appointment, schedule);
 
             sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
@@ -315,7 +318,7 @@ public class NotificationEmailService {
     }
 
     /**
-     * 发送就诊提醒
+     * 发送叫号提醒
      */
     public void sendAppointmentCallNotification(Long appointmentId) {
         try {
@@ -381,6 +384,25 @@ public class NotificationEmailService {
             sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
         } catch (Exception e) {
             log.error("发送候补转正邮件失败: patientId={}, appointmentId={}", patientId, appointmentId, e);
+        }
+    }
+    /**
+     * 发送候补失败通知
+     */
+    public void sendWaitlistFailedNotification(Long patientId, Schedule schedule) {
+        try {
+            Patient patient = patientMapper.selectById(patientId);
+            if (patient == null) return;
+
+            User user = userMapper.selectById(patient.getUserId());
+            if (user == null || user.getEmail() == null) return;
+
+            String subject = "【候补失败】您的预约候补失败";
+            String content = buildWaitlistFailedEmail(user.getName(), schedule);
+
+            sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
+        } catch (Exception e) {
+            log.error("发送候补失败邮件失败: patientId={}, appointmentId={}", patientId, e);
         }
     }
 
@@ -640,6 +662,9 @@ public class NotificationEmailService {
                 workDate, timeSlot, appointment.getQueueNumber(), appointment.getFeeFinal());
     }
 
+    /*
+    退款成功邮件模板
+     */
     private String buildRefundSuccessEmail(Appointment appointment, Schedule schedule) {
         String patientName = getPatientName(String.valueOf(appointment.getPatientId()));
         String deptName = getDeptName(schedule.getDeptId());
@@ -679,7 +704,9 @@ public class NotificationEmailService {
                 appointment.getFeeFinal());
     }
 
-
+    /*
+    预约过期邮件模板
+     */
     private String buildAppointmentExpiredEmail(Appointment appointment, Schedule schedule) {
         String patientName = getPatientName(String.valueOf(appointment.getPatientId()));
         String doctorInfo = getDoctorInfo(schedule.getDoctorId());
@@ -764,6 +791,9 @@ public class NotificationEmailService {
                 workDate, timeSlot, appointment.getQueueNumber());
     }
 
+    /*
+    叫号邮件模板
+     */
     private String buildAppointmentCallEmail(Appointment appointment, Schedule schedule) {
         String patientName = getPatientName(String.valueOf(appointment.getPatientId()));
         String doctorInfo = getDoctorInfo(schedule.getDoctorId());
@@ -861,6 +891,65 @@ public class NotificationEmailService {
                 patientName, deptName, doctorInfo, workDate, timeSlot, queuePosition);
     }
 
+    /*
+    候补失败邮件模板
+     */
+    private String buildWaitlistFailedEmail(String patientName, Schedule schedule) {
+        String doctorInfo = getDoctorInfo(schedule.getDoctorId());
+        String deptName = getDeptName(schedule.getDeptId());
+        String workDate = schedule.getWorkDate().format(DATE_FORMATTER);
+        String timeSlot = getTimeSlotName(schedule.getTimeSlot());
+
+        return String.format("""
+                <html>
+                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                        <!-- 头部 -->
+                        <div style="
+                            background: linear-gradient(135deg, #f44336 0%%, #e57373 100%%);
+                            color: white;
+                            padding: 30px;
+                            text-align: center;
+                            border-radius: 10px 10px 0 0;
+                        ">
+                            <h1>候补失败通知</h1>
+                        </div>
+                        <div style="
+                            background: #f9f9f9;
+                            padding: 30px;
+                            border-radius: 0 0 10px 10px;
+                        ">
+                            <p>尊敬的 <strong>%s</strong> 患者，您好！</p>
+                            <p>很遗憾地通知您，您申请的候补预约未能成功。</p>
+                            <div style="
+                                background: white;
+                                padding: 20px;
+                                margin: 20px 0;
+                                border-left: 4px solid #f44336;
+                                border-radius: 5px;
+                            ">
+                                <h3 style="color: #f44336; margin-top: 0;">📋 候补预约信息</h3>
+                                <p><strong>就诊科室：</strong>%s</p>
+                                <p><strong>就诊医生：</strong>%s</p>
+                                <p><strong>就诊时间：</strong>%s %s</p>
+                            </div>
+                            <p>在候补有效期内，该时间段未有号源释放，
+                                系统已自动结束您的候补预约。</p>
+                            <p style="color: #666;">
+                                您可以重新选择其他时间段或医生进行预约，
+                                感谢您的理解与支持。</p>
+                            <p style="margin-top: 30px; color: #999; font-size: 0.9em;">
+                                如有疑问，请联系医院服务台或通过系统客服进行咨询。
+                            </p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """,
+                patientName, deptName, doctorInfo, workDate, timeSlot);
+    }
+
+
     /**
      * 候补转正邮件模板
      */
@@ -887,7 +976,6 @@ public class NotificationEmailService {
                                 <p><strong>就诊科室：</strong>%s</p>
                                 <p><strong>就诊医生：</strong>%s</p>
                                 <p><strong>就诊时间：</strong>%s %s</p>
-                                <p><strong>排队号：</strong>%d号</p>
                             </div>
                             
                             <p style="color: #e74c3c; font-weight: bold;">⚠️ 重要提醒：请在30分钟内完成支付，否则预约将自动取消！</p>
@@ -897,7 +985,7 @@ public class NotificationEmailService {
                 </html>
                 """,
                 patientName, appointment.getAppointmentId(), deptName, doctorInfo,
-                workDate, timeSlot, appointment.getQueueNumber());
+                workDate, timeSlot);
     }
 
     /**

@@ -112,6 +112,7 @@
   :end-signal="endSignal"
   :messages="chatMessages"
   :current-user-id="currentUserId"
+  :session-status="activeSessionStatus"
   current-role="patient"
   @message-sent="loadMessages"
   @message-received="handleMessageReceived"
@@ -131,7 +132,8 @@ import {
   fetchDepartments,
   fetchDoctorsByDept,
   createChatSession,
-  fetchChatHistory
+  fetchChatHistory,
+  closeChatSession
 } from '@/stores/api'
 
 // 顶部导航高度处理，与其他页面保持一致
@@ -162,6 +164,11 @@ const activeDoctorId = ref(null)
 const activeDoctorName = ref('')
 const activeRoomId = ref(null)
 const chatMessages = ref([])
+
+// Bug #1 修复：添加 endSignal 变量定义
+const endSignal = ref(0)
+// Bug #4 修复：添加会话状态，用于传递给 ChatRoom 组件
+const activeSessionStatus = ref('active')
 
 // 文本截断
 const truncateText = (text, length) => {
@@ -265,10 +272,19 @@ const handleRandomMatch = () => {
   startChatWithDoctor(doctor)
 }
 
-// 结束当前问诊
-const handleEndChat = () => {
+// 结束当前问诊 - Bug #2 修复：通知后端关闭会话
+const handleEndChat = async () => {
+  if (activeRoomId.value) {
+    try {
+      await closeChatSession(activeRoomId.value)
+    } catch (e) {
+      console.error('关闭会话失败', e)
+    }
+    endSignal.value += 1
+  }
   activeRoomId.value = null
   chatMessages.value = []
+  activeSessionStatus.value = 'active'
 }
 
 // 周期性轮询消息（在使用 WebSocket 的基础上，作为兜底）

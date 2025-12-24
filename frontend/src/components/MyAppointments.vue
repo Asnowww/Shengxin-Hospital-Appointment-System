@@ -37,7 +37,6 @@
       </transition-group>
     </div>
 
-    <!-- 预约详情抽屉 -->
     <div v-if="detailDrawerVisible" class="detail-drawer-overlay" @click="closeDetailDrawer">
       <div class="detail-drawer" @click.stop>
         <div class="drawer-header">
@@ -60,16 +59,16 @@
               <span class="label">科室：</span>
               <span class="value">{{ selectedRecord.deptName }}</span>
             </div>
-          <div class="detail-row">
-            <span class="label">地点：</span>
-            <span class="value location-value">
-              <span class="location-text">{{ selectedRecord.building }}</span>
-              <button class="nav-link" @click="openNavigator(selectedRecord)">
-                导航
-              </button>
-            </span>
+            <div class="detail-row">
+              <span class="label">地点：</span>
+              <span class="value location-value">
+                <span class="location-text">{{ selectedRecord.building }}</span>
+                <button class="nav-link" @click="openNavigator(selectedRecord)">
+                  导航
+                </button>
+              </span>
+            </div>
           </div>
-        </div>
 
           <div class="detail-section">
             <h4>预约信息</h4>
@@ -91,19 +90,51 @@
                 {{ getStatusLabel(selectedRecord.status) }}
               </span>
             </div>
-          </div>
-
-        <div class="detail-section">
-  <h4>费用信息</h4>
-  <div class="detail-row">
-    <span class="label">原始费用：</span>
-    <span class="value fee">¥{{ selectedRecord.feeOriginal ?? 0 }}</span>
-  </div>
-  <div class="detail-row">
-    <span class="label">待支付费用（报销后）：</span>
-    <span class="value fee">¥{{ selectedRecord.feeFinal ?? 0 }}</span>
+            <div v-if="selectedRecord.status === 'waiting_action'">
+  <div class="detail-row source-info-row">
+    <p class="cancel-message">很抱歉，您预约的排班已被系统取消，请重新挂号</p>
   </div>
 </div>
+
+            <div v-if="selectedRecord.status === 'pending_confirm'">
+                <div class="detail-row source-info-row">
+                    <span class="label status-pending-confirm">原预约状态：</span>
+                    <span class="value status-pending-confirm">
+                        {{ getStatusLabel(selectedRecord.sourceStatus) }}
+                    </span>
+                </div>
+                  <div class="detail-row source-info-row">
+                    <span class="label status-pending-confirm">原预约医生：</span>
+                    <span class="value status-pending-confirm">{{ selectedRecord.sourceDoctorName }}</span>
+                </div>
+                  <div class="detail-row source-info-row">
+                    <span class="label status-pending-confirm">原预约医生职称：</span>
+                    <span class="value status-pending-confirm">{{ selectedRecord.sourceDoctorTitle }}</span>
+                </div>
+                <div class="detail-row source-info-row">
+                    <span class="label status-pending-confirm">原就诊时间：</span>
+                    <span class="value status-pending-confirm">{{ selectedRecord.sourceAppointmentTime }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="label">改约说明：</span>
+                    <span class="value highlight-text">请确认新的预约信息是否符合您的需求。</span>
+                </div>
+            </div>
+
+          </div>
+
+          <div class="detail-section">
+            <h4>费用信息</h4>
+            <div class="detail-row">
+              <span class="label">原始费用：</span>
+              <span class="value fee">¥{{ selectedRecord.feeOriginal ?? 0 }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">待支付费用（报销后）：</span>
+              <span class="value fee">¥{{ selectedRecord.feeFinal ?? 0 }}</span>
+            </div>
+          </div>
 
 
           <div v-if="selectedRecord.remarks" class="detail-section">
@@ -113,36 +144,58 @@
         </div>
 
         <div class="drawer-footer">
- 
           <button 
-            v-if="activeStatus === 'current' && selectedRecord.status !== 'cancelled'"
+            v-if="activeStatus === 'current' && selectedRecord.status === 'pending_confirm'"
+            @click="handleConfirmReassign(selectedRecord)"
+            class="action-btn third">
+            接受改期
+          </button>
+          
+          <button 
+            v-if="activeStatus === 'current' && selectedRecord.status === 'pending_confirm'"
+            @click="handleRefuseReassign(selectedRecord)"
+            class="action-btn secondary">
+            拒绝改期
+          </button>
+          
+          <button 
+            v-if="activeStatus === 'current' && selectedRecord.status === 'waiting_action'"
+            @click="handleAcknowledgeCancel(selectedRecord)"
+            class="action-btn">
+            我知道了
+          </button>
+          
+          <button 
+            v-if="activeStatus === 'current' && selectedRecord.status !== 'cancelled' && selectedRecord.status !== 'waiting_action' && selectedRecord.status !== 'pending_confirm'"
             @click="handleCancelAppointment(selectedRecord)"
-            class="cancel-btn">
+            class="action-btn">
             取消预约
           </button>
-           <button 
-            v-if="activeStatus === 'current' && selectedRecord.status !== 'cancelled'"
+          
+          <button 
+            v-if="activeStatus === 'current' && selectedRecord.status !== 'cancelled' && selectedRecord.status !== 'waiting_action' && selectedRecord.status !== 'pending_confirm'"
             @click="handleChangeAppointment(selectedRecord)"
-            class="cancel-btn secondary">
+            class="action-btn secondary">
             改约
           </button>
-                     <button 
-    v-if="activeStatus === 'current' && selectedRecord.status === 'pending'"
-    @click="handlePay(selectedRecord)"
-    class="cancel-btn third">
-    去支付
-  </button>
+          
+          <button 
+            v-if="activeStatus === 'current' && selectedRecord.status === 'pending'"
+            @click="handlePay(selectedRecord)"
+            class="action-btn third">
+            去支付
+          </button>
         </div>
       </div>
     </div>
 
     <Payment
-  :visible="payDialogVisible"
-  :appointment-id="payInfo.appointmentId"
-  @close="closePayDialog"
-  @payment-success="handlePaymentSuccess"
-  @payment-error="handlePaymentError"
-/>
+      :visible="payDialogVisible"
+      :appointment-id="payInfo.appointmentId"
+      @close="closePayDialog"
+      @payment-success="handlePaymentSuccess"
+      @payment-error="handlePaymentError"
+    />
     <HospitalNavigator
       v-if="navigatorVisible"
       :visible="navigatorVisible"
@@ -173,42 +226,28 @@ async function handlePay(record) {
     console.error('handlePay: appointmentId 不存在', record)
     return
   }
-
-  // 先设置数据
   payInfo.value = {
     appointmentId: record.appointmentId,
   }
-
-  console.log('设置 payInfo：', payInfo.value)
-
-  // 等待 Vue 同步 props 更新
   await nextTick()
-
-  // 然后再打开弹窗
   payDialogVisible.value = true
-
-  console.log('打开支付窗口，payInfo：', payInfo.value)
 }
 
 function closePayDialog() {
-  // 关闭对话框并清理信息（防止下一次残留）
   payDialogVisible.value = false
   payInfo.value = { appointmentId: null}
 }
 
 function handlePaymentSuccess(data) {
-  // data: 可由后端返回的支付结果
   alert('支付成功')
   closePayDialog()
-  closeDetailDrawer() // 如果需要同时关闭详情抽屉
-  fetchAppointments() // 刷新预约列表
+  closeDetailDrawer() 
+  fetchAppointments() 
 }
 
 function handlePaymentError(err) {
   console.warn('支付错误：', err)
-  // 这里一般不自动关闭支付框，让用户重试或取消
 }
-
 
 
 const activeStatus = ref('current')
@@ -219,14 +258,12 @@ const detailDrawerVisible = ref(false)
 const selectedRecord = ref({})
 const token = ref(localStorage.getItem('token'))
 
-// 显示对应状态列表
 const displayedAppointments = computed(() => {
   return activeStatus.value === 'current'
     ? currentAppointments.value
     : historyAppointments.value
 })
 
-// 切换状态
 function switchStatus(status) {
   activeStatus.value = status
   loadAppointments()
@@ -245,11 +282,17 @@ async function fetchAppointments() {
     if (resData.code === 200) {
       const appointments = resData.data || []
       // 区分当前和历史预约
-      currentAppointments.value = appointments.filter(appt => 
-        appt.status === 'booked' || appt.status === 'pending' 
+      currentAppointments.value = appointments.filter(appt =>
+        appt.status === 'booked'
+        || appt.status === 'pending'
+        || appt.status === 'pending_patient_confirm'
+        || appt.status === 'waiting_patient_action'
       )
-      historyAppointments.value = appointments.filter(appt => 
-        appt.status === 'completed' || appt.status === 'cancelled' || appt.status === 'no_show'
+      historyAppointments.value = appointments.filter(appt =>
+        appt.status === 'completed'
+        || appt.status === 'cancelled'
+        || appt.status === 'no_show'
+        || appt.status === 'refunded'
       )
     } else {
       console.warn('获取预约失败：', resData.message)
@@ -280,9 +323,6 @@ async function loadAppointments() {
 
 // 格式化预约数据为卡片格式
 function formatRecordData(appt) {
-  console.log('feeFinal from backend:', appt.feeFinal)
-  console.log('feeOriginal from backend:', appt.feeOriginal)
-
   const locationParts = [
     appt.building,
     appt.roomName || appt.room_name
@@ -309,7 +349,13 @@ function formatRecordData(appt) {
     status: mapStatus(appt.status),
     feeOriginal: appt.feeOriginal || '未知',
     feeFinal: appt.feeFinal || '未知',
-    remarks: appt.remarks
+    remarks: appt.remarks,
+    // 根据新的DTO字段进行映射
+    sourceAppointmentId: appt.sourceAppointmentId || null,
+    sourceAppointmentTime: appt.sourceAppointmentTime || '未知',
+    sourceStatus: mapStatus(appt.sourceStatus) || '未知',
+    sourceDoctorName: appt.sourceDoctorName || '未知',
+    sourceDoctorTitle: appt.sourceDoctorTitle || '未知',
   }
 }
 
@@ -321,9 +367,17 @@ function mapStatus(apiStatus) {
     'completed': 'completed',
     'cancelled': 'cancelled',
     'refunded': 'cancelled',
-    'no_show': 'no-show'
+    'no_show': 'no-show',
+    'pending_patient_confirm': 'pending_confirm',
+    'waiting_patient_action': 'waiting_action',
+    // 映射原预约状态
+    'source_booked': 'booked',
+    'source_pending': 'pending',
+    'source_cancelled': 'cancelled',
+    // DTO 中的 sourceStatus 字段可能会直接返回原始状态
   }
-  return statusMap[apiStatus] || 'pending'
+  // 考虑到 sourceStatus 也可能返回原始的 status 字符串，直接返回
+  return statusMap[apiStatus] || apiStatus || 'pending' 
 }
 
 // 获取状态标签
@@ -333,9 +387,14 @@ function getStatusLabel(status) {
     'booked': '待就诊',
     'completed': '已完成',
     'cancelled': '已取消',
-    'no-show': '未到诊'
+    'no-show': '未到诊',
+    'pending_confirm': '待处理',
+    'waiting_action': '待确认',
+    // 增加对原预约状态的标签
+    'source_booked': '原待就诊',
+    'source_cancelled': '原已取消'
   }
-  return statusMap[status] || '未知'
+  return statusMap[status] || status || '未知'
 }
 
 // 格式化日期
@@ -355,6 +414,87 @@ function handleRecordClick(record) {
 function closeDetailDrawer() {
   detailDrawerVisible.value = false
   selectedRecord.value = {}
+}
+
+// 接受改期
+async function handleConfirmReassign(record) {
+  if (!token.value) return alert('未登录或登录已过期，请重新登录')
+  loading.value = true
+  try {
+    const { data } = await axios.put('/api/patient/appointment/confirm-reassign', null, {
+      headers: { Authorization: `Bearer ${token.value}` },
+      params: { appointmentId: record.appointmentId }
+    })
+    if (data.code === 200) {
+      alert('已确认新的预约，请及时支付')
+      closeDetailDrawer()
+      await fetchAppointments()
+    } else {
+      alert(data.message || '操作失败')
+    }
+  } catch (err) {
+    console.error('确认失败', err)
+    alert(err?.response?.data?.message || '操作失败，请重试')
+  } finally {
+    loading.value = false
+  }
+}
+
+/**
+ * ② 拒绝改期
+ * @param {object} record - 待确认改期的预约记录
+ */
+async function handleRefuseReassign(record) {
+    const isConfirmed = confirm('拒绝后只能自行挂号，确认拒绝本次改期吗？')
+    if (!isConfirmed) return
+
+    if (!token.value) return alert('未登录或登录已过期，请重新登录')
+    loading.value = true
+    
+    try {
+        // 调用拒绝改期接口
+        const { data } = await axios.put('/api/patient/appointment/reject-reassign', null, {
+            headers: { Authorization: `Bearer ${token.value}` },
+            params: { appointmentId: record.appointmentId }
+        })
+
+        if (data.code === 200) {
+            alert('已拒绝本次改期。原预约将被取消，请自行挂号。')
+            closeDetailDrawer()
+            await fetchAppointments()
+        } else {
+            alert(data.message || '操作失败')
+        }
+    } catch (err) {
+        console.error('拒绝改期失败', err)
+        alert(err?.response?.data?.message || '操作失败，请重试')
+    } finally {
+        loading.value = false
+    }
+}
+
+
+async function handleAcknowledgeCancel(record) {
+  if (!token.value) return alert('未登录或登录已过期，请重新登录')
+  loading.value = true
+  try {
+    const { data } = await axios.put('/api/patient/appointment/acknowledge-cancel', null, {
+      headers: { Authorization: `Bearer ${token.value}` },
+      params: { appointmentId: record.appointmentId }
+    })
+    if (data.code === 200) {
+      alert('已知晓该预约取消')
+      closeDetailDrawer()
+      await fetchAppointments()
+    } else {
+      alert(data.message || '操作失败')
+    }
+  } catch (err) {
+    console.error('确认失败', err)
+    alert(err?.response?.data?.message || '操作失败，请重试')
+  } finally {
+    loading.value = false
+  }
 }
 //改约
 function handleChangeAppointment(record) {
@@ -404,6 +544,13 @@ onMounted(() => {
 </script>
 
 <style scoped>
+  .cancel-message {
+  color: #ff4d4f; /* 红色 */
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin: 0.5rem 0; /* 上下间距 */
+}
+
 .appointments-container {
   padding: 2.5rem;
   height: 100%;
@@ -428,7 +575,63 @@ h2 {
   background: #f7fafc;
   border-radius: 12px;
 }
+.action-btn,
+.close-drawer-btn {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
 
+.action-btn {
+    background: #fff5f5;
+    color: #c53030;
+    border: 1px solid #feb2b2;
+}
+
+.action-btn:hover {
+    background: #fed7d7;
+    border-color: #fc8181;
+}
+.action-btn.secondary {
+    background: #edf2f7;
+    color: #2d3748;
+    border: 1px solid #cbd5e0;
+}
+.action-btn.secondary:hover {
+    background: #e2e8f0;
+}
+.action-btn.third {
+    /* 接受改期/去支付按钮使用更醒目的颜色 */
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+}
+.action-btn.third:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+/* 针对待确认改期状态下的信息样式 */
+.status-pending-confirm {
+    color: #e59900 !important; /* 警告色 */
+    font-weight: 600 !important;
+}
+
+.source-info-row {
+    background-color: #fffbe6; /* 浅黄色背景提示 */
+    border-radius: 4px;
+    padding: 0.5rem 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.highlight-text {
+    color: #0b7a0b !important;
+    font-weight: 600 !important;
+}
 .tab-btn {
   flex: 1;
   display: flex;
@@ -504,19 +707,16 @@ h2 {
 }
 
 .list-enter-active,
-.list-leave-active {
-  transition: all 0.3s ease;
-}
-
-.list-enter-from {
-  opacity: 0;
-  transform: translateY(20px);
-}
-
+.list-leave-active,
+.list-enter-from,
+.list-enter-to,
+.list-leave-from,
 .list-leave-to {
-  opacity: 0;
-  transform: translateX(-20px);
+  transition: none;
+  opacity: 1;
+  transform: none;
 }
+
 
 /* 详情抽屉 */
 .detail-drawer-overlay {
@@ -702,47 +902,6 @@ h2 {
   background: #f7fafc;
 }
 
-
-
-.cancel-btn,
-.close-drawer-btn {
-  flex: 1;
-  padding: 0.75rem 1rem;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.cancel-btn {
-  background: #fff5f5;
-  color: #c53030;
-  border: 1px solid #feb2b2;
-}
-
-.cancel-btn:hover {
-  background: #fed7d7;
-  border-color: #fc8181;
-}
-.cancel-btn.secondary {
-  background: #edf2f7;
-  color: #2d3748;
-  border: 1px solid #cbd5e0;
-}
-.cancel-btn.secondary:hover {
-  background: #e2e8f0;
-}
-.cancel-btn.third {
-  background: #fcecd1;
-  color: #b9562b;
-  border: 1px solid #d3b81e;
-}
-.cancel-btn.third:hover {
-  background: #ecc896;
-  border-color: #d1724f;
-}
 
 
 

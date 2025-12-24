@@ -8,6 +8,10 @@ import lombok.Data;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Data
 @TableName("doctor_leaves")
@@ -40,4 +44,23 @@ public class DoctorLeave {
 
     @TableField("reviewed_at")
     private LocalDateTime reviewedAt;
+
+    /**
+     * 逗号分隔的排班ID列表，便于审批时精准定位需要取消的排班
+     */
+    @TableField("schedule_ids")
+    private String scheduleIds;
+
+    private Integer affectedAppointmentCount;
+
+    public List<Integer> safeScheduleIds() {
+        if (scheduleIds == null || scheduleIds.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(scheduleIds.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Integer::valueOf)
+                .collect(Collectors.toList());
+    }
 }

@@ -229,6 +229,13 @@ import axios from 'axios'
 import Navigation from '@/components/Navigation.vue'
 import Payment from '@/components/Payment.vue'
 
+function getLocalDateStr(date = new Date()) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 const showPaymentModal = ref(false)
 const paymentData = ref({
   appointmentId: null
@@ -266,12 +273,11 @@ const timeSlots = [
   { id: 'afternoon', name: '下午' }
 ]
 
+
 function handlePaymentSuccess(data) {
   alert('支付成功！您的预约已完成。')
-  setTimeout(() => {
-    showPaymentModal.value = false
-    fetchSchedules()
-  }, 300)
+  // 这里只需要关闭弹窗，watch 会自动触发 fetchSchedules
+  showPaymentModal.value = false
 }
 
 
@@ -290,7 +296,7 @@ const dateOptions = computed(() => {
     const date = new Date(today)
     date.setDate(date.getDate() + i)
     
-    const dateStr = date.toISOString().split('T')[0]
+    const dateStr = getLocalDateStr(date)
     let label = ''
     
     if (i === 0) label = '今天'
@@ -359,7 +365,7 @@ function getCurrentTypeId() {
 const availableTimeSlots = computed(() => {
   const now = new Date()
   const hour = now.getHours()
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = getLocalDateStr()
   const isToday = selectedDate.value === todayStr
 
   scheduleNotice.value = '' // 默认无提示
@@ -385,7 +391,7 @@ const filteredSchedules = computed(() => {
   const typeId = getCurrentTypeId()
   const now = new Date()
   const hour = now.getHours()
-  const todayStr = now.toISOString().split('T')[0]
+  const todayStr = getLocalDateStr(now)
   const isToday = selectedDate.value === todayStr
 
   scheduleNotice.value = ''
@@ -468,62 +474,43 @@ async function confirmAppointment() {
     const isWaitlist = selectedSchedule.value.availableSlots === 0
 
     if (isWaitlist) {
-      // 候补预约
-      const response = await axios.post(
-        '/api/waitlist/create',
-        {
-          scheduleId: selectedSchedule.value.scheduleId
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      )
+      // 候补逻辑
+      const response = await axios.post('/api/waitlist/create', {
+        scheduleId: selectedSchedule.value.scheduleId
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      if (response.data.code === 200) {
+        showAppointModal.value = false
+        alert('候补成功！有号源时将自动为您预约')
+        await fetchSchedules() // 候补不需要支付，直接刷新
+      } else {
+        alert('候补失败：' + response.data.message)
+      }
+    } else {
+      // 正常预约逻辑
+      const response = await axios.post('/api/patient/appointment/create', {
+        scheduleId: selectedSchedule.value.scheduleId,
+        appointmentTypeId: selectedSchedule.value.appointmentTypeId
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
 
       const resData = response.data
       if (resData.code !== 200) {
-        alert('候补失败：' + resData.message)
+        alert('预约失败：' + resData.message)
         return
       }
 
+      // 拿到 appointmentId 并开启支付弹窗
+      paymentData.value = {
+        appointmentId: resData.data?.appointmentId || null
+      }
       showAppointModal.value = false
-      alert('候补成功！有号源时将自动为您预约')
-    } else {
-      // 正常预约
-      const response = await axios.post(
-        '/api/patient/appointment/create',
-        {
-          scheduleId: selectedSchedule.value.scheduleId,
-          appointmentTypeId: selectedSchedule.value.appointmentTypeId
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      )
-
-      const resData = response.data
-     if (resData.code !== 200) {
-  alert('预约失败：' + resData.message)
-  return
-}
-
-// 从后端返回中拿到 appointmentId（如果接口返回有）
-const appointmentId = resData.data?.appointmentId || null
-
-showAppointModal.value = false
-
-// 弹出支付弹窗
-paymentData.value = {
-  appointmentId
-}
-showPaymentModal.value = true
-
+      showPaymentModal.value = true 
+      // 注意：这里不再调用 fetchSchedules()，等待弹窗关闭再刷
     }
-
-    await fetchSchedules()
   } catch (err) {
     console.error('操作失败', err)
     alert('操作失败，请重试')
@@ -531,6 +518,14 @@ showPaymentModal.value = true
     isSubmitting.value = false
   }
 }
+
+watch(showPaymentModal, async (newVal) => {
+  // 当 showPaymentModal 从 true 变为 false 时
+  if (newVal === false) {
+    console.log('支付弹窗已关闭，正在刷新号源列表...')
+    await fetchSchedules()
+  }
+})
 
 function updateNavHeight() {
   if (navRef.value?.$el) {
@@ -542,8 +537,7 @@ function updateNavHeight() {
 function initializeTimeSlot() {
   const now = new Date()
   const hour = now.getHours()
-  const todayStr = new Date().toISOString().split('T')[0]
-
+  const todayStr = getLocalDateStr()
   if (selectedDate.value === todayStr) {
     if (hour >= 17) {
       selectedTimeSlot.value = '' // 不可用

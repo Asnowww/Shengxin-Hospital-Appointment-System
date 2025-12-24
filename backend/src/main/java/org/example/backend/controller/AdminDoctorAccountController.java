@@ -74,7 +74,7 @@ public class AdminDoctorAccountController {
     }
 
     /**
-     * 禁用/启用医生账号
+     * 修改医生状态 (在职 / 休假 / 退休)
      */
     @PutMapping("/status/{doctorId}")
     public Result<String> updateDoctorStatus(
@@ -89,7 +89,7 @@ public class AdminDoctorAccountController {
         recordAudit(authHeader, tokenParam, request,
                 "update", "doctor", doctorId,
                 "管理员修改医生账号状态=" + status);
-        return Result.success(msg);
+        return Result.success("医生状态已更新");
     }
 
     /**
@@ -115,6 +115,21 @@ public class AdminDoctorAccountController {
     public Result<DoctorAccountDTO> getDoctorDetail(@PathVariable Long doctorId) {
         DoctorAccountDTO doctor = doctorAccountService.getDoctorById(doctorId);
         return Result.success(doctor);
+    }
+
+    /**
+     * 停用/启用医生账号
+     */
+    @PutMapping("/update/account_status/{doctorId}")
+    public Result<String> setDoctorAccountStatus(
+            @PathVariable Long doctorId,
+            @RequestParam String account_status) {
+        try {
+            doctorAccountService.updateDoctorAccountStatus(doctorId, account_status);
+            return Result.success("修改账号状态成功");
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
     }
 
     /**

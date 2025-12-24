@@ -224,31 +224,15 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     }
 
     /**
-     * 主动关闭指定医生和患者的 WebSocket 连接，用于“结束问诊”时双向断联。
+     * 通知双方会话已关闭，发送系统消息而不是断开 WebSocket 连接。
+     * 这样医生可以继续与其他患者通讯。
      */
-    public void closeUserConnections(Long doctorId, Long patientId) {
-        if (doctorId != null) {
-            String doctorKey = buildUserKey("doctor", String.valueOf(doctorId));
-            WebSocketSession doctorSession = onlineSessions.get(doctorKey);
-            if (doctorSession != null && doctorSession.isOpen()) {
-                try {
-                    doctorSession.close();
-                } catch (IOException e) {
-                    log.error("关闭医生 WebSocket 连接失败, doctorId={}", doctorId, e);
-                }
-            }
-        }
-        if (patientId != null) {
-            String patientKey = buildUserKey("patient", String.valueOf(patientId));
-            WebSocketSession patientSession = onlineSessions.get(patientKey);
-            if (patientSession != null && patientSession.isOpen()) {
-                try {
-                    patientSession.close();
-                } catch (IOException e) {
-                    log.error("关闭患者 WebSocket 连接失败, patientId={}", patientId, e);
-                }
-            }
-        }
+    public void notifySessionClosed(Long doctorId, Long patientId, Long sessionId) {
+        String closeNotification = "{\"type\":\"session_closed\",\"sessionId\":" + sessionId + "}";
+        TextMessage message = new TextMessage(closeNotification);
+        sendToUser("doctor", doctorId, message);
+        sendToUser("patient", patientId, message);
+        log.info("已通知医生({})和患者({})会话({})已关闭", doctorId, patientId, sessionId);
     }
 
     private String buildUserKey(String role, String userId) {
