@@ -1,5 +1,6 @@
 package org.example.backend.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.PatientRegisterParam;
@@ -104,6 +105,33 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public boolean updatePasswordByEmail(String email, String newPassword) {
         String encoded = passwordEncoder.encode(newPassword);
         return userMapper.updatePasswordByEmail(email, encoded) > 0;
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(Long userId, String oldPassword, String newPassword) {
+        // 1. 验证用户是否存在
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new IllegalArgumentException("用户不存在");
+        }
+        // 2. 验证旧密码
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new IllegalArgumentException("旧密码不正确");
+        }
+        System.out.println("数据库密码：" + user.getPassword());
+        System.out.println("matches结果：" +
+                passwordEncoder.matches(oldPassword, user.getPassword()));
+
+        // 3. 新密码加密
+        String encoded = passwordEncoder.encode(newPassword);
+
+        // 3. 使用 MyBatis-Plus 的 UpdateWrapper 更新密码
+        userMapper.update(null,
+                new UpdateWrapper<User>()
+                        .eq("user_id", userId)
+                        .set("password", encoded)
+        );
     }
 
     @Override
