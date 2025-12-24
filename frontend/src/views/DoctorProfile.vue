@@ -37,6 +37,16 @@
             </svg>
             <span>我的排班</span>
           </router-link>
+
+          <button 
+            class="nav-item" 
+            @click="showPasswordDialog = true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>修改密码</span>
+          </button>
         </nav>
       </aside>
 
@@ -87,8 +97,12 @@
                     v-model="profile.phone" 
                     type="tel"
                     :disabled="!isEditing"
-                    class="form-control" 
+                    class="form-control"
+                    @blur="errors.phone = validatePhone(profile.phone)"
                   />
+                  <p v-if="errors.phone" class="error-text">
+                    {{ errors.phone }}
+                  </p>
                 </div>
 
                 <!-- 邮箱（可编辑） -->
@@ -102,36 +116,25 @@
                   />
                 </div>
 
-               
-
-          <div class="form-group full-width">
-
-<div class="label-inline">
-  <label>擅长领域</label>
-
-  <button 
-    class="edit-btn-small" 
-    type="button"
-    @click="openBioEditor"
-    :disabled="profile.bioStatus === 'pending'"
-  >
-    {{ profile.bioStatus === 'pending' ? '审核中' : '申请修改' }}
-  </button>
-</div>
-
-
-<textarea
-  :value="profile.bioStatus === 'pending' ? '审核中' : profile.bio"
-  disabled
-  class="form-control textarea"
-  rows="4"
-></textarea>
-
-</div>
-
-
-
-
+                <div class="form-group full-width">
+                  <div class="label-inline">
+                    <label>擅长领域</label>
+                    <button 
+                      class="edit-btn-small" 
+                      type="button"
+                      @click="openBioEditor"
+                      :disabled="profile.bioStatus === 'pending'"
+                    >
+                      {{ profile.bioStatus === 'pending' ? '审核中' : '申请修改' }}
+                    </button>
+                  </div>
+                  <textarea
+                    :value="profile.bioStatus === 'pending' ? '审核中' : profile.bio"
+                    disabled
+                    class="form-control textarea"
+                    rows="4"
+                  ></textarea>
+                </div>
               </div>
 
               <div v-if="isEditing" class="button-group">
@@ -140,19 +143,28 @@
               </div>
             </form>
             
-<DoctorInfoChangeApply
-  :visible="showBioEditor"
-:userId="userId"
-:currentBio="pendingBio ? '' : (profile?.bio || '')"
-
-  @close="showBioEditor = false"
-/>
+            <DoctorInfoChangeApply
+              :visible="showBioEditor"
+              :userId="userId"
+              :currentBio="pendingBio ? '' : (profile?.bio || '')"
+              @close="showBioEditor = false"
+              @submitted="handleBioSubmitted"
+            />
 
           </div>
         </transition>
       </main>
     </div>
   </div>
+
+  <!-- 使用 ChangePassword 组件 -->
+  <ChangePassword
+    :visible="showPasswordDialog"
+    :userId="userId"
+    apiUrl="/api/user/changePassword"
+    @close="showPasswordDialog = false"
+    @success="handlePasswordChangeSuccess"
+  />
 </template>
 
 
@@ -161,6 +173,7 @@ import { reactive, ref, onMounted, nextTick } from 'vue'
 import Navigation from '@/components/Navigation.vue'
 import axios from 'axios'
 import DoctorInfoChangeApply from '@/components/DoctorInfoChangeApply.vue'
+import ChangePassword from '@/components/ChangePassword.vue'  // 引入密码修改组件
 
 const navRef = ref(null)
 const navHeight = ref(110)
@@ -170,14 +183,43 @@ const originalProfile = ref({})
 
 const showBioEditor = ref(false)
 const pendingBio = ref(false)
+const showPasswordDialog = ref(false)  // 控制密码修改弹窗显示
 
 const userId = localStorage.getItem('userId')
+const errors = reactive({
+  phone: ''
+})
 
+function validatePhone(phone) {
+  if (!phone) {
+    return '手机号不能为空'
+  }
+
+  const phoneRegex = /^1[3-9]\d{9}$/
+  if (!phoneRegex.test(phone)) {
+    return '请输入正确的11位手机号'
+  }
+
+  return ''
+}
+
+function handleBioSubmitted() {
+  // 1. 关闭弹窗
+  showBioEditor.value = false
+
+  // 2. 重新拉取医生信息
+  fetchProfile()
+}
 
 function openBioEditor() {
   showBioEditor.value = true
 }
 
+// 密码修改成功的回调
+function handlePasswordChangeSuccess() {
+  console.log('密码修改成功')
+  // 可以在这里添加其他逻辑，比如刷新某些数据
+}
 
 const profile = reactive({
   doctorName: '',
@@ -188,7 +230,7 @@ const profile = reactive({
   email: '',
   bio:'',
   status: '',
-  bioStatus: ''  // 新增字段，表示擅长领域修改状态
+  bioStatus: ''
 })
 
 function startEdit() {
@@ -212,17 +254,29 @@ async function fetchProfile() {
 }
 
 async function handleSave() {
+  errors.phone = validatePhone(profile.phone)
+  if (errors.phone) {
+    return
+  }
   try {
-    const id = localStorage.getItem('userId')
-    await axios.put(`/api/doctor/${id}/update-contact`, {
-      phone: profile.phone,
-      email: profile.email
-    })
+    const doctorId = profile.doctorId
 
-    alert('保存成功')
-    isEditing.value = false
+    const res = await axios.put(
+      `/api/doctor/${doctorId}/update-contact`,
+      {
+        phone: profile.phone,
+        email: profile.email
+      }
+    )
+    if (res.data.code === 200) {
+      alert(res.data.message || '保存成功')
+      isEditing.value = false
+    } else {
+      alert(res.data.message || '保存失败')
+    }
+
   } catch (err) {
-    alert('保存失败')
+    alert('请求失败，请稍后重试')
     console.error(err)
   }
 }
@@ -319,6 +373,7 @@ onMounted(async () => {
   font-weight: 500;
   text-align: left;
   width: 100%;
+  text-decoration: none;
 }
 
 .nav-item:hover {
@@ -399,21 +454,8 @@ h2 {
   flex-direction: column;
 }
 
-.form-group.full-width,
-.form-section.full-width {
+.form-group.full-width {
   grid-column: 1 / -1;
-}
-
-.form-label {
-  font-weight: 500;
-  color: #4a5568;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.required {
-  color: #e53e3e;
-  margin-left: 0.25rem;
 }
 
 .form-control {
@@ -442,10 +484,6 @@ h2 {
   border-color: #e2e8f0;
 }
 
-.form-control.error {
-  border-color: #e53e3e;
-}
-
 .error-text {
   color: #e53e3e;
   font-size: 0.8rem;
@@ -458,68 +496,33 @@ h2 {
   font-family: inherit;
 }
 
-/* 表单分区 */
-.form-section {
-  margin-top: 1rem;
-}
-
-.section-title {
+.label-inline {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  color: #2d3748;
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin: 0 0 1rem 0;
-  padding-bottom: 0.75rem;
-  border-bottom: 2px solid #f0f0f0;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
-.section-title svg {
-  color: #667eea;
-}
-
-/* 出诊时间选择 */
-.schedule-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 0.75rem;
-}
-
-.schedule-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: #f7fafc;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
+.edit-btn-small {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
   cursor: pointer;
-  transition: all 0.3s ease;
-  user-select: none;
+  transition: 0.2s;
 }
 
-.schedule-checkbox:hover {
-  background: #edf2f7;
-  border-color: #cbd5e0;
+.edit-btn-small:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
 }
 
-.schedule-checkbox input[type="checkbox"] {
-  cursor: pointer;
-}
-
-.schedule-checkbox input[type="checkbox"]:checked + .checkbox-label {
-  color: #667eea;
-  font-weight: 600;
-}
-
-.schedule-checkbox input[type="checkbox"]:disabled {
+.edit-btn-small:disabled {
+  background: #cbd5e0;
   cursor: not-allowed;
-}
-
-.checkbox-label {
-  color: #4a5568;
-  font-size: 0.9rem;
+  transform: none;
 }
 
 /* 按钮组 */
@@ -562,58 +565,6 @@ h2 {
 .submit-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-}
-.label-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-.label-inline {
-  display: flex;
-  align-items: center;
-  gap: 6px;   /* 控制紧贴程度，想更紧可改成 2px */
-  margin-bottom: 6px;
-}
-
-.edit-btn-small {
-  padding: 3px 8px;
-  font-size: 0.78rem;
-  border: none;
-  border-radius: 6px;
-  background: #6366f1;
-  color: white;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-
-.edit-btn-small {
-  padding: 4px 10px;
-  font-size: 0.85rem;
-  border: none;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.edit-btn-small:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
-}
-
-/* 排班视图 */
-.schedule-view {
-  padding: 2.5rem;
-}
-
-.placeholder {
-  text-align: center;
-  color: #a0aec0;
-  font-size: 1rem;
-  padding: 3rem;
 }
 
 /* 过渡动画 */
@@ -715,10 +666,6 @@ h2 {
   .form-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
-  }
-
-  .schedule-grid {
-    grid-template-columns: repeat(2, 1fr);
   }
 
   .button-group {
