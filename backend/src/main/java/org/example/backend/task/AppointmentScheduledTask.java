@@ -141,8 +141,8 @@ public class AppointmentScheduledTask {
     }
 
     /**
-     * 定时任务：每分钟执行一次
-     * 简洁版 - 只更新过期候补状态
+     * 定时任务3：每分钟执行一次
+     * 更新过期候补状态
      */
     @Scheduled(cron = "0 * * * * ?")
     @Transactional
@@ -176,6 +176,56 @@ public class AppointmentScheduledTask {
         }
 
         System.out.println("处理完成");
+    }
+
+    /**
+     * 定时任务4：每5分钟执行一次
+     * 检查所有有号源的排班，自动处理候补转正
+     */
+    @Scheduled(cron = "0 */5 * * * ?") // 每5分钟执行一次
+    @Transactional
+    public void processAvailableSlotsWaitlist() {
+        try {
+            System.out.println("开始检查有号源的排班进行候补转正...");
+
+            // 查询所有有号源的排班（可用号源 > 0）
+            List<Schedule> availableSchedules = scheduleMapper.selectSchedulesWithAvailableSlots();
+
+            if (availableSchedules.isEmpty()) {
+                System.out.println("当前没有可用号源的排班");
+                return;
+            }
+
+            System.out.println("发现 " + availableSchedules.size() + " 个排班有可用号源，开始处理候补转正...");
+
+            int totalProcessed = 0;
+            for (Schedule schedule : availableSchedules) {
+                try {
+                    // 检查该排班是否有等待中的候补
+                    List<Waitlist> waitingList = waitlistMapper.selectWaitingListByScheduleId(schedule.getScheduleId());
+
+                    if (!waitingList.isEmpty()) {
+                        System.out.println("排班 [ID: " + schedule.getScheduleId() +
+                                "] 有 " + schedule.getAvailableSlots() + " 个可用号源，" +
+                                waitingList.size() + " 个等待候补，开始转正处理...");
+
+                        // 调用候补转正服务
+                        waitlistService.processWaitlistConversion(schedule.getScheduleId());
+                        totalProcessed++;
+                    }
+                } catch (Exception e) {
+                    System.err.println("处理排班 [ID: " + schedule.getScheduleId() + "] 候补转正失败: " + e.getMessage());
+                    e.printStackTrace();
+                    // 继续处理下一个排班
+                }
+            }
+
+            System.out.println("候补转正定时任务完成，共处理 " + totalProcessed + " 个排班");
+
+        } catch (Exception e) {
+            System.err.println("候补转正定时任务执行失败: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }
 
