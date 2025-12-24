@@ -111,11 +111,18 @@
             <div v-for="subDept in (dept.subDepartments || [])" :key="subDept.id" class="sub-dept-card">
               <div class="card-content">
                 <h3>{{ subDept.name }}</h3>
+                <div class="location-info">
+                  <span class="location-tag floor-tag">
+                    {{ subDept.floor }}楼
+                  </span>
+                  <span class="location-tag room-tag">
+                    主诊室：{{ subDept.room }}
+                  </span>
+                </div>
                 <p class="dept-desc" v-if="subDept.description" :title="subDept.description">{{ subDept.description }}</p>
               </div>
               <div class="card-actions">
                 <button class="action-btn edit-btn" @click="openEditModal(subDept)">编辑</button>
-                <button class="action-btn del-btn" @click="confirmDelete(subDept)">删除</button>
               </div>
             </div>
           </div>
@@ -247,7 +254,9 @@ async function fetchDepartments() {
       subDepartments: (dept.children || []).map(sub => ({
         id: sub.deptId,
         name: sub.deptName,
-        description: sub.description
+        description: sub.description,
+        floor:sub.floor,
+        room: sub.room
       }))
     }))
   } catch (err) { console.error(err) }
@@ -631,16 +640,6 @@ button {
 .edit-btn:hover {
   background: #cbd5e0;
   color: #2d3748;
-}
-
-.del-btn {
-  background: #fff5f5;
-  color: #c53030;
-}
-
-.del-btn:hover {
-  background: #feb2b2;
-  color: #9b2c2c;
 }
 
 /* 弹窗样式 - 玻璃拟态 */

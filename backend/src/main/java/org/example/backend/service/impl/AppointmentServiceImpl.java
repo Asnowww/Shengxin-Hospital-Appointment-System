@@ -9,6 +9,7 @@ import org.example.backend.service.AppointmentService;
 import org.example.backend.service.NotificationEmailService;
 import org.example.backend.service.PaymentService;
 import org.example.backend.service.WaitlistService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,6 +60,8 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Resource
     private WaitlistMapper waitlistMapper;
+    @Autowired
+    private UserMapper userMapper;
 
     // === 病人端 ===
 
@@ -130,6 +133,17 @@ public class AppointmentServiceImpl implements AppointmentService {
             String timeSlotName = getTimeSlotName(timeSlot);
             throw new RuntimeException("您在" + workDate + " " + timeSlotName + "已有候补，无法重复操作");
         }
+
+        //检查是否多次退号
+        QueryWrapper<Appointment> cancelWrapper = new QueryWrapper<>();
+        cancelWrapper.eq("patient_id", param.getPatientId())
+                .eq("schedule_id", param.getScheduleId())
+                .eq("appointment_status", "cancelled");
+        Long cancelCount = appointmentMapper.selectCount(cancelWrapper);
+        if (cancelCount > 2) {
+            throw new RuntimeException("您已多次取消同一预约，现已禁止预约此排班");
+        }
+
 
         // 5. 查询号别费用
         AppointmentType appointmentType = appointmentTypeMapper.selectById(schedule.getAppointmentTypeId());
