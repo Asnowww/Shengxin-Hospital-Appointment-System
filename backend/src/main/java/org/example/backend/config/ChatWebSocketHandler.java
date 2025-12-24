@@ -8,11 +8,14 @@ import org.example.backend.pojo.ChatSession;
 import org.example.backend.service.ChatMessageService;
 import org.example.backend.service.ChatSessionService;
 import org.example.backend.service.OnlineStatusService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+import org.example.backend.service.AuditLogService;
+import org.example.backend.dto.AuditLogCreateDTO;
 
 import java.io.IOException;
 import java.net.URI;
@@ -46,6 +49,9 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private final ChatSessionService chatSessionService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Autowired
+    private AuditLogService auditLogService;
+
     /**
      * 在线连接表，key = role + ":" + userId （例如 doctor:1 / patient:2）
      */
@@ -59,6 +65,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         this.chatMessageService = chatMessageService;
         this.chatSessionService = chatSessionService;
         this.onlineStatusService = onlineStatusService;
+        this.auditLogService = auditLogService;
     }
 
     @Override
@@ -156,6 +163,26 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             chatMessage.setContent(dto.getContent());
             chatMessage.setContentType(dto.getContentType() != null ? dto.getContentType() : "text");
             chatMessageService.saveMessage(chatMessage);
+
+            // === 在线问诊审计日志 ===
+            try {
+                Object uid = session.getAttributes().get("userId");
+                Long userId = uid instanceof Long ? (Long) uid : null;
+
+                if (userId != null) {
+                    AuditLogCreateDTO logDto = new AuditLogCreateDTO();
+                    logDto.setAction("create");
+                    logDto.setResourceType("consultation"); // 在线问诊
+                    logDto.setMessage(
+                            ("doctor".equalsIgnoreCase(dto.getSenderType()) ? "医生" : "患者")
+                                    + "说: "
+                                    + trim(dto.getContent(), 500)
+                    );
+                    auditLogService.recordLog(userId, logDto);
+                }
+            } catch (Exception e) {
+                log.warn("写入在线问诊审计日志失败", e);
+            }
 
             // 3. 准备要发送给前端的消息（可直接使用 DTO，也可补充字段）
             String responseJson = objectMapper.writeValueAsString(dto);
@@ -263,5 +290,10 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    private String trim(String text, int max) {
+        if (text == null) return null;
+        return text.length() <= max ? text : text.substring(0, max) + "...";
     }
 }

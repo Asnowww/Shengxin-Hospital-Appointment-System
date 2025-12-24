@@ -43,6 +43,13 @@ public class AuditLogAspect {
             // 非 Web 场景不记录
             return pjp.proceed();
         }
+        String httpMethod = request.getMethod();
+
+        // 默认不记录 GET 请求
+        if ("GET".equalsIgnoreCase(httpMethod)) {
+            return pjp.proceed();
+        }
+
 
         Method method = ((MethodSignature) pjp.getSignature()).getMethod();
         Audit auditAnno = resolveAuditAnnotation(method);
@@ -70,6 +77,11 @@ public class AuditLogAspect {
     private void writeAuditLog(HttpServletRequest request, Method method, Audit auditAnno) {
         String httpMethod = request.getMethod();
         String uri = request.getRequestURI();
+
+        //排除“聊天已读”这种技术性 POST
+        if (uri.startsWith("/api/chat/messages/read")) {
+            return;
+        }
 
         String action = chooseAction(auditAnno, httpMethod, uri);
         String resourceType = chooseResourceType(auditAnno, uri);
