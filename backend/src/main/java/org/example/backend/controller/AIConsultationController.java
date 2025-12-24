@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
 
+import static com.baomidou.mybatisplus.extension.ddl.DdlScriptErrorHandler.PrintlnLogErrorHandler.log;
+
 @RestController
 @RequestMapping("/api/consultation")
 @CrossOrigin(originPatterns = "*") // Allow CORS for development
@@ -35,23 +37,39 @@ public class AIConsultationController {
         ConsultationResponse response = aiConsultationService.chat(request);
 
         // 审计：记录问答
+        Long userId = null;
         try {
-            Long userId = tokenUtil.resolveUserIdFromToken(
-                    tokenUtil.extractToken(authHeader, tokenParam));
+            System.out.println("authHeader = " + authHeader);
+            System.out.println("tokenParam = " + tokenParam);
 
-            StringBuilder sb = new StringBuilder();
-            sb.append("问: ").append(trim(request.getMessage(), 500));
-            if (response != null && response.getReply() != null) {
-                sb.append(" | 答: ").append(trim(response.getReply(), 500));
+            String token = tokenUtil.extractToken(authHeader, tokenParam);
+            System.out.println("resolved token = " + token);
+            if (token != null) {
+                userId = tokenUtil.resolveUserIdFromToken(token);
             }
+            System.out.println("resolved userId = " + userId);
+        } catch (Exception e) {
+            // 只记录警告，不吞掉逻辑
+            log.warn("解析 userId 失败");
+        }
 
+        // 构建日志内容
+        StringBuilder sb = new StringBuilder();
+        sb.append("问: ").append(trim(request.getMessage(), 500));
+        if (response != null && response.getReply() != null) {
+            sb.append(" | 答: ").append(trim(response.getReply(), 500));
+        }
+
+        // 写审计日志（始终执行）
+        try {
             AuditLogCreateDTO dto = new AuditLogCreateDTO();
             dto.setAction("create");
             dto.setResourceType("ai_consultation");
             dto.setMessage(sb.toString());
             dto.setIp(httpRequest != null ? httpRequest.getRemoteAddr() : null);
             auditLogService.recordLog(userId, dto);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("写入 AI 问诊审计日志失败");
         }
 
         return ResponseEntity.ok(response);
