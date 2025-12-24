@@ -206,9 +206,18 @@ const loadMessages = async () => {
   }
 }
 
-// WebSocket 收到新消息时，直接 push 到本地列表，增强实时感
+// WebSocket 收到新消息时，检查是否重复后再添加
 const handleMessageReceived = (message) => {
-  chatMessages.value = [...chatMessages.value, message]
+  // 去重检查：通过消息ID或内容+发送者+时间戳进行判断
+  const isDuplicate = chatMessages.value.some(
+    (m) => m.id === message.id || 
+    (m.content === message.content && 
+     m.senderId === message.senderId && 
+     Math.abs(new Date(m.timestamp) - new Date(message.timestamp)) < 5000)
+  )
+  if (!isDuplicate) {
+    chatMessages.value = [...chatMessages.value, message]
+  }
 }
 
 // 点击科室

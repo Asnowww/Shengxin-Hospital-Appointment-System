@@ -458,7 +458,7 @@ async function handleSubmit() {
   try {
     let res
     if (props.isEditing) {
-      res = await axios.put(`/api/admin/schedules/${scheduleForm.id}`, scheduleForm)
+      res = await axios.put('/api/admin/schedules/update', { ...scheduleForm, scheduleId: scheduleForm.id })
     } else if (scheduleForm.isBatch) {
       res = await axios.post('/api/admin/schedules/batchCreate', scheduleForm)
     } else {

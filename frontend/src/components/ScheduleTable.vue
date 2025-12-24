@@ -419,7 +419,8 @@ const saveSchedule = async () => {
   if (!formData.value.doctorId) { alert('请选择医生'); return }
   try {
     if (editingSchedule.value) {
-      await axios.put(`/api/admin/schedules/${editingSchedule.value.scheduleId}`, {
+      await axios.put('/api/admin/schedules/update', {
+        scheduleId: editingSchedule.value.scheduleId,
         doctorId: formData.value.doctorId,
         maxSlots: formData.value.maxSlots
       })
