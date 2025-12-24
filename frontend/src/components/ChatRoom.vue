@@ -71,11 +71,21 @@ watch(
   { immediate: true }
 )
 
-// 监听切换会话时自动更新状态
+// 监听切换会话时自动更新状态并重连 WebSocket - Bug #5 修复
 watch(
   () => props.sessionId,
-  () => {
-    isChatEnded.value = (props.sessionStatus === 'closed')
+  (newVal, oldVal) => {
+    if (newVal !== oldVal && newVal) {
+      // 关闭旧连接
+      if (socket.value && socket.value.readyState === WebSocket.OPEN) {
+        closingBySelf.value = true
+        socket.value.close()
+      }
+      // 重置状态并建立新连接
+      closingBySelf.value = false
+      isChatEnded.value = (props.sessionStatus === 'closed')
+      setupWebSocket()
+    }
   }
 )
 
@@ -135,6 +145,23 @@ const setupWebSocket = () => {
         socket.value.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
+                // 处理会话关闭通知
+                if (data.type === 'session_closed') {
+                    // 检查是否是当前会话
+                    if (String(data.sessionId) === String(props.sessionId)) {
+                        isChatEnded.value = true;
+                        const systemMsg = {
+                            id: Date.now(),
+                            senderId: null,
+                            role: 'system',
+                            content: '此会话已被关闭。',
+                            timestamp: new Date().toLocaleTimeString('zh-CN', { hour12: false })
+                        };
+                        emit('message-received', systemMsg);
+                        scrollToBottom();
+                    }
+                    return;
+                }
                 // 将后端 DTO 映射为前端 MessageItem 可消费的结构
                 const mapped = {
                     id: data.id || Date.now(),
