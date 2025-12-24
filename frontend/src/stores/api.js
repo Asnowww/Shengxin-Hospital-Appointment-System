@@ -121,10 +121,12 @@ export const markMessagesRead = async (sessionId, userId) => {
 
 /**
  * 关闭会话（将 chat_session.status 设为 closed）
+ * 需要传递 userId 以验证用户身份
  */
 export const closeChatSession = async (sessionId) => {
     if (!sessionId) return
+    const userId = localStorage.getItem('patientId') || localStorage.getItem('doctorId')
     await axios.post('/api/chat/session/close', null, {
-        params: { sessionId }
+        params: { sessionId, userId }
     })
 }
