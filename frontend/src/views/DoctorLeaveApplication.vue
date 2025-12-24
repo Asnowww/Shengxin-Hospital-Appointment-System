@@ -137,19 +137,38 @@ function mapScheduleOptions(list) {
     .filter(item => item.status !== 'cancelled')
     .filter(item => !item.leaveApplied)
     // 过滤已过去的排班
-    .filter(item => {
-      // 未来日期：直接显示
-      if (item.workDate > today) return true
+    // .filter(item => {
+    //   // 未来日期：直接显示
+    //   if (item.workDate > today) return true
 
-      // 今天的排班：判断时间段
-      if (item.workDate === today) {
-        // timeSlot: 0=上午, 1=下午, 2=晚上
-        if (item.timeSlot === 0 && currentHour < 12) return true
-        if (item.timeSlot === 1 && currentHour < 18) return true
+    //   // 今天的排班：判断时间段
+    //   if (item.workDate === today) {
+    //     // timeSlot: 0=上午, 1=下午, 2=晚上
+    //     if (item.timeSlot === 0 && currentHour < 12) return true
+    //     if (item.timeSlot === 1 && currentHour < 18) return true
+    //     if (item.timeSlot === 2) return true
+    //     return false
+    //   }
+    //   // 过去日期：不显示
+    //   return false
+    // })
+    .filter(item => {
+      const now = new Date()
+      now.setSeconds(0, 0)
+
+      const workDate = new Date(item.workDate + 'T00:00:00')
+
+      // 未来日期：直接可请假
+      if (workDate > now) return true
+
+      // 今天：根据时间段判断
+      if (workDate.toDateString() === now.toDateString()) {
+        const hour = now.getHours()
+        if (item.timeSlot === 0) return hour < 12
+        if (item.timeSlot === 1) return hour < 18
         if (item.timeSlot === 2) return true
-        return false
       }
-      // 过去日期：不显示
+
       return false
     })
     .map(item => {
