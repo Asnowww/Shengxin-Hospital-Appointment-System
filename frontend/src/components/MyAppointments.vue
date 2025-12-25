@@ -168,7 +168,9 @@
           <button 
             v-if="activeStatus === 'current' && selectedRecord.status !== 'cancelled' && selectedRecord.status !== 'waiting_action' && selectedRecord.status !== 'pending_confirm'"
             @click="handleCancelAppointment(selectedRecord)"
-            class="action-btn">
+            :disabled="!canCancelAppointment(selectedRecord)"
+            :class="['action-btn', { 'disabled': !canCancelAppointment(selectedRecord) }]"
+            :title="!canCancelAppointment(selectedRecord) ? '已过可取消预约时间' : ''">
             取消预约
           </button>
           
@@ -203,6 +205,14 @@
       :appointment-info="navigatorInfo"
       @close="navigatorVisible = false"
     />
+    <!-- 改约弹窗 -->
+    <RescheduleModal
+      :visible="rescheduleModalVisible"
+      :appointment-id="rescheduleAppointmentId"
+      :appointment-info="rescheduleInfo"
+      @close="rescheduleModalVisible = false"
+      @success="handleRescheduleSuccess"
+    />
   </div>
   
 
@@ -214,12 +224,18 @@ import axios from 'axios'
 import AppointmentRecordCard from './AppointmentRecordCard.vue'
 import Payment from './Payment.vue'
 import HospitalNavigator from './HospitalNavigator.vue'
+import RescheduleModal from './RescheduleModal.vue'
 
 const payDialogVisible = ref(false)
 const payInfo = ref({ appointmentId: null })
 const navigatorVisible = ref(false)
 const navigatorDestination = ref('')
 const navigatorInfo = ref({})
+
+// 改约弹窗状态
+const rescheduleModalVisible = ref(false)
+const rescheduleAppointmentId = ref(null)
+const rescheduleInfo = ref({})
 
 async function handlePay(record) {
   if (!record || !record.appointmentId) {
@@ -496,10 +512,23 @@ async function handleAcknowledgeCancel(record) {
     loading.value = false
   }
 }
-//改约
+// 改约
 function handleChangeAppointment(record) {
-  // 可添加改约逻辑
-  alert('改约功能暂未实现')
+  rescheduleAppointmentId.value = record.appointmentId
+  rescheduleInfo.value = {
+    currentDeptId: record.deptId,
+    currentDoctorName: record.doctorName,
+    currentTime: record.appointmentTime
+  }
+  rescheduleModalVisible.value = true
+}
+
+// 改约成功回调
+async function handleRescheduleSuccess() {
+  rescheduleModalVisible.value = false
+  closeDetailDrawer()
+  await fetchAppointments()
+  alert('改约成功！')
 }
 
 function openNavigator(record) {
@@ -511,8 +540,73 @@ function openNavigator(record) {
   }
   navigatorVisible.value = true
 }
+
+// 解析中文日期格式 "2025年12月29日 上午" 或 "2025年12月29日 下午"
+function parseChineseDateTime(timeStr) {
+  if (!timeStr) return null
+  
+  try {
+    // 匹配格式：YYYY年MM月DD日 上午/下午
+    const match = timeStr.match(/(\d{4})年(\d{1,2})月(\d{1,2})日\s*(上午|下午)?/)
+    if (!match) return null
+    
+    const year = parseInt(match[1])
+    const month = parseInt(match[2]) - 1 // JavaScript月份从0开始
+    const day = parseInt(match[3])
+    const period = match[4] // 上午 或 下午
+    
+    // 创建日期对象
+    const date = new Date(year, month, day)
+    
+    // 如果是上午，设置为9:00；如果是下午，设置为14:00
+    if (period === '上午') {
+      date.setHours(9, 0, 0, 0)
+    } else if (period === '下午') {
+      date.setHours(14, 0, 0, 0)
+    } else {
+      // 如果没有指定上午/下午，默认设置为上午9:00
+      date.setHours(9, 0, 0, 0)
+    }
+    
+    return date
+  } catch (err) {
+    console.error('解析中文日期失败:', timeStr, err)
+    return null
+  }
+}
+
+// 判断是否可以取消预约（预约前一日17:00之前）
+function canCancelAppointment(record) {
+  if (!record.appointmentTime) return false
+  
+  try {
+    // 解析预约时间（中文格式）
+    const appointmentDate = parseChineseDateTime(record.appointmentTime)
+    if (!appointmentDate) return false
+    
+    // 获取预约前一日的17:00
+    const deadlineDate = new Date(appointmentDate)
+    deadlineDate.setDate(deadlineDate.getDate() - 1)
+    deadlineDate.setHours(17, 0, 0, 0)
+    
+    // 获取当前时间
+    const now = new Date()
+    
+    // 当前时间必须在截止时间之前
+    return now < deadlineDate
+  } catch (err) {
+    console.error('计算取消预约时间失败', err)
+    return false
+  }
+}
+
 // 取消预约
 async function handleCancelAppointment(record) {
+  if (!canCancelAppointment(record)) {
+    alert('已超过取消预约的时间限制（预约前一日17:00前）')
+    return
+  }
+  
   if (!confirm('确定要取消这个预约吗？')) return
   if (!token.value) return alert('未登录或登录已过期，请重新登录')
 
@@ -544,11 +638,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
-  .cancel-message {
-  color: #ff4d4f; /* 红色 */
+.cancel-message {
+  color: #ff4d4f;
   font-weight: 600;
   font-size: 0.9rem;
-  margin: 0.5rem 0; /* 上下间距 */
+  margin: 0.5rem 0;
 }
 
 .appointments-container {
@@ -575,63 +669,7 @@ h2 {
   background: #f7fafc;
   border-radius: 12px;
 }
-.action-btn,
-.close-drawer-btn {
-    flex: 1;
-    padding: 0.75rem 1rem;
-    border: none;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
 
-.action-btn {
-    background: #fff5f5;
-    color: #c53030;
-    border: 1px solid #feb2b2;
-}
-
-.action-btn:hover {
-    background: #fed7d7;
-    border-color: #fc8181;
-}
-.action-btn.secondary {
-    background: #edf2f7;
-    color: #2d3748;
-    border: 1px solid #cbd5e0;
-}
-.action-btn.secondary:hover {
-    background: #e2e8f0;
-}
-.action-btn.third {
-    /* 接受改期/去支付按钮使用更醒目的颜色 */
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-}
-.action-btn.third:hover {
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-}
-
-/* 针对待确认改期状态下的信息样式 */
-.status-pending-confirm {
-    color: #e59900 !important; /* 警告色 */
-    font-weight: 600 !important;
-}
-
-.source-info-row {
-    background-color: #fffbe6; /* 浅黄色背景提示 */
-    border-radius: 4px;
-    padding: 0.5rem 0.25rem;
-    margin-bottom: 0.5rem;
-}
-
-.highlight-text {
-    color: #0b7a0b !important;
-    font-weight: 600 !important;
-}
 .tab-btn {
   flex: 1;
   display: flex;
@@ -716,7 +754,6 @@ h2 {
   opacity: 1;
   transform: none;
 }
-
 
 /* 详情抽屉 */
 .detail-drawer-overlay {
@@ -902,8 +939,127 @@ h2 {
   background: #f7fafc;
 }
 
+/* 按钮基础样式 */
+.action-btn,
+.close-drawer-btn {
+  position: relative;
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
 
+.action-btn {
+  background: #fff5f5;
+  color: #c53030;
+  border: 1px solid #feb2b2;
+}
 
+.action-btn:hover {
+  background: #fed7d7;
+  border-color: #fc8181;
+}
+
+.action-btn.secondary {
+  background: #edf2f7;
+  color: #2d3748;
+  border: 1px solid #cbd5e0;
+}
+
+.action-btn.secondary:hover {
+  background: #e2e8f0;
+}
+
+.action-btn.third {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+}
+
+.action-btn.third:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+/* 禁用按钮样式 */
+.action-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #e2e8f0;
+  color: #a0aec0;
+  border: 1px solid #cbd5e0;
+}
+
+.action-btn.disabled:hover {
+  background-color: #e2e8f0;
+  color: #a0aec0;
+  border: 1px solid #cbd5e0;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Tooltip 提示效果 */
+.action-btn.disabled[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  background-color: rgba(0, 0, 0, 0.85);
+  color: white;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 6px;
+  z-index: 1001;
+  pointer-events: none;
+  animation: tooltipFadeIn 0.2s ease;
+}
+
+.action-btn.disabled[title]:hover::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.85);
+  z-index: 1001;
+  pointer-events: none;
+  animation: tooltipFadeIn 0.2s ease;
+}
+
+@keyframes tooltipFadeIn {
+  from { 
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* 针对待确认改期状态下的信息样式 */
+.status-pending-confirm {
+  color: #e59900 !important;
+  font-weight: 600 !important;
+}
+
+.source-info-row {
+  background-color: #fffbe6;
+  border-radius: 4px;
+  padding: 0.5rem 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.highlight-text {
+  color: #0b7a0b !important;
+  font-weight: 600 !important;
+}
 
 @media (max-width: 768px) {
   .appointments-container {
