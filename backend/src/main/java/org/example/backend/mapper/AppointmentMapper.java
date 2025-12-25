@@ -11,6 +11,7 @@ import org.example.backend.dto.DailyNewPatientStats;
 import org.example.backend.dto.DepartmentAppointmentStats;
 import org.example.backend.dto.DoctorAppointmentStats;
 import org.example.backend.pojo.Appointment;
+import org.example.backend.pojo.Waitlist;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -322,4 +323,20 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
             "</foreach>" +
             "</script>")
     int batchUpdateQueueNumbers(@Param("queueMap") Map<Long, Integer> queueMap);
+
+    /**
+     * 查询过期的未支付订单
+     *
+     * @return 过期未就诊订单列表
+     */
+    @Select("SELECT a.* FROM appointments a " +
+            "JOIN schedules s ON a.schedule_id = s.schedule_id " +
+            "WHERE a.appointment_status = 'booked' " +
+            "AND (s.work_date < CURDATE() " +
+            "     OR (s.work_date = CURDATE() AND " +
+            "         ((s.time_slot = 0 AND CURTIME() >= '12:00:00') " +
+            "          OR (s.time_slot = 1 AND CURTIME() >= '18:00:00') " +
+            "          OR (s.time_slot = 2 AND CURTIME() >= '21:00:00')))) " +
+            "ORDER BY a.appointment_id ASC")
+    List<Appointment> selectExpiredAppointment();
 }

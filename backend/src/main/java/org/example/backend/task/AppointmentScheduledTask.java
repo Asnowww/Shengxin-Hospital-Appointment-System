@@ -288,7 +288,7 @@ public class AppointmentScheduledTask {
                                 reason,                   // 禁用原因
                                 48                        // 限制48周
                         );
-                        // notificationEmailService.sendAccountRejectedNotification(patient.getPatientId());
+
                     }
 
                 } catch (Exception e) {
@@ -334,6 +334,44 @@ public class AppointmentScheduledTask {
             e.printStackTrace();
         }
     }
+
+    /**
+     * 定时任务7：每分钟执行一次
+     * 更新过期未就诊预约状态
+     */
+    @Scheduled(cron = "0 * * * * ?")
+    @Transactional
+    public void handleExpiredAppointment() {
+        System.out.println("执行过期预约检查...");
+
+        List<Appointment> expiredAppointments = appointmentMapper.selectExpiredAppointment();
+
+        if (expiredAppointments.isEmpty()) {
+            System.out.println("没有过期预约");
+            return;
+        }
+
+        System.out.println("找到 " + expiredAppointments.size() + " 个过期候补");
+
+        for (Appointment appointment : expiredAppointments) {
+            if (!"booked".equals(appointment.getAppointmentStatus())) {
+                continue; // 跳过非booked状态的记录
+            }
+
+            try {
+                appointment.setAppointmentStatus("cancelled");
+                appointmentMapper.updateById(appointment);
+                Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
+                notificationEmailService.sendBookedAppointmentExpiredNotification(appointment.getAppointmentId());
+                System.out.println("预约 " + appointment.getAppointmentId() + " 已设为cancelled");
+            } catch (Exception e) {
+                System.err.println("预约 " + appointment.getAppointmentId() + " 更新失败: " + e.getMessage());
+            }
+        }
+
+        System.out.println("处理完成");
+    }
+
 
 
 }

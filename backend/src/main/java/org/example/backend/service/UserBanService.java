@@ -21,6 +21,9 @@ public class UserBanService {
     private UserMapper userMapper;
 
     @Resource
+    NotificationEmailService notificationEmailService;
+
+    @Resource
     private PatientMapper patientMapper;
 
     public boolean isUserBanned(Long userId) {
@@ -64,6 +67,8 @@ public class UserBanService {
 
         bannedUserMapper.insert(bannedUser);
         userMapper.updateBookingStatus(userId, "disabled");
+
+        notificationEmailService.sendAccountBannedNotification(patient.getPatientId());
 
         System.out.println("用户已被禁止预约 [" +
                 "用户ID: " + userId +

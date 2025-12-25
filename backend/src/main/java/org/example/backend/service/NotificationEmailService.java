@@ -44,6 +44,9 @@ public class NotificationEmailService {
     @Resource
     private AppointmentMapper appointmentMapper;
 
+    @Resource
+    private BannedUserMapper bannedUserMapper;
+
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy年MM月dd日");
 
     // ==================== 核心发送方法 ====================
@@ -293,6 +296,25 @@ public class NotificationEmailService {
         }
     }
 
+
+    public void sendBookedAppointmentExpiredNotification(Long appointmentId) {
+        try {
+            Appointment appointment = appointmentMapper.selectById(appointmentId);
+            if (appointment == null) return;
+            Patient patient = patientMapper.selectById(appointment.getPatientId());
+            if (patient == null) return;
+            User user = userMapper.selectById(patient.getUserId());
+            if (user == null || user.getEmail() == null) return;
+            Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
+            String subject = "【订单过期】您的预约订单未支付，现已过期";
+            String content = buildBookedAppointmentExpiredEmail(appointment,schedule);
+            sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
+
+        }catch (Exception e) {
+            log.error("<UNK>: appointmentId={}", appointmentId, e);
+        }
+    }
+
     /**
      * 发送就诊提醒
      */
@@ -486,6 +508,46 @@ public class NotificationEmailService {
         }
     }
 
+
+    /**
+     * 发送账户禁用通知
+     * @param patientId 患者ID
+     */
+    @Async("emailTaskExecutor")
+    public void sendAccountBannedNotification(Long patientId) {
+        try {
+            // 1. 查询患者信息
+            Patient patient = patientMapper.selectById(patientId);
+            if (patient == null) {
+                log.error("患者不存在 [ID: {}]", patientId);
+                return;
+            }
+
+            // 2. 查询用户信息
+            User user = userMapper.selectById(patient.getUserId());
+            if (user == null || user.getEmail() == null) {
+                log.error("用户信息或邮箱不存在 [用户ID: {}]", patient.getUserId());
+                return;
+            }
+
+            // 3. 查询禁用详情
+            BannedUser bannedUser = bannedUserMapper.selectActiveByUserId(user.getUserId());
+            if (bannedUser == null) {
+                log.error("未找到有效的禁用记录 [用户ID: {}]", user.getUserId());
+                return;
+            }
+
+            // 4. 构建邮件标题和内容
+            String subject = "【预约限制通知】您的预约功能已被限制";
+            String content = buildAccountBannedEmail(user, bannedUser);
+
+            // 5. 发送邮件并记录
+            sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
+
+        } catch (Exception e) {
+            log.error("发送账户禁用通知失败: patientId={}", patientId, e);
+        }
+    }
 
     // ==================== 4. 通用邮件 ====================
 
@@ -742,6 +804,45 @@ public class NotificationEmailService {
                 patientName, appointment.getAppointmentId(), deptName, doctorInfo, workDate, timeSlot);
 
     }
+
+
+    private String buildBookedAppointmentExpiredEmail(Appointment appointment, Schedule schedule) {
+        String patientName = getPatientName(String.valueOf(appointment.getPatientId()));
+        String doctorInfo = getDoctorInfo(schedule.getDoctorId());
+        String deptName = getDeptName(schedule.getDeptId());
+        String workDate = schedule.getWorkDate().format(DATE_FORMATTER);
+        String timeSlot = getTimeSlotName(schedule.getTimeSlot());
+
+        return String.format("""
+                <html>
+                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                        <div style="background: linear-gradient(135deg, #f093fb 0%%, #f5576c 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                            <h1>❌ 预约已过期</h1>
+                        </div>
+                        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                            <p>尊敬的 <strong>%s</strong> 患者，您好！</p>
+                            <p>您的就诊时间已到，预约自动取消。</p>
+                            
+                            <div style="background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #f5576c; border-radius: 5px;">
+                                <h3 style="color: #f5576c; margin-top: 0;">📋 预约信息</h3>
+                                <p><strong>预约编号：</strong>%d</p>
+                                <p><strong>就诊科室：</strong>%s</p>
+                                <p><strong>就诊医生：</strong>%s</p>
+                                <p><strong>就诊时间：</strong>%s %s</p>
+                            </div>
+                            
+                            <p>如有疑问，请联系医院客服。</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """,
+                patientName, appointment.getAppointmentId(), deptName, doctorInfo, workDate, timeSlot);
+
+    }
+
+
 
 
     /**
@@ -1125,4 +1226,88 @@ public class NotificationEmailService {
                 patientName, appointment.getAppointmentId(), deptName, doctorInfo,
                 workDate, timeSlot, appointment.getQueueNumber());
     }
+
+
+    /**
+     * 构建账户禁用邮件模板
+     */
+    private String buildAccountBannedEmail(User user, BannedUser bannedUser) {
+        // 获取禁用类型说明
+        String banTypeText = getBanTypeText(bannedUser.getBanType());
+
+        // 格式化时间
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm");
+        String banStartTimeStr = bannedUser.getBanStartTime().format(formatter);
+        String banEndTimeStr = bannedUser.getBanEndTime().format(formatter);
+
+        return String.format("""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #e74c3c 0%%, #c0392b 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                    <h1>预约功能限制通知</h1>
+                </div>
+                <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                    <p>尊敬的 <strong>%s</strong> 用户，您好：</p>
+                    
+                    <p style="font-size: 1.1em; color: #e74c3c; font-weight: bold;">
+                        很遗憾地通知您，由于您的预约行为违反了医院预约规则，您的在线预约功能已被限制。
+                    </p>
+                    
+                    <div style="background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #e74c3c; border-radius: 5px;">
+                        <h3 style="color: #e74c3c; margin-top: 0;">限制详情</h3>
+                        <p><strong>限制类型：</strong>%s</p>
+                        <p><strong>限制原因：</strong>%s</p>
+                        <p><strong>限制时长：</strong>%d 周</p>
+                        <p><strong>限制开始：</strong>%s</p>
+                        <p><strong>解禁时间：</strong><span style="color: #27ae60; font-weight: bold;">%s</span></p>
+                    </div>
+                    
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107; margin: 20px 0;">
+                        <p style="margin: 0; color: #856404;"><strong>重要说明：</strong></p>
+                        <ul style="margin: 10px 0; padding-left: 20px; color: #856404;">
+                            <li>限制期间，您将<strong>无法进行在线预约</strong></li>
+                            <li>但<strong>不影响</strong>您到院后的现场挂号</li>
+                            <li>解禁时间到达后，预约功能将自动恢复</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="background: #e8f5e9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                        <p style="margin: 0; color: #2e7d32;"><strong>温馨提示：</strong></p>
+                        <ul style="margin: 10px 0; padding-left: 20px; color: #2e7d32;">
+                            <li>如需就诊，请携带身份证前往医院服务台现场挂号</li>
+                            <li>请合理安排就诊时间，避免爽约或频繁取消</li>
+                            <li>遵守预约规则，维护良好的就医秩序</li>
+                        </ul>
+                    </div>
+                    
+                    <p>如有疑问或异议，请联系医院客服。</p>
+                    
+                    <p style="color: #888; font-size: 0.9em; margin-top: 30px;">此邮件为系统自动发送，请勿回复。</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """,
+                user.getName(),
+                banTypeText,
+                bannedUser.getBanReason(),
+                bannedUser.getBanDurationWeeks(),
+                banStartTimeStr,
+                banEndTimeStr
+        );
+    }
+
+    /**
+     * 获取禁用类型的中文说明
+     */
+    private String getBanTypeText(String banType) {
+        return switch (banType) {
+            case "no_show" -> "爽约次数过多";
+            case "frequent_cancel" -> "频繁取消预约";
+            case "frequent_booking" -> "频繁抢号";
+            default -> "违反预约规则";
+        };
+    }
+
 }
