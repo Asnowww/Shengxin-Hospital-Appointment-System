@@ -166,6 +166,14 @@ public class AdminDoctorAccountController {
     }
 
     /**
+     * 获取所有医生 bio 修改申请列表（管理员筛选用）
+     */
+    @GetMapping("/bio/list")
+    public Result<List<DoctorBioUpdateRequest>> getAllBioRequests() {
+        return Result.success(doctorAccountService.getAllBioRequests());
+    }
+
+    /**
      * 获取单条申请详情
      */
     @GetMapping("/bio/{requestId}")
