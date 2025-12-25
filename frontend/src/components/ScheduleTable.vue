@@ -465,18 +465,31 @@ const editSchedule = (schedule) => {
 
 const deleteSchedule = async (schedule) => {
   if (!confirm('确定删除该排班吗？')) return
-  const operatorId = localStorage.getItem('userId') 
+
+  const operatorId = localStorage.getItem('userId')
+
   try {
-    await axios.delete(`/api/admin/schedules/${schedule.scheduleId}`, {
-      params: {
-        reason: '管理员删除',
-        operatorId: operatorId
-      }
+    const res = await axios.post('/api/admin/leaves/cancel', {
+      scheduleId: schedule.scheduleId,
+      operatorId: operatorId,
+      reason: '管理员删除'
     })
-    alert('删除成功')
-    fetchSchedules()
+
+    const { code, message } = res.data || {}
+
+    if (code === 200) {
+      alert(message || '删除成功')
+      fetchSchedules()
+    } else {
+      // 业务失败（后端主动返回）
+      alert('删除失败：' + (message || '未知错误'))
+    }
   } catch (err) {
-    alert('删除失败：' + (err.response?.data?.message || err.message))
+    // 网络错误 / HTTP 500 / 服务器异常
+    alert(
+      '删除失败：' +
+      (err.response?.data?.message || err.message || '请求异常')
+    )
   }
 }
 

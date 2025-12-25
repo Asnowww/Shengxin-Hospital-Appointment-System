@@ -42,4 +42,12 @@ public interface DoctorLeaveService {
      * 查询医生的请假历史
      */
     List<DoctorLeave> getDoctorLeaveHistory(Long doctorId);
+
+    /**
+     * 管理员取消排班的临时解决方案
+     * @param scheduleId
+     * @param operatorId
+     * @param reason
+     */
+    void handleCancelSchedule(Integer scheduleId, Long operatorId, String reason);
 }
