@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -12,50 +13,54 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import static org.springframework.security.config.Customizer.withDefaults;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
-
 @Configuration
 public class SecurityConfig {
-
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(withDefaults()) // 启用 CORS
-                .csrf(AbstractHttpConfigurer::disable) // ⚠️ 禁用 CSRF
+                .cors(withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-//                        .anyRequest().permitAll()
-                                .requestMatchers("/public/**").permitAll()
-                                .anyRequest().authenticated()
+                        // ✅ 所有认证相关接口全部放行
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/api/captcha/**",
+                                "/public/**",
+                                "/error"
+                        ).permitAll()
+
+                        // ✅ 开发阶段：API 全放行
+                        .requestMatchers("/api/**").permitAll()
+
+                        // 其他一切
+                        .anyRequest().permitAll()
                 )
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable);
-        // 强制 HTTPS 的新写法
-        http.requiresChannel(channel ->
-                channel.requestMatchers(request -> true).requiresSecure()
-        );
 
         return http.build();
     }
 
 
-
     @Bean
-    public BCryptPasswordEncoder passwordEncoder() {
+    public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-
-
+    // ✅ CORS 正确写法（HTTPS）
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:5173") // Vue 地址
+                        .allowedOrigins(
+                                "https://localhost:5173" // ✅ 注意是 https
+                        )
                         .allowedMethods("*")
+                        .allowedHeaders("*")
                         .allowCredentials(true);
             }
         };
     }
-
 }

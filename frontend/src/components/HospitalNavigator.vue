@@ -4,7 +4,7 @@
       <div class="nav-shell">
         <header class="nav-header">
           <div class="nav-title">
-            <svg xmlns="http://www.w3.org/2000/svg" class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <svg xmlns="https://www.w3.org/2000/svg" class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 9l9-7 9 7" />
               <path d="M9 22V12h6v10" />
               <path d="M21 22H3" />
@@ -25,7 +25,7 @@
               <p class="section-title">当前位置</p>
               <div class="search-box">
                 <div class="input-shell accent" @click.stop="openStartDropdown">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <svg xmlns="https://www.w3.org/2000/svg" class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 10c0 7-9 12-9 12S3 17 3 10a9 9 0 0 1 18 0" />
                     <circle cx="12" cy="10" r="3" />
                   </svg>
@@ -62,7 +62,7 @@
               <p class="section-title">前往科室</p>
               <div class="search-box">
                 <div class="input-shell accent" @click.stop="openEndDropdown">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <svg xmlns="https://www.w3.org/2000/svg" class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="11" cy="11" r="8" />
                     <path d="m21 21-4.35-4.35" />
                   </svg>
@@ -103,7 +103,7 @@
               :disabled="!endPoint"
               @click="handleNavigate"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <svg xmlns="https://www.w3.org/2000/svg" class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 19V5" />
                 <path d="M7 12l5-5 5 5" />
               </svg>

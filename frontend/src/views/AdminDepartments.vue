@@ -6,7 +6,7 @@
       <!-- 空科室提示 -->
       <div v-if="emptyDepts.length" class="empty-dept-alert">
         <div class="alert-content">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="#856404" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="https://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="#856404" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
             <line x1="12" y1="8" x2="12" y2="12"/>
             <circle cx="12" cy="16" r="1"/>
@@ -100,7 +100,7 @@
       <div class="departments-list">
         <div v-for="dept in departments" :key="dept.id" class="department-group">
           <div class="primary-department">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <svg xmlns="https://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
             </svg>
             <h2>{{ dept.name }}</h2>
