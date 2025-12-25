@@ -49,7 +49,7 @@
             <h4>基本信息</h4>
             <div class="detail-row">
               <span class="label">医生：</span>
-              <span class="value">{{ selectedRecord.doctorName }} - {{ selectedRecord.doctorTitle }}</span>
+              <span class="value">{{ selectedRecord.doctorName }} - {{ selectedRecord.deptName }}-{{ selectedRecord.doctorTitle }}</span>
             </div>
             <div class="detail-row">
               <span class="label">患者：</span>
