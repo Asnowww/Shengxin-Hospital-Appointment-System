@@ -218,7 +218,6 @@ public class ScheduleServiceImpl implements ScheduleService {
             if (param.getCancelReason() == null || param.getCancelReason().trim().isEmpty()) {
                 throw new RuntimeException("取消排班必须提供原因");
             }
-            // 这里会在后续处理受影响的患者
         }
 
         // 更新排班信息

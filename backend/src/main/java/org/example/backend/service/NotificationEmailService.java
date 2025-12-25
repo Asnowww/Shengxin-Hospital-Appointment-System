@@ -47,6 +47,9 @@ public class NotificationEmailService {
     @Resource
     private BannedUserMapper bannedUserMapper;
 
+    @Resource
+    private AppointmentRelationsMapper appointmentRelationsMapper;
+
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy年MM月dd日");
 
     // ==================== 核心发送方法 ====================
@@ -147,6 +150,46 @@ public class NotificationEmailService {
             log.error("发送预约成功邮件失败: appointmentId={}", appointmentId, e);
         }
     }
+    /**
+     * 发送改约成功通知
+     */
+    public void sendAppointmentRescheduledNotification(Long oldAppointmentId, Long newAppointmentId) {
+        try {
+            // 查询原预约信息
+            Appointment oldAppointment = appointmentMapper.selectById(oldAppointmentId);
+            if (oldAppointment == null) return;
+
+            // 查询新预约信息
+            Appointment newAppointment = appointmentMapper.selectById(newAppointmentId);
+            if (newAppointment == null) return;
+
+            // 查询患者信息
+            Patient patient = patientMapper.selectById(newAppointment.getPatientId());
+            if (patient == null) return;
+
+            // 查询用户信息
+            User user = userMapper.selectById(patient.getUserId());
+            if (user == null || user.getEmail() == null) return;
+
+            // 查询排班信息
+            Schedule oldSchedule = scheduleMapper.selectById(oldAppointment.getScheduleId());
+            Schedule newSchedule = scheduleMapper.selectById(newAppointment.getScheduleId());
+            if (oldSchedule == null || newSchedule == null) return;
+
+            String subject = "【改约成功】您的预约已成功改期";
+            String content = buildAppointmentRescheduledEmail(
+                    oldAppointment, oldSchedule,
+                    newAppointment, newSchedule,
+                    user.getName()
+            );
+
+            sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
+        } catch (Exception e) {
+            log.error("发送改约成功邮件失败: oldAppointmentId={}, newAppointmentId={}",
+                    oldAppointmentId, newAppointmentId, e);
+        }
+    }
+
 
     /**
      * 发送预约取消通知
@@ -619,6 +662,106 @@ public class NotificationEmailService {
                 """,
                 patientName, appointment.getAppointmentId(), deptName, doctorInfo,
                 workDate, timeSlot, appointment.getQueueNumber(), appointment.getFeeFinal());
+    }
+
+    /**
+     * 改约成功邮件模板
+     */
+    private String buildAppointmentRescheduledEmail(
+            Appointment oldAppointment, Schedule oldSchedule,
+            Appointment newAppointment, Schedule newSchedule,
+            String patientName) {
+
+        // 原预约信息
+        String oldDoctorInfo = getDoctorInfo(oldSchedule.getDoctorId());
+        String oldDeptName = getDeptName(oldSchedule.getDeptId());
+        String oldWorkDate = oldSchedule.getWorkDate().format(DATE_FORMATTER);
+        String oldTimeSlot = getTimeSlotName(oldSchedule.getTimeSlot());
+
+        // 新预约信息
+        String newDoctorInfo = getDoctorInfo(newSchedule.getDoctorId());
+        String newDeptName = getDeptName(newSchedule.getDeptId());
+        String newWorkDate = newSchedule.getWorkDate().format(DATE_FORMATTER);
+        String newTimeSlot = getTimeSlotName(newSchedule.getTimeSlot());
+        Integer room = newSchedule.getRoomId();
+
+        // 计算改约次数和剩余次数
+        Integer rescheduleCount = appointmentRelationsMapper.countRescheduleDepth(newAppointment.getAppointmentId());
+        if (rescheduleCount == null) rescheduleCount = 1;
+        int remainingChances = 2 - rescheduleCount;
+        String remainingText = remainingChances > 0
+                ? String.format("您还可以改约 <strong style='color: #27ae60;'>%d</strong> 次", remainingChances)
+                : "<strong style='color: #e74c3c;'>已达改约上限，无法再次改约</strong>";
+
+        return String.format("""
+            <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="background: linear-gradient(135deg, #3498db 0%%, #2ecc71 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                        <h1>✅ 改约成功</h1>
+                    </div>
+                    <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                        <p>尊敬的 <strong>%s</strong> 患者，您好！</p>
+                        <p>您的预约已成功改期，以下是详细信息：</p>
+                        
+                        <!-- 原预约信息 -->
+                        <div style="background: #ecf0f1; padding: 20px; margin: 20px 0; border-left: 4px solid #95a5a6; border-radius: 5px;">
+                            <h3 style="color: #7f8c8d; margin-top: 0;">📋 原预约信息</h3>
+                            <p><strong>预约编号：</strong>%d</p>
+                            <p><strong>就诊日期：</strong><span style="text-decoration: line-through;">%s %s</span></p>
+                            <p><strong>就诊科室：</strong>%s</p>
+                            <p><strong>就诊医生：</strong>%s</p>
+                        </div>
+                        
+                        <!-- 箭头 -->
+                        <div style="text-align: center; margin: 20px 0;">
+                            <span style="font-size: 24px; color: #3498db;">⬇️ 改期为 ⬇️</span>
+                        </div>
+                        
+                        <!-- 新预约信息 -->
+                        <div style="background: #d5f4e6; padding: 20px; margin: 20px 0; border-left: 4px solid #27ae60; border-radius: 5px; border: 2px solid #27ae60;">
+                            <h3 style="color: #27ae60; margin-top: 0;">📅 新预约信息</h3>
+                            <p><strong>预约编号：</strong><span style="color: #e74c3c;">%d</span></p>
+                            <p><strong>就诊日期：</strong><span style="color: #27ae60; font-size: 18px; font-weight: bold;">%s %s</span></p>
+                            <p><strong>就诊科室：</strong>%s</p>
+                            <p><strong>就诊医生：</strong>%s</p>
+                            <p><strong>就诊诊室：</strong>%d</p>
+                            <p><strong>排队号：</strong>%d号</p>
+                            <p><strong>号别费用：</strong>¥%.2f</p>
+                        </div>
+                        
+                        <!-- 改约次数提醒 -->
+                        <div style="background: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107; border-radius: 5px;">
+                            <p style="margin: 0;"><strong>📊 改约次数：</strong>本次为第 <strong>%d</strong> 次改约</p>
+                            <p style="margin: 10px 0 0 0;">%s</p>
+                        </div>
+                        
+                        <!-- 温馨提示 -->
+                        <div style="background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #3498db; border-radius: 5px;">
+                            <h3 style="color: #3498db; margin-top: 0;">💡 温馨提示</h3>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li>请提前15分钟到达就诊地点</li>
+                                <li>就诊当天请携带身份证件</li>
+                                <li>如需再次改约，请至少提前1小时操作</li>
+                                <li>每个预约最多允许改约2次</li>
+                            </ul>
+                        </div>
+                        
+                        <p style="color: #7f8c8d; font-size: 12px; margin-top: 30px;">
+                            此邮件由系统自动发送，请勿直接回复。<br>
+                            如有疑问，请联系医院服务台。
+                        </p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """,
+                patientName,
+                oldAppointment.getAppointmentId(), oldWorkDate, oldTimeSlot, oldDeptName, oldDoctorInfo,
+                newAppointment.getAppointmentId(), newWorkDate, newTimeSlot, newDeptName, newDoctorInfo,
+                room, newAppointment.getQueueNumber(), newAppointment.getFeeFinal(),
+                rescheduleCount, remainingText
+        );
     }
 
     /**
