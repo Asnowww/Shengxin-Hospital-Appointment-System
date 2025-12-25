@@ -16,9 +16,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import Navigation from '@/components/Navigation.vue'
 // import Reminder from '@/components/Reminder.vue'
 
+const router = useRouter()
 const navRef = ref(null)
 const reminderRef = ref(null)
 const isLoggedIn = ref(false)
@@ -27,7 +29,16 @@ const reminders = ref([])
 onMounted(() => {
   // 检查是否登录
   const token = localStorage.getItem('token')
+  const userRole = localStorage.getItem('role')
   isLoggedIn.value = !!token
+  
+  // 如果是患者且已登录，检查是否已阅读挂号须知
+  if (isLoggedIn.value && userRole === 'PATIENT') {
+    const hasSeenNotice = sessionStorage.getItem('hasSeenNotice')
+    if (!hasSeenNotice) {
+      router.push('/patient/notice')
+    }
+  }
   
   // 如果已登录，获取提醒列表
   if (isLoggedIn.value) {
