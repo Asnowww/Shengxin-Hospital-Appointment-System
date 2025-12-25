@@ -351,7 +351,7 @@ public class AppointmentScheduledTask {
             return;
         }
 
-        System.out.println("找到 " + expiredAppointments.size() + " 个过期候补");
+        System.out.println("找到 " + expiredAppointments.size() + " 个过期预约");
 
         for (Appointment appointment : expiredAppointments) {
             if (!"booked".equals(appointment.getAppointmentStatus())) {
@@ -361,7 +361,6 @@ public class AppointmentScheduledTask {
             try {
                 appointment.setAppointmentStatus("no_show");
                 appointmentMapper.updateById(appointment);
-                Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
                 notificationEmailService.sendNoShowNotification(appointment.getAppointmentId());
                 System.out.println("预约 " + appointment.getAppointmentId() + " 已设为no_show");
             } catch (Exception e) {
