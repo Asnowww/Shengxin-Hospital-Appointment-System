@@ -22,7 +22,9 @@ public class SecurityConfig {
                 .cors(withDefaults()) // 启用 CORS
                 .csrf(AbstractHttpConfigurer::disable) // ⚠️ 禁用 CSRF
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll()
+//                        .anyRequest().permitAll()
+                                .requestMatchers("/public/**").permitAll()
+                                .anyRequest().authenticated()
                 )
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable);
