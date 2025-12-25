@@ -229,6 +229,9 @@ import axios from 'axios'
 import Navigation from '@/components/Navigation.vue'
 import Payment from '@/components/Payment.vue'
 
+const MORNING_DEADLINE_HOUR = 11
+const ALLDAY_DEADLINE_HOUR = 16
+
 function getLocalDateStr(date = new Date()) {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
@@ -370,8 +373,8 @@ const availableTimeSlots = computed(() => {
 
   scheduleNotice.value = '' // 默认无提示
 
-  // 当天17点以后不可预约
-  if (isToday && hour >= 17) {
+  // 当天16点以后不可预约
+  if (isToday && hour >= ALLDAY_DEADLINE_HOUR) {
     scheduleNotice.value = '已过当天可预约时间'
     return [] // 不显示按钮
   }
@@ -380,8 +383,8 @@ const availableTimeSlots = computed(() => {
   return timeSlots.filter(slot => {
     if (!isToday) return true // 非今天全显示
 
-    if (slot.id === 'morning' && hour >= 12) return false // 上午过了不显示
-    if (slot.id === 'all' && hour >= 12) return false // 全天过了不显示上午+下午的“全天”
+    if (slot.id === 'morning' && hour >= MORNING_DEADLINE_HOUR) return false // 上午过了不显示
+    if (slot.id === 'all' && hour >= MORNING_DEADLINE_HOUR) return false // 全天过了不显示上午+下午的“全天”
     return true
   })
 })
@@ -401,17 +404,30 @@ const filteredSchedules = computed(() => {
     if (s.appointmentTypeId !== typeId) return false
     if (selectedDate.value && s.workDate !== selectedDate.value) return false
 
-    if (isToday && hour >= 17) {
+    // 当天 16 点后，全部禁止
+    if (isToday && hour >= ALLDAY_DEADLINE_HOUR) {
       scheduleNotice.value = '已过当天可预约时间'
       return false
     }
 
-    if (selectedTimeSlot.value === 'morning') return s.timeSlotName.includes('上午') || s.timeSlot === 0
-    if (selectedTimeSlot.value === 'afternoon') return s.timeSlotName.includes('下午') || s.timeSlot === 1
-    return true // all
+    // 11 点后禁止上午排班
+    if (
+      isToday &&
+      hour >= MORNING_DEADLINE_HOUR &&
+      (s.timeSlotName.includes('上午') || s.timeSlot === 0)
+    ) {
+      scheduleNotice.value = '已过当日上午预约时间'
+      return false
+    }
+
+    if (selectedTimeSlot.value === 'morning')
+      return s.timeSlotName.includes('上午') || s.timeSlot === 0
+    if (selectedTimeSlot.value === 'afternoon')
+      return s.timeSlotName.includes('下午') || s.timeSlot === 1
+
+    return true
   })
 })
-
 
 
 
@@ -535,14 +551,16 @@ function updateNavHeight() {
 }
 
 function initializeTimeSlot() {
-  const now = new Date()
+  const now = new Date(
+  new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
+)
   const hour = now.getHours()
   const todayStr = getLocalDateStr()
   if (selectedDate.value === todayStr) {
-    if (hour >= 17) {
+    if (hour >= ALLDAY_DEADLINE_HOUR) {
       selectedTimeSlot.value = '' // 不可用
       scheduleNotice.value = '已过当天可预约时间'
-    } else if (hour >= 12) {
+    } else if (hour >= MORNING_DEADLINE_HOUR) {
       selectedTimeSlot.value = 'afternoon' // 下午默认选中
     } else {
       selectedTimeSlot.value = 'all' // 全天默认选中

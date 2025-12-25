@@ -206,22 +206,33 @@ const showPaymentModal = ref(false)
 const selectedSchedule = ref(null)
 const paymentData = ref({ appointmentId: null })
 
+const MORNING_DEADLINE_HOUR = 11   // 11:00 后禁止上午
+const ALLDAY_DEADLINE_HOUR = 16   // 16:00 后禁止当日全部
+
+
 const dayOverMessage = computed(() => {
   const todayStr = new Date().toISOString().split('T')[0]
-  const now = new Date()
+  const now = new Date(
+  new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
+)
+
   const hours = now.getHours()
 
   if (selectedDate.value === todayStr) {
-    if (hours >= 17) {
-      return '已过当天可预约时间段（每日17:00后停止当日预约）'
-    } else if (hours >= 12) {
-      const hasPM = schedules.value.some(s => 
+    //  当日 16 点后，全部不可预约
+    if (hours >= ALLDAY_DEADLINE_HOUR) {
+      return '已过当天可预约时间段（每日16:00后停止当日预约）'
+    }
+
+    // 当日 11 点后，禁止上午
+    if (hours >= MORNING_DEADLINE_HOUR) {
+      const hasPM = schedules.value.some(s =>
         s.workDate === todayStr && /下午|PM/i.test(s.timeSlotName)
       )
       if (!hasPM) return '今日上午时段已过，下午暂无排班'
     }
   }
-  
+
   return ''
 })
 
@@ -235,16 +246,20 @@ const filteredSchedules = computed(() => {
   const now = new Date()
   const hours = now.getHours()
 
-  // ① 过滤未开放状态 (status !== 'cancelled')
-  let filtered = schedules.value.filter(s => 
+  let filtered = schedules.value.filter(s =>
     s.workDate === selectedDate.value && s.status !== 'cancelled'
   )
 
   if (selectedDate.value === todayStr) {
-    if (hours >= 17) {
+
+    if (hours >= ALLDAY_DEADLINE_HOUR) {
       return []
-    } else if (hours >= 12) {
-      filtered = filtered.filter(s => /下午|PM/i.test(s.timeSlotName))
+    }
+
+    if (hours >= MORNING_DEADLINE_HOUR) {
+      filtered = filtered.filter(
+        s => !(/上午|AM/i.test(s.timeSlotName))
+      )
     }
   }
 
