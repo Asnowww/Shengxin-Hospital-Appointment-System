@@ -29,16 +29,18 @@ public class UserVerificationServiceImpl
     private final UserMapper userMapper;
 
     public UserVerificationServiceImpl(FileStorageProperties fileStorageProperties,
-                                       UserMapper userMapper) {
+            UserMapper userMapper) {
         this.fileStorageProperties = fileStorageProperties;
         this.userMapper = userMapper;
     }
+
     /**
      * 用户提交认证
      */
     @Override
     @Transactional
-    public UserVerification submitVerification(Long userId, String identityType, String idNumber, MultipartFile file) throws Exception {
+    public UserVerification submitVerification(Long userId, String identityType, String idNumber, MultipartFile file)
+            throws Exception {
 
         // 获取配置的上传路径
         String uploadDir = fileStorageProperties.getUploadDir();
@@ -50,7 +52,7 @@ public class UserVerificationServiceImpl
         // 生成唯一文件名
         String originalName = file.getOriginalFilename();
         String ext = "";
-        if(originalName != null && originalName.contains(".")){
+        if (originalName != null && originalName.contains(".")) {
             ext = originalName.substring(originalName.lastIndexOf("."));
         }
         String filename = System.currentTimeMillis() + ext; // 只保留数字 + 后缀
@@ -87,15 +89,18 @@ public class UserVerificationServiceImpl
 
     /**
      * 审核认证：管理员操作
+     * 
      * @param verificationId 认证记录ID
-     * @param reviewerId 审核人ID
-     * @param result 是否通过
-     * @param reason 拒绝理由（通过时可为空）
+     * @param reviewerId     审核人ID
+     * @param result         是否通过
+     * @param reason         拒绝理由（通过时可为空）
      */
     @Override
-    public UserVerification reviewVerification(Long verificationId, Long reviewerId, UserVerification.VerificationStatus result, String reason) {
+    public UserVerification reviewVerification(Long verificationId, Long reviewerId,
+            UserVerification.VerificationStatus result, String reason) {
         UserVerification v = this.getById(verificationId);
-        if (v == null) return null;
+        if (v == null)
+            return null;
 
         v.setReviewedBy(reviewerId);
         v.setReviewedAt(LocalDateTime.now());
@@ -137,6 +142,18 @@ public class UserVerificationServiceImpl
                 .list();
 
         return pendingList.stream().map(v -> {
+            User user = userMapper.selectById(v.getUserId());
+            return v.toMap(user);
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Map<String, Object>> getAllVerifications() {
+        List<UserVerification> allList = this.lambdaQuery()
+                .orderByDesc(UserVerification::getCreatedAt)
+                .list();
+
+        return allList.stream().map(v -> {
             User user = userMapper.selectById(v.getUserId());
             return v.toMap(user);
         }).collect(Collectors.toList());
