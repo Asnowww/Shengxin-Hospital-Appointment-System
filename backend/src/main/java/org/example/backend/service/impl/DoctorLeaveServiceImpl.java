@@ -330,7 +330,6 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void reassignAppointments(Schedule cancelledSchedule, Long operatorId, Long exceptionId) {
-
         List<Appointment> appointments = appointmentMapper.selectByScheduleId(cancelledSchedule.getScheduleId());
         if (appointments == null || appointments.isEmpty()) {
             log.info("【排班取消】排班 {} 无挂号，无需处理", cancelledSchedule.getScheduleId());
@@ -338,30 +337,40 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
         }
 
         for (Appointment oldApp : appointments) {
-
+            // 1. 先查找替代排班
             Schedule alternative = findAlternativeSchedule(
                     cancelledSchedule.getDeptId(),
                     cancelledSchedule.getWorkDate(),
                     cancelledSchedule.getTimeSlot()
             );
 
-            // 系统自动取消并退款
-            boolean cancelled = appointmentService.cancelAppointment(
-                    oldApp.getAppointmentId(),
-                    oldApp.getPatientId(),
-                    2
-            );
+            // 2. 尝试执行取消和退款逻辑
+            try {
+                // 这里确保 appointmentService.cancelAppointment 内部不会因为“已经是取消状态”而抛出 RuntimeException
+                boolean cancelled = appointmentService.cancelAppointment(
+                        oldApp.getAppointmentId(),
+                        oldApp.getPatientId(),
+                        2 // 假设 2 代表系统强制取消
+                );
 
-            if (!cancelled) {
-                log.error("旧预约 {} 自动取消（含退款）失败", oldApp.getAppointmentId());
-                continue;
+                if (!cancelled) {
+                    log.warn("旧预约 {} 取消失败或无需重复取消", oldApp.getAppointmentId());
+                    continue;
+                }
+            } catch (Exception e) {
+                log.error("调用取消预约服务异常: {}", e.getMessage());
+                // 如果取消失败（如退款失败），这里建议抛出自定义异常让事务回滚，
+                // 否则会造成排班取消了但患者钱没退。
+                throw new RuntimeException("预约退款失败，请稍后重试: " + e.getMessage());
             }
 
+            // 3. 处理替代排班迁移
             if (alternative != null && alternative.getAvailableSlots() != null && alternative.getAvailableSlots() > 0) {
-
+                // 扣减新排班名额
                 alternative.setAvailableSlots(alternative.getAvailableSlots() - 1);
                 scheduleMapper.updateById(alternative);
 
+                // 创建新预约（状态为待确认/待支付）
                 Appointment newApp = new Appointment();
                 newApp.setPatientId(oldApp.getPatientId());
                 newApp.setDeptId(oldApp.getDeptId());
@@ -369,57 +378,52 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
                 newApp.setRoomId(alternative.getRoomId());
                 newApp.setAppointmentTypeId(alternative.getAppointmentTypeId());
 
-                Integer maxQueue = appointmentMapper.getMaxQueueNumberByScheduleId(Long.valueOf(alternative.getScheduleId()));
-                newApp.setQueueNumber((maxQueue == null ? 0 : maxQueue) + 1);
+
+                Integer sIdInt = alternative.getScheduleId();
+                if (sIdInt == null) {
+                    log.error("替代排班ID为空，无法获取排队号");
+                    continue;
+                }
+
+                // 转换为 Long 后调用
+                Long sIdLong = Long.valueOf(sIdInt.toString());
+                Integer maxQueue = appointmentMapper.getMaxQueueNumberByScheduleId(sIdLong);
+                int nextQueueNumber = maxQueue + 1; // 内部已处理 null，这里直接加
+                newApp.setQueueNumber(nextQueueNumber);
 
                 newApp.setPaymentStatus("unpaid");
                 newApp.setAppointmentStatus("pending_patient_confirm");
                 newApp.setFeeOriginal(oldApp.getFeeOriginal());
                 newApp.setFeeFinal(oldApp.getFeeFinal());
                 newApp.setCreatedAt(LocalDateTime.now());
-
                 appointmentMapper.insert(newApp);
 
-                // 关联记录
+                // 建立关联记录
                 AppointmentRelations rel = new AppointmentRelations();
                 rel.setSourceAppointmentId(oldApp.getAppointmentId());
                 rel.setTargetAppointmentId(newApp.getAppointmentId());
                 rel.setRelationType("AUTO_REASSIGN_REFUND");
-                rel.setRemark("排班取消，原预约已自动退款，新建待支付预约");
+                rel.setRemark("管理员取消排班，自动退款并生成新预约");
                 rel.setCreatedBy(operatorId);
                 rel.setCreatedAt(LocalDateTime.now());
                 appointmentRelationsMapper.insert(rel);
 
-                // 通知
                 notificationEmailService.sendAppointmentReassignNotification(
                         oldApp.getPatientId(),
                         cancelledSchedule.getScheduleId(),
                         alternative.getScheduleId(),
-                        "因医生排班调整，原预约已自动取消并退款；系统已生成新的预约，请在 30 分钟内完成支付。"
+                        "因排班调整，原预约已退款。系统已为您预留新位置，请在30分钟内确认并支付。"
                 );
-
-                log.info("旧预约 {} 自动退款，新建预约 {}，替代排班 {}。",
-                        oldApp.getAppointmentId(),
-                        newApp.getAppointmentId(),
-                        alternative.getScheduleId());
-                continue;
+            } else {
+                // 无替代排班，仅通知已退款
+                notificationEmailService.sendScheduleCancelledNotification(
+                        oldApp.getPatientId(),
+                        cancelledSchedule.getScheduleId(),
+                        "因排班取消，预约已退款。当前无替代医生，请重新挂号。"
+                );
             }
-
-            // 无替代排班，仅退款
-            oldApp.setAppointmentStatus("waiting_patient_action");
-            oldApp.setUpdatedAt(LocalDateTime.now());
-            appointmentMapper.updateStatusOnly(oldApp);
-
-            notificationEmailService.sendScheduleCancelledNotification(
-                    oldApp.getPatientId(),
-                    cancelledSchedule.getScheduleId(),
-                    "因医生排班取消，您的预约已自动取消并退款，当前无可替代排班，请重新选择其他排班挂号。"
-            );
-
-            log.info("旧预约 {} 自动退款（无替代排班）。", oldApp.getAppointmentId());
         }
     }
-
 
     /**
      * 查找替代排班（查询顺序、策略可按需求微调）
