@@ -81,7 +81,6 @@
                         <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                       </svg>
-                      <span>影响预约: {{ leave.affectedAppointmentCount }}人</span>
                     </div>
                     <div class="info-item-compact">
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -106,7 +105,6 @@
                       <line x1="12" y1="9" x2="12" y2="13"></line>
                       <line x1="12" y1="17" x2="12.01" y2="17"></line>
                     </svg>
-                    <span>批准此请假将影响 <strong>{{ leave.affectedAppointmentCount }}</strong> 个患者预约，请谨慎处理</span>
                   </div>
                   <div v-if="leave.status !== 'pending' && leave.reviewedAt" class="review-note">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -161,7 +159,6 @@
                 <line x1="12" y1="9" x2="12" y2="13"></line>
                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
               </svg>
-              <span>此操作将影响 {{ selectedLeave.affectedAppointmentCount }} 个患者预约</span>
             </div>
           </div>
           <div class="form-group">
