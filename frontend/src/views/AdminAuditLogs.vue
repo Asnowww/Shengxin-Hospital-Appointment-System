@@ -135,7 +135,7 @@
           </div>
 
           <!-- 分页 -->
-          <div class="pagination" v-if="total > 0">
+          <div class="pagination" >
             <div class="pagination-info">
               共 {{ total }} 条记录，当前显示第 {{ (pageNum - 1) * pageSize + 1 }} - {{ Math.min(pageNum * pageSize, total) }} 条
             </div>
@@ -169,6 +169,7 @@
                 <button @click="handleJumpPage" class="page-jump-btn">跳转</button>
               </div>
               <select v-model="pageSize" @change="handlePageSizeChange" class="page-size-select">
+                <option :value="10">10条/页</option>
                 <option :value="20">20条/页</option>
                 <option :value="50">50条/页</option>
                 <option :value="100">100条/页</option>
@@ -196,7 +197,7 @@ const loading = ref(false)
 const logs = ref([])
 const total = ref(0)
 const pageNum = ref(1)
-const pageSize = ref(50)
+const pageSize = ref(6)
 const jumpPageNum = ref(1)
 
 // 筛选条件
@@ -209,7 +210,10 @@ const filters = reactive({
 })
 
 // 计算总页数
-const totalPages = computed(() => Math.ceil(total.value / pageSize.value) || 1)
+const totalPages = computed(() => {
+  if (!pageSize.value) return 1
+  return Math.max(1, Math.ceil(total.value / pageSize.value))
+})
 
 // 获取token
 const token = localStorage.getItem('token')
@@ -305,6 +309,13 @@ async function fetchLogs() {
     if (data.code === 200 && data.data) {
       logs.value = data.data.records || []
       total.value = data.data.total || 0
+
+      // 补这两行（非常关键）
+      pageNum.value = data.data.pageNum
+      pageSize.value = data.data.pageSize
+
+      // 同步跳页输入框
+      jumpPageNum.value = data.data.pageNum
     } else {
       console.warn('获取日志列表失败', data.message)
       logs.value = []
@@ -346,6 +357,7 @@ function changePage(page) {
 // 修改每页条数
 function handlePageSizeChange() {
   pageNum.value = 1
+  jumpPageNum.value = 1
   fetchLogs()
 }
 
@@ -529,9 +541,12 @@ onUnmounted(() => {
 /* 表格容器 */
 .table-container {
   position: relative;
+  overflow-y: auto;
   overflow-x: auto;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
+
+  height: 350px;  /* 固定高度 */
 }
 
 .loading-overlay {
@@ -569,7 +584,12 @@ onUnmounted(() => {
   font-size: 0.9rem;
 }
 
-.logs-table th,
+.logs-table th{
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+}
 .logs-table td {
   padding: 0.875rem 1rem;
   text-align: left;
