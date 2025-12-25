@@ -262,8 +262,9 @@ public class ScheduleServiceImpl implements ScheduleService {
             ScheduleException exception = new ScheduleException();
             exception.setScheduleId(schedule.getScheduleId());
             exception.setDoctorId(schedule.getDoctorId());
-            exception.setStartDate(schedule.getWorkDate());
-            exception.setEndDate(schedule.getWorkDate());
+            //以下两个字段已从表中删除
+//            exception.setStartDate(schedule.getWorkDate());
+//            exception.setEndDate(schedule.getWorkDate());
             exception.setExceptionType("cancel_all");
             exception.setReason(param.getCancelReason());
             exception.setCreatedAt(LocalDateTime.now());
@@ -421,8 +422,9 @@ public class ScheduleServiceImpl implements ScheduleService {
         ScheduleException exception = new ScheduleException();
         exception.setScheduleId(schedule.getScheduleId());
         exception.setDoctorId(schedule.getDoctorId());
-        exception.setStartDate(schedule.getWorkDate());
-        exception.setEndDate(schedule.getWorkDate());
+        //以下字段已从表中删除
+//        exception.setStartDate(schedule.getWorkDate());
+//        exception.setEndDate(schedule.getWorkDate());
         exception.setExceptionType("special_add");
         exception.setExtraSlots(param.getExtraSlots());
         exception.setReason(param.getReason());
