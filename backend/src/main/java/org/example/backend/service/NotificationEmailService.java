@@ -296,25 +296,6 @@ public class NotificationEmailService {
         }
     }
 
-
-    public void sendBookedAppointmentExpiredNotification(Long appointmentId) {
-        try {
-            Appointment appointment = appointmentMapper.selectById(appointmentId);
-            if (appointment == null) return;
-            Patient patient = patientMapper.selectById(appointment.getPatientId());
-            if (patient == null) return;
-            User user = userMapper.selectById(patient.getUserId());
-            if (user == null || user.getEmail() == null) return;
-            Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
-            String subject = "【订单过期】您的预约订单未支付，现已过期";
-            String content = buildBookedAppointmentExpiredEmail(appointment,schedule);
-            sendEmailWithRecord(user.getUserId(), user.getEmail(), subject, content);
-
-        }catch (Exception e) {
-            log.error("<UNK>: appointmentId={}", appointmentId, e);
-        }
-    }
-
     /**
      * 发送就诊提醒
      */
@@ -804,44 +785,6 @@ public class NotificationEmailService {
                 patientName, appointment.getAppointmentId(), deptName, doctorInfo, workDate, timeSlot);
 
     }
-
-
-    private String buildBookedAppointmentExpiredEmail(Appointment appointment, Schedule schedule) {
-        String patientName = getPatientName(String.valueOf(appointment.getPatientId()));
-        String doctorInfo = getDoctorInfo(schedule.getDoctorId());
-        String deptName = getDeptName(schedule.getDeptId());
-        String workDate = schedule.getWorkDate().format(DATE_FORMATTER);
-        String timeSlot = getTimeSlotName(schedule.getTimeSlot());
-
-        return String.format("""
-                <html>
-                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                        <div style="background: linear-gradient(135deg, #f093fb 0%%, #f5576c 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                            <h1>❌ 预约已过期</h1>
-                        </div>
-                        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-                            <p>尊敬的 <strong>%s</strong> 患者，您好！</p>
-                            <p>您的就诊时间已到，预约自动取消。</p>
-                            
-                            <div style="background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #f5576c; border-radius: 5px;">
-                                <h3 style="color: #f5576c; margin-top: 0;">📋 预约信息</h3>
-                                <p><strong>预约编号：</strong>%d</p>
-                                <p><strong>就诊科室：</strong>%s</p>
-                                <p><strong>就诊医生：</strong>%s</p>
-                                <p><strong>就诊时间：</strong>%s %s</p>
-                            </div>
-                            
-                            <p>如有疑问，请联系医院客服。</p>
-                        </div>
-                    </div>
-                </body>
-                </html>
-                """,
-                patientName, appointment.getAppointmentId(), deptName, doctorInfo, workDate, timeSlot);
-
-    }
-
 
 
 

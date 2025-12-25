@@ -337,7 +337,7 @@ public class AppointmentScheduledTask {
 
     /**
      * 定时任务7：每分钟执行一次
-     * 更新过期未就诊预约状态
+     * 更新未就诊预约状态
      */
     @Scheduled(cron = "0 * * * * ?")
     @Transactional
@@ -359,11 +359,11 @@ public class AppointmentScheduledTask {
             }
 
             try {
-                appointment.setAppointmentStatus("cancelled");
+                appointment.setAppointmentStatus("no_show");
                 appointmentMapper.updateById(appointment);
                 Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
-                notificationEmailService.sendBookedAppointmentExpiredNotification(appointment.getAppointmentId());
-                System.out.println("预约 " + appointment.getAppointmentId() + " 已设为cancelled");
+                notificationEmailService.sendNoShowNotification(appointment.getAppointmentId());
+                System.out.println("预约 " + appointment.getAppointmentId() + " 已设为no_show");
             } catch (Exception e) {
                 System.err.println("预约 " + appointment.getAppointmentId() + " 更新失败: " + e.getMessage());
             }
