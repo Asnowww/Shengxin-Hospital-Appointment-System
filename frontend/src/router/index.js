@@ -46,6 +46,7 @@ const routes = [
   { path: '/admin/leaves', name: 'adminLeaves', component: LeaveManagement }, //请假审批页
   { path: '/admin/audit', name: 'audit', component: () => import('@/views/Audit.vue') }, //用户审核页
   { path: '/admin/doctors', name: 'doctorManagement', component: () => import('@/views/DoctorManagement.vue') }, // 医生管理
+  { path: '/admin/audit-logs', name: 'adminAuditLogs', component: () => import('@/views/AdminAuditLogs.vue') }, // 审计日志
   { path: '/admin/statistics', name: 'adminStatistics', component: () => import('@/views/AdminStatistics.vue') }, // 数据统计与分析
   { path: '/admin/fee', name: 'feeManagement', component: () => import('@/views/AdminFee.vue') }, //费用管理页
   { path: '/reminder', name: 'reminder', component: () => import('@/components/Reminder.vue') }, // 提醒页
