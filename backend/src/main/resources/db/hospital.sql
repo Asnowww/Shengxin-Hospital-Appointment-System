@@ -191,7 +191,7 @@ CREATE TABLE appointments (
                               appointment_type_id INT NOT NULL COMMENT '号别ID，外键关联appointment_types表',
                               queue_number INT NOT NULL COMMENT '在该时段的排序（pre-assigned）',
                               payment_status ENUM('unpaid','paid','expired','refunded') DEFAULT 'unpaid' COMMENT '支付状态',
-                              appointment_status ENUM('pending','booked','cancelled','completed','no_show','pending_patient_confirm','waiting_patient_action') DEFAULT 'pending' COMMENT '挂号状态:已下单未支付，挂号成功，患者或管理员取消，就诊完完成，未到诊',
+                              appointment_status ENUM('pending','booked','cancelled','completed','no_show','pending_patient_confirm','waiting_patient_action') DEFAULT 'pending' COMMENT '挂号状态:已下单未支付，挂号成功，患者或管理员取消，就诊完成，未到诊',
                               fee_original DECIMAL(8,2) NOT NULL COMMENT '原始挂号费',
                               fee_final DECIMAL(8,2) NOT NULL COMMENT '实际支付挂号费',
                               booking_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '挂号时间',

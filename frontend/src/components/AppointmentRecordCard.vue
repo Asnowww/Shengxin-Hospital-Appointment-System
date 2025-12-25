@@ -89,7 +89,8 @@ const statusMap = {
   'cancelled': '已取消',
   'no-show': '未到诊',
   'pending_confirm': '待处理',
-  'waiting_action': '待确认--预约取消！！'
+  'waiting_action': '待确认--预约取消！！',
+  'converted':'已改约'
 }
 
 function getStatusLabel(status) {

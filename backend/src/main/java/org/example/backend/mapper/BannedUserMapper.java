@@ -24,6 +24,8 @@ public interface BannedUserMapper extends BaseMapper<BannedUser> {
             "AND ban_end_time <= #{currentTime}")
     List<BannedUser> selectExpiredBans(@Param("currentTime") LocalDateTime currentTime);
 
+
+    //爽约统计
     @Select("SELECT COUNT(*) FROM appointments " +
             "WHERE patient_id = #{patientId} " +
             "AND appointment_status = 'no_show' " +
@@ -31,9 +33,12 @@ public interface BannedUserMapper extends BaseMapper<BannedUser> {
     Long countNoShowSince(@Param("patientId") Long patientId,
                           @Param("sinceTime") LocalDateTime sinceTime);
 
+
+    //取消预约统计（不计入系统强制取消的）
     @Select("SELECT COUNT(*) FROM appointments " +
             "WHERE patient_id = #{patientId} " +
             "AND appointment_status = 'cancelled' " +
+            "AND (notes IS NULL OR notes != '系统强制取消') " +
             "AND booking_time >= #{sinceTime}")
     Long countCancelSince(@Param("patientId") Long patientId,
                           @Param("sinceTime") LocalDateTime sinceTime);

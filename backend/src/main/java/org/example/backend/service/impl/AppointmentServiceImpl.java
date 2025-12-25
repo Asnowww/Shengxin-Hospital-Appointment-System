@@ -69,6 +69,9 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Resource
     private UserBanService userBanService;
 
+    @Resource
+    private PaymentMapper paymentMapper;
+
     // === 病人端 ===
 
     @Override
@@ -413,6 +416,12 @@ public class AppointmentServiceImpl implements AppointmentService {
                 appointment = appointmentMapper.selectById(appointmentId);
                 appointment.setAppointmentStatus("cancelled");
                 appointment.setUpdatedAt(LocalDateTime.now());
+
+                //强制取消的预约需要添加备注
+                if(cancelType == 2) {
+                    appointment.setNotes("系统强制取消");
+                }
+
                 appointmentMapper.updateStatusOnly(appointment);
 
                 // 异步邮件通知
@@ -468,30 +477,44 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     public boolean updateAppointment(AppointmentUpdateParam param) {
         // 1. 验证预约是否存在且属于该患者
-        Appointment appointment = appointmentMapper.selectById(param.getAppointmentId());
-        if (appointment == null) {
+        Appointment oldAppointment = appointmentMapper.selectById(param.getAppointmentId());
+        if (oldAppointment == null) {
             throw new RuntimeException("预约不存在");
         }
 
-        if (!appointment.getPatientId().equals(param.getPatientId())) {
+        if (!oldAppointment.getPatientId().equals(param.getPatientId())) {
             throw new RuntimeException("无权修改该预约");
         }
 
         // 2. 验证预约状态是否允许修改
-        if (!"booked".equals(appointment.getAppointmentStatus())
-                && !"pending".equals(appointment.getAppointmentStatus())) {
+        if (!"booked".equals(oldAppointment.getAppointmentStatus())
+                && !"pending".equals(oldAppointment.getAppointmentStatus())) {
             throw new RuntimeException("当前预约状态不允许修改");
         }
 
-        Integer oldScheduleId = appointment.getScheduleId();
-        boolean needRecalculate = false;
-        boolean wasPaid = "paid".equals(appointment.getPaymentStatus());
+        Integer oldScheduleId = oldAppointment.getScheduleId();
+        boolean wasPaid = "paid".equals(oldAppointment.getPaymentStatus());
 
-        // 3. 如果修改排班（改期改时间）
+        // 3. 如果修改排班（改期改时间）- 创建新预约方式
         if (param.getNewScheduleId() != null &&
-                !param.getNewScheduleId().equals(appointment.getScheduleId())) {
+                !param.getNewScheduleId().equals(oldAppointment.getScheduleId())) {
 
-            // 查询新排班
+            //限制改约次数
+            Integer rescheduleCount = appointmentRelationsMapper.countRescheduleDepth(
+                    oldAppointment.getAppointmentId()
+            );
+
+            if (rescheduleCount == null) {
+                rescheduleCount = 0;
+            }
+
+            // 已经改约2次了，不能再改
+            if (rescheduleCount >= 2) {
+                throw new RuntimeException("该预约已改约" + rescheduleCount + "次，" +
+                        "已达到最大改约次数限制（2次），无法继续改约");
+            }
+
+            // 3.1 查询新排班
             Schedule newSchedule = scheduleMapper.selectById(param.getNewScheduleId());
             if (newSchedule == null) {
                 throw new RuntimeException("新排班不存在");
@@ -506,72 +529,152 @@ public class AppointmentServiceImpl implements AppointmentService {
                 throw new RuntimeException("新排班号源已满");
             }
 
-            // 恢复原排班号源
-            Schedule oldSchedule = scheduleMapper.selectById(appointment.getScheduleId());
+            // 3.2 创建新预约
+            Appointment newAppointment = new Appointment();
+            newAppointment.setPatientId(oldAppointment.getPatientId());
+            newAppointment.setScheduleId(param.getNewScheduleId());
+            newAppointment.setDeptId(newSchedule.getDeptId());
+            newAppointment.setRoomId(newSchedule.getRoomId());
+            newAppointment.setAppointmentTypeId(newSchedule.getAppointmentTypeId());
+
+            // 复制费用信息
+            newAppointment.setFeeOriginal(oldAppointment.getFeeOriginal());
+            newAppointment.setFeeFinal(oldAppointment.getFeeFinal());
+
+            // 设置状态 - 继承原预约的支付状态
+            newAppointment.setPaymentStatus(oldAppointment.getPaymentStatus());
+            newAppointment.setAppointmentStatus(oldAppointment.getAppointmentStatus());
+
+            // 设置队列号
+            if (wasPaid) {
+                int newQueueNumber = appointmentMapper.countPaidAppointments(param.getNewScheduleId()) + 1;
+                newAppointment.setQueueNumber(newQueueNumber);
+            } else {
+                newAppointment.setQueueNumber(0);
+            }
+
+            // 设置时间
+            newAppointment.setBookingTime(LocalDateTime.now());
+            if ("pending".equals(oldAppointment.getAppointmentStatus())) {
+                newAppointment.setExpireTime(oldAppointment.getExpireTime()); // 保留原过期时间
+            }
+
+            // 设置备注
+            if (param.getNotes() != null && !param.getNotes().trim().isEmpty()) {
+                newAppointment.setNotes(param.getNotes());
+            } else {
+                newAppointment.setNotes("由预约" + oldAppointment.getAppointmentId() + "改期而来");
+            }
+
+            newAppointment.setCreatedBy(param.getPatientId());
+            newAppointment.setCreatedAt(LocalDateTime.now());
+            newAppointment.setUpdatedAt(LocalDateTime.now());
+
+            // 保存新预约
+            int insertResult = appointmentMapper.insert(newAppointment);
+            if (insertResult <= 0) {
+                throw new RuntimeException("新预约创建失败");
+            }
+
+            // 3.3 更新旧预约状态为"已改约"
+            oldAppointment.setAppointmentStatus("converted");
+            oldAppointment.setNotes("已改约");
+            oldAppointment.setUpdatedAt(LocalDateTime.now());
+            appointmentMapper.updateById(oldAppointment);
+
+            // 3.4 创建预约关联记录
+            AppointmentRelations relation = new AppointmentRelations();
+            relation.setSourceAppointmentId(oldAppointment.getAppointmentId());
+            relation.setTargetAppointmentId(newAppointment.getAppointmentId());
+            relation.setRelationType("MANUAL_RESCHEDULE"); // 手动改约
+            relation.setRemark("患者主动改期改时间");
+            relation.setCreatedAt(LocalDateTime.now());
+            relation.setCreatedBy(param.getPatientId());
+            appointmentRelationsMapper.insert(relation);
+
+            // 3.5 如果已支付，更新支付记录关联到新预约
+            if (wasPaid) {
+                QueryWrapper<Payments> paymentWrapper = new QueryWrapper<>();
+                paymentWrapper.eq("appointment_id", oldAppointment.getAppointmentId())
+                        .eq("status", "success");
+
+                List<Payments> payments = paymentMapper.selectList(paymentWrapper);
+                for (Payments payment : payments) {
+                    payment.setAppointmentId(newAppointment.getAppointmentId());
+                    payment.setCreatedAt(LocalDateTime.now()); // 更新时间以记录变更
+                    paymentMapper.updateById(payment);
+                }
+            }
+
+            // 3.6 恢复原排班号源
+            Schedule oldSchedule = scheduleMapper.selectById(oldScheduleId);
             if (oldSchedule != null) {
                 oldSchedule.setAvailableSlots(oldSchedule.getAvailableSlots() + 1);
                 oldSchedule.setUpdatedAt(LocalDateTime.now());
                 scheduleMapper.updateById(oldSchedule);
 
+                // 如果原预约已支付，需要重新计算队列号
+                if (wasPaid) {
+                    appointmentMapper.recalculateQueueNumbers(oldScheduleId);
+                }
+
                 // 处理候补队列自动转正
-                Integer scheduleId = appointment.getScheduleId();
+                Integer scheduleId = oldAppointment.getScheduleId();
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
                     @Override
                     public void afterCommit() {
-                        // 处理候补队列自动转正（按优先级和时间顺序）
                         waitlistService.processWaitlistConversion(scheduleId);
                     }
                 });
             }
 
-            // 减少新排班号源
+            // 3.7 减少新排班号源
             newSchedule.setAvailableSlots(newSchedule.getAvailableSlots() - 1);
             newSchedule.setUpdatedAt(LocalDateTime.now());
             scheduleMapper.updateById(newSchedule);
 
-            // 更新预约信息
-            appointment.setScheduleId(param.getNewScheduleId());
-            appointment.setDeptId(newSchedule.getDeptId());
-            appointment.setRoomId(newSchedule.getRoomId());
-
+            // 如果新预约已支付，需要重新计算队列号
             if (wasPaid) {
-                int newQueueNumber = appointmentMapper.countPaidAppointments(param.getNewScheduleId()) + 1;
-                appointment.setQueueNumber(newQueueNumber);
-                needRecalculate = true;
-            } else {
-                appointment.setQueueNumber(0); // 未支付仍为0
+                appointmentMapper.recalculateQueueNumbers(param.getNewScheduleId());
             }
 
-//            // 重新生成排队号（需要根据新排班的已预约数量）
-//            int newQueueNumber = newSchedule.getMaxSlots() - newSchedule.getAvailableSlots();
-//            appointment.setQueueNumber(newQueueNumber);
+            // 3.8 发送改约通知
+            Long newAppointmentId = newAppointment.getAppointmentId();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+                @Override
+                public void afterCommit() {
+                    CompletableFuture.runAsync(() -> {
+                        notificationEmailService.sendAppointmentRescheduledNotification(
+                                oldAppointment.getAppointmentId(),
+                                newAppointmentId
+                        );
+                    });
+                }
+            });
+
+            return true;
         }
 
-        // 4. 更新备注
+        // 4. 如果只是修改备注（不改排班）
         if (param.getNotes() != null) {
-            appointment.setNotes(param.getNotes());
+            oldAppointment.setNotes(param.getNotes());
         }
 
-        // 5. 更新支付状态和预约状态
+        // 5. 更新支付状态和预约状态（如果有）
         if (param.getPaymentStatus() != null) {
-            appointment.setPaymentStatus(param.getPaymentStatus());
+            oldAppointment.setPaymentStatus(param.getPaymentStatus());
         }
         if (param.getAppointmentStatus() != null) {
-            appointment.setAppointmentStatus(param.getAppointmentStatus());
+            oldAppointment.setAppointmentStatus(param.getAppointmentStatus());
         }
-
 
         // 6. 更新时间戳
-        appointment.setUpdatedAt(LocalDateTime.now());
+        oldAppointment.setUpdatedAt(LocalDateTime.now());
 
-        // 7. 更新预约排队好
-        if (needRecalculate && wasPaid) {
-            appointmentMapper.recalculateQueueNumbers(oldScheduleId);  // 原排班
-            appointmentMapper.recalculateQueueNumbers(param.getNewScheduleId()); // 新排班
-        }
-
-        return appointmentMapper.updateById(appointment) > 0;
+        return appointmentMapper.updateById(oldAppointment) > 0;
     }
+
+
 
     @Override
     public boolean canUpdateAppointment(Long appointmentId, Long patientId) {

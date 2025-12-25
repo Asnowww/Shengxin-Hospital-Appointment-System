@@ -112,7 +112,7 @@ public class UserBanTask {
      * 取消定义：
      * - 预约成功后又取消预约（appointment_status = 'cancelled'）
      */
-    @Scheduled(cron = "0 */30 * * * ?")
+    @Scheduled(cron = "0 * * * * ?")
     @Transactional
     public void checkFrequentCancelViolations() {
         try {
