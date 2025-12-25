@@ -162,7 +162,7 @@ async function handleLogin() {
           router.push('/doctor/profile')
           break
         default:
-          router.push('/home')
+          router.push('/department')
       }
     } else {
       alert(res.msg || '登录失败')
