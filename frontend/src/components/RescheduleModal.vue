@@ -60,6 +60,19 @@
                   </option>
                 </select>
               </div>
+              <div class="filter-item full-width">
+    <label>科室</label>
+    <select v-model="filterDept" class="select-input">
+      <option value="">全部科室</option>
+      <option
+        v-for="dept in availableDepts"
+        :key="dept.deptId"
+        :value="dept.deptId"
+      >
+        {{ dept.deptName }}
+      </option>
+    </select>
+  </div>
             </div>
           </div>
 
@@ -149,6 +162,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'success'])
+// 科室筛选
+const filterDept = ref('')
 
 // 状态
 const loading = ref(false)
@@ -186,6 +201,20 @@ const availableDoctors = computed(() => {
   return Array.from(doctorMap.values())
 })
 
+// 可选科室列表（从号源中提取）
+const availableDepts = computed(() => {
+  const deptMap = new Map()
+  schedules.value.forEach(s => {
+    if (s.availableSlots > 0 && !deptMap.has(s.deptId)) {
+      deptMap.set(s.deptId, {
+        deptId: s.deptId,
+        deptName: s.deptName
+      })
+    }
+  })
+  return Array.from(deptMap.values())
+})
+
 // 筛选后的号源
 const filteredSchedules = computed(() => {
   return schedules.value.filter(s => {
@@ -201,6 +230,8 @@ const filteredSchedules = computed(() => {
     // 医生筛选
     if (filterDoctor.value && s.doctorId !== filterDoctor.value) return false
     
+    if (filterDept.value && s.deptId !== filterDept.value) return false
+
     return true
   })
 })
@@ -290,6 +321,7 @@ function handleClose() {
   filterDate.value = ''
   filterTimeSlot.value = ''
   filterDoctor.value = ''
+  filterDept.value = ''
   emit('close')
 }
 
