@@ -1,56 +1,87 @@
 <template>
-  <Navigation ref="navRef" />
-
-  <div class="page-container">
-    <form @submit.prevent="handleLogin" class="form-box">
-      <h2>{{ roleTitle }}登录</h2>
-
-      <div class="form-group">
-        <input 
-          v-model="account" 
-          type="text" 
-          placeholder="手机号 / 用户姓名 / 邮箱" 
-          required 
-        />
+  <div class="login-container">
+    <div class="glass-layout">
+      
+      <!-- 顶部导航卡片 -->
+      <div class="nav-card">
+        <div class="brand" @click="goHome">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="brand-icon">
+             <path d="M11.484 2.17a.75.75 0 011.032 0 11.209 11.209 0 007.877 3.08.75.75 0 01.722.515 12.74 12.74 0 01.635 3.985c0 5.942-4.064 10.933-9.563 12.348a.749.749 0 01-.374 0C6.314 20.683 2.25 15.692 2.25 9.75c0-1.39.223-2.73.635-3.985a.75.75 0 01.722-.516 11.209 11.209 0 007.877-3.08zM12 6.972a.75.75 0 01.75.75v2.06h2.06a.75.75 0 010 1.5h-2.06v2.06a.75.75 0 01-1.5 0v-2.06H9.19a.75.75 0 010-1.5h2.06V7.722a.75.75 0 01.75-.75z" />
+          </svg>
+          <span class="brand-text">圣心医院 | Shengxin Hospital</span>
+        </div>
+        <button class="home-btn" @click="goHome">
+          返回首页
+        </button>
       </div>
 
-      <div class="form-group">
-        <input 
-          v-model="password" 
-          type="password" 
-          placeholder="密码" 
-          required 
-        />
+      <!-- 登录表单卡片 -->
+      <div class="login-card">
+        <div class="card-header">
+           <h2 class="login-title">{{ roleTitle }}登录</h2>
+           <p class="login-subtitle">请填写您的账户信息以继续</p>
+        </div>
+
+        <form @submit.prevent="handleLogin" class="login-form">
+          <div class="input-group">
+            <label>账号</label>
+            <input 
+              v-model="account" 
+              type="text" 
+              placeholder="手机号 / 用户姓名 / 邮箱" 
+              required 
+              class="custom-input"
+            />
+          </div>
+
+          <div class="input-group">
+            <label>密码</label>
+            <input 
+              v-model="password" 
+              type="password" 
+              placeholder="请输入密码" 
+              required 
+              class="custom-input"
+            />
+          </div>
+
+          <!-- 图形验证码 -->
+          <div class="input-group">
+            <label>验证码</label>
+            <div class="captcha-row">
+              <input 
+                v-model="captchaCode" 
+                type="text" 
+                placeholder="验证码" 
+                required 
+                class="custom-input captcha-input"
+              />
+              <div class="captcha-box" @click="loadCaptcha" title="点击刷新">
+                <img 
+                  v-if="captchaImage"
+                  :src="captchaImage" 
+                  alt="验证码" 
+                  class="captcha-img" 
+                />
+                <span v-else class="captcha-placeholder">加载中...</span>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="submit-btn">立即登录</button>
+
+          <div class="form-footer">
+            <p v-if="currentRole !== 'doctor' && currentRole !== 'admin'" class="footer-link">
+              没有账号？ <router-link to="/register">立即注册</router-link>
+            </p>
+            <p v-if="currentRole !== 'admin'" class="footer-link">
+              <router-link to="/password">忘记密码？</router-link>
+            </p>
+          </div>
+        </form>
       </div>
 
-      <!-- 图形验证码 -->
-      <div class="form-group captcha-group">
-        <input 
-          v-model="captchaCode" 
-          type="text" 
-          placeholder="请输入验证码" 
-          required 
-        />
-        <img 
-          :src="captchaImage" 
-          alt="验证码" 
-          class="captcha-img" 
-          @click="loadCaptcha"
-          title="点击刷新验证码"
-        />
-      </div>
-
-      <button type="submit" class="submit-btn">登录</button>
-
-      <p v-if="currentRole !== 'doctor' && currentRole !== 'admin'" class="switch">
-        没有账号？
-        <router-link to="/register">去注册</router-link>
-      </p>
-
-      <p v-if="currentRole !== 'admin'" class="switch">
-        <router-link to="/password">忘记密码</router-link>
-      </p>
-    </form>
+    </div>
   </div>
 </template>
 
@@ -58,17 +89,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import Navigation from '@/components/Navigation.vue'
 
 const route = useRoute()
 const router = useRouter()
 
 const account = ref('')
 const password = ref('')
-
-const captchaCode = ref('')         // 用户输入验证码
-const captchaImage = ref('')        // 验证码图片
-const captchaId = ref('')           // 后端返回的唯一标识
+const captchaCode = ref('')
+const captchaImage = ref('')
+const captchaId = ref('')
 
 const currentRole = computed(() => route.params.role)
 const roleTitle = computed(() => {
@@ -76,30 +105,27 @@ const roleTitle = computed(() => {
   return roleMap[currentRole.value] || '用户'
 })
 
-// 页面加载时获取验证码
+function goHome() {
+  router.push('/welcome')
+}
+
 onMounted(() => {
   loadCaptcha()
 })
 
-// 获取图形验证码
 async function loadCaptcha() {
   try {
     const res = await axios.get('/api/captcha/graph', { responseType: 'blob' })
-    // 从响应头获取 captchaId
     captchaId.value = res.headers['captcha-id']
-
-    // 转换图片为可显示 URL
     captchaImage.value = URL.createObjectURL(res.data)
   } catch (err) {
     console.error('获取验证码失败', err)
-    alert('验证码加载失败，请刷新页面')
   }
 }
 
-// 登录方法
 async function handleLogin() {
   if (!account.value || !password.value || !captchaCode.value) {
-    alert('请输入账号、密码和验证码')
+    alert('请输入完整信息')
     return
   }
 
@@ -115,23 +141,19 @@ async function handleLogin() {
     const res = response.data
 
     if (res.code === 200) {
-      // 登录成功：保存 token 和用户信息
       localStorage.setItem('token', res.data.token)
       localStorage.setItem('role', res.data.roleType)
       localStorage.setItem('userId', res.data.account)
 
-        // 若是医生，则额外保存 doctorId
       if (res.data.roleType === 'doctor') {
         localStorage.setItem('doctorId', res.data.doctorId)
       }
-
-        if (res.data.roleType === 'patient') {
+      if (res.data.roleType === 'patient') {
         localStorage.setItem('patientId', res.data.patientId)
       }
 
-      alert('登录成功！')
+      // alert('登录成功！') // Optional: remove alert for smoother UX
 
-      // 根据角色跳转
       switch (res.data.roleType) {
         case 'admin':
           router.push('/admin/dashboard')
@@ -143,13 +165,13 @@ async function handleLogin() {
           router.push('/home')
       }
     } else {
-      alert(res.msg || res.message || '登录失败')
-      loadCaptcha() // 验证码错误时刷新
+      alert(res.msg || '登录失败')
+      loadCaptcha()
       captchaCode.value = ''
     }
   } catch (err) {
     console.error(err)
-    alert(err?.response?.data?.msg || '服务器错误，请稍后再试')
+    alert(err?.response?.data?.msg || '服务器连接错误')
     loadCaptcha()
     captchaCode.value = ''
   }
@@ -157,94 +179,248 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-.page-container {
+.login-container {
+  min-height: 100vh;
   display: flex;
-  justify-content: center;   /* 水平居中 */
-  align-items: center;       /* 垂直居中 */
-  min-height: calc(100vh - var(--nav-height, 80px));
+  justify-content: center;
+  align-items: center;
+  /* Make sure bg is transparent if using App.vue fixed background */
+  background: transparent; 
   padding: 20px;
-  box-sizing: border-box;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
 }
 
-.form-box {
-  width: 100%;
-  max-width: 400px;
-  background: #fff;
-  padding: 32px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-}
-
-h2 {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.form-group {
-  margin-bottom: 16px;
-}
-.captcha-group {
+.glass-layout {
   display: flex;
-  align-items: center;   /* 垂直居中对齐 */
-  gap: 10px;             /* 输入框和图片间距 */
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 480px;
+  z-index: 10;
+}
+
+/* --- Navigation Card --- */
+.nav-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 15px 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  animation: fadeInDown 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.brand-icon {
+  width: 24px;
+  height: 24px;
+  color: #ff758c;
+}
+
+.brand-text {
+  font-weight: 600;
+  color: #333;
+  font-size: 1rem;
+}
+
+.home-btn {
+  background: none;
+  border: 1px solid #eee;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.home-btn:hover {
+  border-color: #ff758c;
+  color: #ff758c;
+}
+
+/* --- Login Card --- */
+.login-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 24px;
+  padding: 40px 35px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+  animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.card-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.login-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.login-subtitle {
+  color: #999;
+  font-size: 0.95rem;
+}
+
+/* --- Form Styles --- */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-group label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #555;
+  margin-left: 4px;
+}
+
+.custom-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #f0f0f0;
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.3s;
+  background: #f9f9f9;
+  box-sizing: border-box; /* Ensure padding doesn't affect width */
+}
+
+.custom-input:focus {
+  background: #fff;
+  border-color: #ff7eb3;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(255, 126, 179, 0.1);
+}
+
+/* Captcha Row */
+.captcha-row {
+  display: flex;
+  gap: 12px;
 }
 
 .captcha-input {
-  flex: 1;               /* 输入框占满剩余空间 */
-  height: 40px;          /* 高度与图片保持一致 */
-  padding: 0 10px;
-  font-size: 14px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  box-sizing: border-box;
+  flex: 1;
+}
+
+.captcha-box {
+  width: 110px;
+  height: 48px; /* Match input height approx */
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
 }
 
 .captcha-img {
-  width: 120px;          /* 图片宽度，可根据后端生成大小调整 */
-  height: 40px;          /* 图片高度 */
-  cursor: pointer;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-input {
   width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  box-sizing: border-box;
+  height: 100%;
+  object-fit: cover;
 }
 
+.captcha-placeholder {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+/* Submit Button */
 .submit-btn {
-  width: 100%;
-  padding: 12px;
-  background-color: #409eff;
-  color: #fff;
-  border-radius: 4px;
-  cursor: pointer;
+  margin-top: 10px;
+  background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+  color: white;
   border: none;
-  font-size: 16px;
-  margin-top: 8px;
-  transition: background-color 0.3s ease;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(255, 117, 140, 0.3);
+  transition: all 0.3s;
 }
 
 .submit-btn:hover {
-  background-color: #337ecc;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 117, 140, 0.4);
 }
 
-.switch {
+.submit-btn:active {
+  transform: scale(0.98);
+}
+
+/* Footer */
+.form-footer {
+  margin-top: 10px;
   text-align: center;
-  margin-top: 16px;
-  font-size: 14px;
-  color: #666;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.switch a {
-  color: #409eff;
+.footer-link {
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.footer-link a {
+  color: #ff758c;
   text-decoration: none;
+  font-weight: 500;
 }
 
-.switch a:hover {
+.footer-link a:hover {
   text-decoration: underline;
+}
+
+/* Animations */
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 15px;
+    align-items: flex-start; /* Align to top on mobile for better keyboard handling */
+    padding-top: 40px;
+  }
+  
+  .login-card {
+    padding: 30px 20px;
+  }
+  
+  .nav-card {
+    padding: 12px 15px;
+  }
+  
+  .brand-text {
+    font-size: 0.9rem;
+  }
 }
 </style>
