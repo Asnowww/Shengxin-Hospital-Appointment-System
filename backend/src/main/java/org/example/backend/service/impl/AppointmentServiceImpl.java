@@ -5,10 +5,7 @@ import jakarta.annotation.Resource;
 import org.example.backend.dto.*;
 import org.example.backend.mapper.*;
 import org.example.backend.pojo.*;
-import org.example.backend.service.AppointmentService;
-import org.example.backend.service.NotificationEmailService;
-import org.example.backend.service.PaymentService;
-import org.example.backend.service.WaitlistService;
+import org.example.backend.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -62,14 +59,54 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Resource
     private WaitlistMapper waitlistMapper;
+
     @Autowired
     private UserMapper userMapper;
+
+    @Resource
+    private BookingWarningService bookingWarningService;
+
+    @Resource
+    private UserBanService userBanService;
 
     // === 病人端 ===
 
     @Override
     @Transactional
     public Appointment createAppointmentByPatient(AppointmentCreateParam param) {
+
+        //检查用户状态是否被禁止
+        Patient patient = patientMapper.selectById(param.getPatientId());
+        if (patient == null) {
+            throw new RuntimeException("患者信息不存在");
+        }
+
+        User user = userMapper.selectById(patient.getUserId());
+        if (user == null) {
+            throw new RuntimeException("用户信息不存在");
+        }
+
+        // 检查用户是否被禁止预约
+        if ("disabled".equals(user.getBookingStatus())) {
+            // 获取禁用详情
+            BannedUser activeBan = userBanService.getActiveBan(user.getUserId());
+            if (activeBan != null) {
+                String banTypeMsg = getBanTypeMessage(activeBan.getBanType());
+                throw new RuntimeException(String.format(
+                        "您因%s已被限制预约功能。\n" +
+                                "限制原因：%s\n" +
+                                "解禁时间：%s\n" +
+                                "注意：限制期间不影响到院后现场挂号。",
+                        banTypeMsg,
+                        activeBan.getBanReason(),
+                        activeBan.getBanEndTime()
+                ));
+            }
+            throw new RuntimeException("您的预约功能已被限制，请联系管理员");
+        }
+
+        // 检查抢号间隔（必须距离上次预约至少1分钟）
+        checkBookingInterval(param.getPatientId());
         // 1. 验证排班是否存在
         Schedule schedule = scheduleMapper.selectById(param.getScheduleId());
         if (schedule == null) {
@@ -86,7 +123,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new RuntimeException("号源已满，无法预约");
         }
 
-        // 4. 验证患者当天是否已有同科室预约（防止重复挂号）
+        // 4. 验证患者当天是否已有同排班预约（防止重复挂号）
         QueryWrapper<Appointment> checkWrapper = new QueryWrapper<>();
         checkWrapper.eq("patient_id", param.getPatientId())
                 .eq("schedule_id", param.getScheduleId())
@@ -106,7 +143,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new RuntimeException("您已在该排班的候补队列中，请勿重复操作");
         }
 
-        //验证患者在同一时段是否已有其他预约或候补（防止时间冲突）
+        //验证患者在同一时段是否已有其他预约（防止时间冲突）
         LocalDate workDate = schedule.getWorkDate();
         Integer timeSlot = schedule.getTimeSlot();
 
@@ -123,27 +160,14 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new RuntimeException("您在" + workDate + " " + timeSlotName + "已有预约，无法重复预约同一时段");
         }
 
-        // 检查是否有同时段的候补
-        QueryWrapper<Waitlist> waitlistTimeConflictWrapper = new QueryWrapper<>();
-        waitlistTimeConflictWrapper.eq("patient_id", param.getPatientId())
-                .in("status", "waiting")
-                .exists("SELECT 1 FROM schedules s WHERE s.schedule_id = waitlist.schedule_id " +
-                        "AND s.work_date = {0} AND s.time_slot = {1}", workDate, timeSlot);
-
-        Long waitlistConflictCount = waitlistMapper.selectCount(waitlistTimeConflictWrapper);
-        if (waitlistConflictCount > 0) {
-            String timeSlotName = getTimeSlotName(timeSlot);
-            throw new RuntimeException("您在" + workDate + " " + timeSlotName + "已有候补，无法重复操作");
-        }
-
-        //检查是否多次退号
+        //退号后不可预约相同排班
         QueryWrapper<Appointment> cancelWrapper = new QueryWrapper<>();
         cancelWrapper.eq("patient_id", param.getPatientId())
                 .eq("schedule_id", param.getScheduleId())
                 .eq("appointment_status", "cancelled");
         Long cancelCount = appointmentMapper.selectCount(cancelWrapper);
-        if (cancelCount > 2) {
-            throw new RuntimeException("您已多次取消同一预约，现已禁止预约此排班");
+        if (cancelCount > 0) {
+            throw new RuntimeException("您已取消过一次相同预约，现已禁止预约此排班");
         }
 
 
@@ -169,7 +193,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         // 设置费用
         appointment.setFeeOriginal(appointmentType.getFee());
         // 查询患者用于计算 feeFinal
-        Patient patient = patientMapper.selectById(param.getPatientId());
         BigDecimal finalFee = computeFinalFee(appointmentType, patient);
 
         appointment.setFeeFinal(finalFee);
@@ -219,6 +242,85 @@ public class AppointmentServiceImpl implements AppointmentService {
         });
 
         return appointment;
+    }
+
+    /**
+     * 检查预约间隔，防止恶意抢号
+     * 规则：两次预约间隔必须大于1分钟，否则记录警告
+     */
+    private void checkBookingInterval(Long patientId) {
+        // 查询最近一次预约时间
+        QueryWrapper<Appointment> wrapper = new QueryWrapper<>();
+        wrapper.eq("patient_id", patientId)
+                .orderByDesc("booking_time")
+                .last("LIMIT 1");
+
+        Appointment lastAppointment = appointmentMapper.selectOne(wrapper);
+
+        if (lastAppointment != null) {
+            LocalDateTime lastBookingTime = lastAppointment.getBookingTime();
+            LocalDateTime now = LocalDateTime.now();
+
+            // 计算时间差（秒）
+            long secondsBetween = java.time.Duration.between(lastBookingTime, now).getSeconds();
+
+            // 如果间隔小于60秒（1分钟）
+            if (secondsBetween < 60) {
+                // 使用独立事务记录警告（即使主事务回滚，警告也会保存）
+                try {
+                    bookingWarningService.recordWarning(
+                            patientId,
+                            "抢号间隔过短（" + secondsBetween + "秒）"
+                    );
+                } catch (Exception e) {
+                    System.err.println("记录警告失败: " + e.getMessage());
+                }
+
+                // 统计最近24小时内的警告次数
+                LocalDateTime last24Hours = now.minusHours(24);
+                Long warningCount = bookingWarningService.countWarningsSince(patientId, last24Hours);
+
+                // 抛出异常，阻止本次预约
+                throw new RuntimeException("预约操作过于频繁，请稍后再试（至少间隔1分钟）。" +
+                        "您在24小时内已收到 " + warningCount + " 次警告，" +
+                        "累计3次警告将被限制预约功能。");
+            }
+        }
+    }
+
+    /**
+     * 根据排班信息获取具体的就诊时间
+     */
+    private LocalDateTime getAppointmentDateTime(Schedule schedule) {
+        LocalDate workDate = schedule.getWorkDate();
+        Integer timeSlot = schedule.getTimeSlot();
+
+        // 根据时段设置具体时间
+        int hour;
+        switch (timeSlot) {
+            case 0: // 上午
+                hour = 9;
+                break;
+            case 1: // 下午
+                hour = 14;
+                break;
+            case 2: // 晚上
+                hour = 18;
+                break;
+            default:
+                hour = 9;
+        }
+
+        return workDate.atTime(hour, 0);
+    }
+
+    private String getBanTypeMessage(String banType) {
+        return switch (banType) {
+            case "no_show" -> "爽约次数过多";
+            case "frequent_cancel" -> "频繁取消预约";
+            case "frequent_booking" -> "频繁抢号";
+            default -> "违反预约规则";
+        };
     }
 
     private String getTimeSlotName(Integer timeSlot) {
@@ -440,9 +542,9 @@ public class AppointmentServiceImpl implements AppointmentService {
                 appointment.setQueueNumber(0); // 未支付仍为0
             }
 
-            // 重新生成排队号（需要根据新排班的已预约数量）
-            int newQueueNumber = newSchedule.getMaxSlots() - newSchedule.getAvailableSlots();
-            appointment.setQueueNumber(newQueueNumber);
+//            // 重新生成排队号（需要根据新排班的已预约数量）
+//            int newQueueNumber = newSchedule.getMaxSlots() - newSchedule.getAvailableSlots();
+//            appointment.setQueueNumber(newQueueNumber);
         }
 
         // 4. 更新备注
@@ -489,10 +591,17 @@ public class AppointmentServiceImpl implements AppointmentService {
             return false;
         }
 
-        // 验证预约时间未过期
-        if (appointment.getExpireTime() != null &&
-                LocalDateTime.now().isAfter(appointment.getExpireTime())) {
-            return false;
+        // 检查是否在就诊前1小时内
+        Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
+        if (schedule != null) {
+            LocalDateTime appointmentDateTime = getAppointmentDateTime(schedule);
+            LocalDateTime now = LocalDateTime.now();
+
+            // 如果距离就诊时间不足1小时，不允许修改
+            long hoursUntilAppointment = java.time.Duration.between(now, appointmentDateTime).toHours();
+            if (hoursUntilAppointment < 1) {
+                return false;
+            }
         }
 
         return true;

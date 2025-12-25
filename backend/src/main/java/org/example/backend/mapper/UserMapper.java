@@ -71,4 +71,8 @@ public interface UserMapper extends BaseMapper<User> {
 
     @Select("SELECT status FROM users WHERE user_id = #{userId}")
     String selectStatusByUserId(@Param("userId") Long userId);
+
+    @Update("UPDATE users SET booking_status = #{bookingStatus}, update_time = NOW() WHERE user_id = #{userId}")
+    int updateBookingStatus(@Param("userId") Long userId, @Param("bookingStatus") String bookingStatus);
+
 }

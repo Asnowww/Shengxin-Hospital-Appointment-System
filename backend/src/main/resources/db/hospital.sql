@@ -19,6 +19,8 @@ DROP TABLE IF EXISTS user_verifications;
 DROP TABLE IF EXISTS schedule_exceptions;
 DROP TABLE IF EXISTS chat_message;
 DROP TABLE IF EXISTS medical_records;
+DROP TABLE IF EXISTS booking_warnings;
+DROP TABLE IF EXISTS banned_users;
 
 -- 再删除主表（父表）
 DROP TABLE IF EXISTS doctors;
@@ -425,3 +427,45 @@ CREATE TABLE appointment_relations (
                                            FOREIGN KEY (target_appointment_id) REFERENCES appointments(appointment_id)
                                                ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='预约关联表，用于记录自动改约、随访预约等关联关系';
+
+ALTER TABLE users
+    ADD COLUMN booking_status ENUM('enabled', 'disabled') DEFAULT 'disabled'
+    COMMENT '预约状态：enabled-可预约，disabled-禁止预约';
+
+CREATE TABLE IF NOT EXISTS booking_warnings (
+                                                warning_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '警告ID',
+                                                patient_id BIGINT NOT NULL COMMENT '患者ID',
+                                                warning_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '警告时间',
+                                                reason VARCHAR(255) COMMENT '警告原因',
+                                                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                                FOREIGN KEY (patient_id) REFERENCES patients(patient_id),
+                                                INDEX idx_patient_time(patient_id, warning_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抢号警告记录表';
+
+CREATE TABLE IF NOT EXISTS banned_users (
+                                            ban_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '禁用记录ID',
+                                            user_id BIGINT NOT NULL COMMENT '用户ID',
+                                            patient_id BIGINT NOT NULL COMMENT '患者ID',
+                                            ban_type ENUM('no_show', 'frequent_cancel', 'frequent_booking') NOT NULL
+                                                COMMENT '禁用类型：no_show-爽约，frequent_cancel-频繁取消，frequent_booking-频繁抢号',
+                                            ban_reason VARCHAR(500) COMMENT '禁用原因详细描述',
+                                            ban_start_time DATETIME NOT NULL COMMENT '禁用开始时间',
+                                            ban_duration_weeks INT NOT NULL COMMENT '禁用时长（周）',
+                                            ban_end_time DATETIME NOT NULL COMMENT '禁用结束时间（自动计算）',
+                                            is_active BOOLEAN DEFAULT TRUE COMMENT '是否当前生效（FALSE表示已解禁）',
+                                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                                            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                                            FOREIGN KEY (user_id) REFERENCES users(user_id),
+                                            FOREIGN KEY (patient_id) REFERENCES patients(patient_id),
+                                            INDEX idx_user_active(user_id, is_active),
+                                            INDEX idx_end_time(ban_end_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='禁止预约用户表';
+
+DROP INDEX idx_patient_status_visit ON appointments;
+CREATE INDEX idx_patient_status_visit ON appointments(patient_id, appointment_status, visit_time);
+
+DROP INDEX idx_patient_status_booking ON appointments;
+CREATE INDEX idx_patient_status_booking ON appointments(patient_id, appointment_status, booking_time);
+
+DROP INDEX idx_patient_booking ON appointments;
+CREATE INDEX idx_patient_booking ON appointments(patient_id, booking_time);

@@ -113,6 +113,7 @@ public class UserVerificationServiceImpl
         User user = userMapper.selectById(v.getUserId());
         if (user != null) {
             user.setStatus(result == UserVerification.VerificationStatus.approved ? "verified" : "pending");
+            user.setBookingStatus("enable");
             userMapper.updateById(user);
         }
 

@@ -101,6 +101,17 @@
           </select>
         </div>
 
+        <div class="form-group">
+          <label class="form-label">预约状态</label>
+          <input
+              :value="bookingStatusText"
+              type="text"
+              disabled
+              class="form-control"
+              :class="bookingStatusMap"
+          />
+        </div>
+
         <div class="form-group full-width">
           <label class="form-label">家庭地址</label>
           <input 
@@ -203,6 +214,7 @@ const profile = reactive({
   status: '',
   birthDate: '',
   gender: '',
+  bookingStatus:'',
   address: '',
   phone: '',
   emergencyContact: '',
@@ -235,6 +247,12 @@ const statusClass = computed(() => {
     default: return ''
   }
 })
+
+const bookingStatusMap = {
+  enable:'可预约',
+  disabled:'不可预约'
+}
+const bookingStatusText= computed(() => bookingStatusMap[profile.bookingStatus] || '可预约')
 
 const errors = reactive({
   identityType: '',

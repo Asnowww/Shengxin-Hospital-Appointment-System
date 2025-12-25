@@ -60,6 +60,7 @@ public class PatientController {
             data.put("status", user.getStatus());
             data.put("createTime", user.getCreateTime());
             data.put("updateTime", user.getUpdateTime());
+            data.put("bookingStatus", user.getBookingStatus());
 
             data.put("patientId", patient.getPatientId());
             data.put("patientAccount", patient.getPatientAccount());

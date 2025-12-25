@@ -1,14 +1,14 @@
 package org.example.backend.task;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
-import org.example.backend.mapper.AppointmentMapper;
-import org.example.backend.mapper.ScheduleMapper;
-import org.example.backend.mapper.WaitlistMapper;
-import org.example.backend.pojo.Appointment;
-import org.example.backend.pojo.Schedule;
-import org.example.backend.pojo.Waitlist;
+import org.example.backend.mapper.*;
+import org.example.backend.pojo.*;
+import org.example.backend.service.BookingWarningService;
 import org.example.backend.service.NotificationEmailService;
+import org.example.backend.service.UserBanService;
 import org.example.backend.service.WaitlistService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -41,6 +41,21 @@ public class AppointmentScheduledTask {
 
     @Resource
     private NotificationEmailService notificationEmailService;
+
+    @Resource
+    private BookingWarningService bookingWarningService;  // 使用 Service
+
+    @Autowired
+    private UserMapper userMapper;
+
+    @Resource
+    private PatientMapper patientMapper;
+
+    @Resource
+    private BookingWarningMapper bookingWarningMapper;
+
+    @Resource
+    private UserBanService userBanService;
 
     /**
      * 定时任务1：每分钟执行一次
@@ -227,5 +242,99 @@ public class AppointmentScheduledTask {
             e.printStackTrace();
         }
     }
+
+    /**
+     * 定时任务5：
+     * 检查24小时内收到3次或以上警告的用户，将其状态设置为 disabled
+     */
+    @Scheduled(cron = "0 * * * * ?")
+    @Transactional
+    public void handleFrequentBookingViolations() {
+        try {
+            System.out.println("开始检查频繁抢号违规用户...");
+
+            // 计算24小时前的时间点
+            LocalDateTime last24Hours = LocalDateTime.now().minusHours(24);
+
+            // 查询所有患者
+            List<Patient> allPatients = patientMapper.selectList(null);
+
+            int rejectedCount = 0;
+
+            for (Patient patient : allPatients) {
+                try {
+                    // 跳过已被禁用的用户
+                    User user = userMapper.selectById(patient.getUserId());
+                    if (user != null && "'disabled".equals(user.getBookingStatus())) {
+                        continue;
+                    }
+
+                    // 统计该患者在24小时内的警告次数
+                    Long warningCount = bookingWarningService.countWarningsSince(
+                            patient.getPatientId(),
+                            last24Hours
+                    );
+
+                    // 如果警告次数 >= 3次，限制该用户
+                    if (warningCount != null && warningCount >= 3) {
+                        // 更新用户预约状态为 'disabled
+                        rejectedCount++;
+
+                        // 写入数据库：封禁用户
+                        String reason = "恶意抢号，禁止预约一年";
+                        userBanService.banUser(
+                                patient.getPatientId(),      // 用户ID
+                                "frequent_booking",       // 禁用类型
+                                reason,                   // 禁用原因
+                                48                        // 限制48周
+                        );
+                        // notificationEmailService.sendAccountRejectedNotification(patient.getPatientId());
+                    }
+
+                } catch (Exception e) {
+                    System.err.println("处理患者 [ID: " + patient.getPatientId() +
+                            "] 抢号警告失败: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+
+            if (rejectedCount > 0) {
+                System.out.println("频繁抢号检查完成，共限制 " + rejectedCount + " 个用户");
+            } else {
+                System.out.println("频繁抢号检查完成，无违规用户");
+            }
+
+        } catch (Exception e) {
+            System.err.println("频繁抢号检查定时任务执行失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 定时任务6：每天凌晨2点执行
+     * 清理7天前的警告记录（可选，保持数据库清洁）
+     */
+    @Scheduled(cron = "0 0 2 * * ?") // 每天凌晨2点执行
+    @Transactional
+    public void cleanupOldWarnings() {
+        try {
+            System.out.println("开始清理过期警告记录...");
+
+            LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+
+            QueryWrapper<BookingWarning> wrapper = new QueryWrapper<>();
+            wrapper.lt("warning_time", sevenDaysAgo);
+
+            int deletedCount = bookingWarningMapper.delete(wrapper);
+
+            System.out.println("已清理 " + deletedCount + " 条7天前的警告记录");
+
+        } catch (Exception e) {
+            System.err.println("清理警告记录失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+
 }
 
