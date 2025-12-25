@@ -343,34 +343,48 @@ async function fetchProfile() {
 async function handleSave() {
   if (!validateForm()) return
 
-try {
-  const token = localStorage.getItem('token')
-  const res = await axios.put('/api/patient/profile/update', profile, {
-    headers: {
-      Authorization: `Bearer ${token}`
+  try {
+    const token = localStorage.getItem('token')
+    const res = await axios.put('/api/patient/profile/update', profile, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    // 🔥 后端明确返回失败
+    if (res.data.code !== 200) {
+      alert(res.data.message || '保存失败')
+
+      // 🔥 关键：重新拉取后端真实数据，回滚本地状态
+      await fetchProfile()
+
+      isEditing.value = false
+      return
     }
-  })
 
-  // 根据后端返回值显示 message
-  if (res.data && res.data.message) {
-    alert(res.data.message)
-  } else {
-    alert('操作成功')
-  }
+    // ✅ 成功
+    alert('保存成功')
 
-  isEditing.value = false
-} catch (err) {
-  console.error(err)
+    // 同步更新“原始快照”
+    originalProfile.value = { ...profile }
+    isEditing.value = false
 
-  // 如果后端也返回了 message（错误情况）
-  if (err.response && err.response.data && err.response.data.message) {
-    alert(err.response.data.message)
-  } else {
-    alert('保存失败，请稍后再试')
+  } catch (err) {
+    console.error(err)
+
+    // 🔥 接口异常（比如 400 / 500）
+    if (err.response?.data?.message) {
+      alert(err.response.data.message)
+    } else {
+      alert('保存失败，请稍后再试')
+    }
+
+    // 🔥 同样回滚
+    await fetchProfile()
+    isEditing.value = false
   }
 }
 
-}
 
 // 认证成功回调
 function handleVerifySuccess() {

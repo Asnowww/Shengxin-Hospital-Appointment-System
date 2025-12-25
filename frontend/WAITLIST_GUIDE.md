@@ -65,7 +65,7 @@
 this.$router.push('/waitlist/my')
 
 // 或直接访问
-http://localhost:5173/waitlist/my
+https://localhost:5173/waitlist/my
 ```
 
 ### 2. 可候补排班列表 (`/waitlist/fully-booked`)
@@ -83,7 +83,7 @@ http://localhost:5173/waitlist/my
 this.$router.push('/waitlist/fully-booked')
 
 // 或直接访问
-http://localhost:5173/waitlist/fully-booked
+https://localhost:5173/waitlist/fully-booked
 ```
 
 ### 3. 候补卡片组件
@@ -170,8 +170,8 @@ http://localhost:5173/waitlist/fully-booked
    ```
 
 2. 访问测试页面：
-   - http://localhost:5173/waitlist/my
-   - http://localhost:5173/waitlist/fully-booked
+   - https://localhost:5173/waitlist/my
+   - https://localhost:5173/waitlist/fully-booked
 
 3. 测试功能点：
    - [ ] 查看可候补排班列表
