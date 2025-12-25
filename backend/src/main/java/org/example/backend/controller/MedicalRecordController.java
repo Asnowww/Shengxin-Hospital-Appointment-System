@@ -34,7 +34,7 @@ public class MedicalRecordController {
     private PatientService patientService;
 
     /**
-     * 获取病历详情
+     * 获取患者最近的病历详情
      */
     @GetMapping("/latest/{patientId}")
     public Result<MedicalRecordDTO> getLatestMedicalRecord(@PathVariable Long patientId) {
@@ -43,6 +43,9 @@ public class MedicalRecordController {
         return Result.success("获取成功", dto);
     }
 
+    /**
+     * 获取既往病史这个字段，不是之前的病例
+     */
     @GetMapping("/past/{patientId}")
     public Result<String> getPatientMedicalHistory(@PathVariable Long patientId) {
         try {
@@ -107,8 +110,6 @@ public class MedicalRecordController {
             return Result.error("创建病历失败：" + e.getMessage());
         }
     }
-
-
 
     /**
      * 更新病历

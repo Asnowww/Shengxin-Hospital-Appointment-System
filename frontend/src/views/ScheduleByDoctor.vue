@@ -2,7 +2,6 @@
   <Navigation ref="navRef" />
   <div class="page-container" :style="{ paddingTop: navHeight + 'px' }">
     <div class="doctor-wrapper">
-      <!-- 返回和标题 -->
       <div class="header-section">
         <div class="breadcrumb">
           <router-link to="/department" class="back-link">
@@ -22,7 +21,6 @@
         <p class="doctor-title">{{ doctorInfo.title }}</p>
       </div>
 
-      <!-- 医生信息卡片 -->
       <div class="doctor-info-card">
         <div class="info-header">
           <div class="avatar-large">{{ doctorInfo.name?.charAt(0) }}</div>
@@ -35,7 +33,6 @@
         </div>
       </div>
 
-      <!-- 日期筛选 -->
       <div class="filter-section">
         <div class="date-filter">
           <label>选择日期：</label>
@@ -48,29 +45,32 @@
         </div>
       </div>
 
-      <!-- 排班卡片 -->
       <div class="schedules-container">
         <div v-if="loading" class="loading">
           <div class="spinner"></div>
           <p>加载中...</p>
         </div>
-          <div v-if="dayOverMessage" class="empty-state">
-    <p>{{ dayOverMessage }}</p>
-  </div>
+
+        <div v-if="dayOverMessage" class="empty-state notice-state">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="orange" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <p>{{ dayOverMessage }}</p>
+        </div>
+
         <div v-else-if="filteredSchedules.length > 0" class="schedules-grid">
           <div v-for="schedule in filteredSchedules" :key="schedule.scheduleId" class="schedule-card">
-            <!-- 预约类型标签和费用 -->
             <div class="appointment-type-wrapper">
               <span :class="['appointment-type', `type-${schedule.appointmentTypeId}`]">
                 {{ schedule.appointmentTypeName }}
               </span>
-              <!-- 新增费用显示 -->
               <div class="appointment-fee">
                 ¥{{ schedule.fee ? schedule.fee.toFixed(2) : '—' }}
               </div>
             </div>
 
-            <!-- 卡片内容 -->
             <div class="card-content">
               <div class="time-section">
                 <div class="date-large">{{ formatDate(schedule.workDate) }}</div>
@@ -86,7 +86,6 @@
                   <span class="label">门诊类型：</span>
                   <span class="value">{{ schedule.appointmentTypeName }}</span>
                 </div>
-                <!-- 号源信息 -->
                 <div class="slots-section">
                   <div class="slots-header">
                     <span class="label">号源</span>
@@ -103,22 +102,23 @@
               </div>
             </div>
 
-            <!-- 卡片底部 -->
             <div class="card-footer">
               <span :class="['status', schedule.status]">
                 {{ getStatusText(schedule) }}
               </span>
-              <button :disabled="schedule.availableSlots === 0" :class="['appoint-btn', { disabled: schedule.availableSlots === 0 }]" @click="handleAppointment(schedule)">
+              <button 
+                :disabled="isSubmitting" 
+                :class="['appoint-btn', { 'waitlist-btn': schedule.availableSlots === 0 }]" 
+                @click="handleAppointment(schedule)">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 5v14M5 12h14"></path>
                 </svg>
-                {{ schedule.availableSlots > 0 ? '立即预约' : '已满' }}
+                {{ schedule.availableSlots > 0 ? '立即预约' : '候补' }}
               </button>
             </div>
           </div>
         </div>
 
-        <!-- 空状态 -->
         <div v-else class="empty-state">
           <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"></rect>
@@ -129,12 +129,11 @@
       </div>
     </div>
 
-    <!-- 预约模态框 -->
     <transition name="modal">
       <div v-if="showAppointModal" class="modal-overlay" @click.self="showAppointModal = false">
         <div class="modal-content">
           <div class="modal-header">
-            <h2>确认预约</h2>
+            <h2>{{ selectedSchedule?.availableSlots > 0 ? '确认预约' : '确认候补' }}</h2>
             <button class="close-btn" @click="showAppointModal = false">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -143,13 +142,16 @@
             </button>
           </div>
           <div class="modal-body">
-            <div class="info-group">
-              <span class="label">医生：</span>
-              <span class="value">{{ selectedSchedule?.doctorName }} ({{ selectedSchedule?.doctorTitle }})</span>
+            <div v-if="selectedSchedule?.availableSlots === 0" class="waitlist-notice">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <p>该号源已满，加入候补队列后有新号源时将自动为您预约</p>
             </div>
             <div class="info-group">
-              <span class="label">科室：</span>
-              <span class="value">{{ selectedSchedule?.deptName }}</span>
+              <span class="label">医生：</span>
+              <span class="value">{{ selectedSchedule?.doctorName }}</span>
             </div>
             <div class="info-group">
               <span class="label">日期：</span>
@@ -160,34 +162,32 @@
               <span class="value">{{ selectedSchedule?.timeSlotName }}</span>
             </div>
             <div class="info-group">
-              <span class="label">诊室：</span>
-              <span class="value">{{ selectedSchedule?.roomName }}</span>
-            </div>
-            <div class="info-group">
-              <span class="label">预约类型：</span>
-              <span class="value">{{ selectedSchedule?.appointmentTypeName }}</span>
-            </div>
-            <!-- 新增费用显示 -->
-            <div class="info-group">
               <span class="label">费用：</span>
-              <span class="value">¥{{ selectedSchedule?.fee }}</span>
+              <span class="value">¥{{ selectedSchedule?.fee?.toFixed(2) }}</span>
             </div>
           </div>
           <div class="modal-footer">
             <button class="btn-cancel" @click="showAppointModal = false">取消</button>
-            <button class="btn-confirm" @click="confirmAppointment">确认预约</button>
+            <button class="btn-confirm" :disabled="isSubmitting" @click="confirmAppointment">
+              {{ isSubmitting ? '提交中...' : (selectedSchedule?.availableSlots > 0 ? '确认预约' : '确认候补') }}
+            </button>
           </div>
         </div>
       </div>
     </transition>
 
-    <!-- 支付组件 -->
-    <Payment :visible="showPaymentModal" :appointment-id="paymentData.appointmentId" @close="showPaymentModal = false" @payment-success="handlePaymentSuccess" @payment-error="handlePaymentError" />
+    <Payment 
+      :visible="showPaymentModal" 
+      :appointment-id="paymentData.appointmentId" 
+      @close="showPaymentModal = false" 
+      @payment-success="handlePaymentSuccess" 
+      @payment-error="handlePaymentError" 
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import Navigation from '@/components/Navigation.vue'
@@ -206,60 +206,87 @@ const showPaymentModal = ref(false)
 const selectedSchedule = ref(null)
 const paymentData = ref({ appointmentId: null })
 
+const MORNING_DEADLINE_HOUR = 11   // 11:00 后禁止上午
+const ALLDAY_DEADLINE_HOUR = 16   // 16:00 后禁止当日全部
 
 
-/* ============ 医生信息 ============ */
-const doctorInfo = ref({
-  name: '',
-  title: '',
-  deptName: '',
-  deptId: '',
-  introduction: ''
+const dayOverMessage = computed(() => {
+  const todayStr = new Date().toISOString().split('T')[0]
+  const now = new Date(
+  new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
+)
+
+  const hours = now.getHours()
+
+  if (selectedDate.value === todayStr) {
+    //  当日 16 点后，全部不可预约
+    if (hours >= ALLDAY_DEADLINE_HOUR) {
+      return '已过当天可预约时间段（每日16:00后停止当日预约）'
+    }
+
+    // 当日 11 点后，禁止上午
+    if (hours >= MORNING_DEADLINE_HOUR) {
+      const hasPM = schedules.value.some(s =>
+        s.workDate === todayStr && /下午|PM/i.test(s.timeSlotName)
+      )
+      if (!hasPM) return '今日上午时段已过，下午暂无排班'
+    }
+  }
+
+  return ''
 })
 
-/* ============ 日期选项 ============ */
+const doctorInfo = ref({
+  name: '', title: '', deptName: '', deptId: '', introduction: ''
+})
 const dateOptions = ref([])
+
+const filteredSchedules = computed(() => {
+  const todayStr = new Date().toISOString().split('T')[0]
+  const now = new Date()
+  const hours = now.getHours()
+
+  let filtered = schedules.value.filter(s =>
+    s.workDate === selectedDate.value && s.status !== 'cancelled'
+  )
+
+  if (selectedDate.value === todayStr) {
+
+    if (hours >= ALLDAY_DEADLINE_HOUR) {
+      return []
+    }
+
+    if (hours >= MORNING_DEADLINE_HOUR) {
+      filtered = filtered.filter(
+        s => !(/上午|AM/i.test(s.timeSlotName))
+      )
+    }
+  }
+
+  return filtered
+})
+
+watch(showPaymentModal, async (newVal) => {
+  if (newVal === false) {
+    await fetchSchedules()
+  }
+})
 
 function handlePaymentSuccess(data) {
   alert('支付成功！您的预约已完成。')
-  setTimeout(() => {
-    showPaymentModal.value = false
-    fetchSchedules()
-  }, 300)
+  showPaymentModal.value = false
 }
 
 function handlePaymentError(errorMsg) {
-  console.error('支付失败：', errorMsg)
-  alert('支付失败：' + errorMsg)
+  alert('支付未完成：' + errorMsg)
 }
 
-async function fetchDoctorInfo() {
-  try {
-    const response = await axios.get(`/api/doctor/doctorId/${doctorId.value}`)
-    const resData = response.data
-    const data = resData
-    doctorInfo.value = {
-      name: route.query.doctorName || '',
-      title: data.title || route.query.doctorTitle || '',
-      deptName: route.query.deptName || '',
-      deptId: data.deptId || route.query.deptId || '',
-      introduction: data.bio || ''
-    }
-  } catch (err) {
-    console.error('加载医生信息失败', err)
-  }
-}
-
-/* =============================== 获取医生排班信息 =============================== */
 async function fetchSchedules() {
   loading.value = true
   try {
     const startDate = new Date().toISOString().split('T')[0]
-    const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split('T')[0]
+    const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-    // 并行请求排班和费用数据
     const [scheduleRes, feeRes] = await Promise.all([
       axios.get(`/api/patient/appointment/all-schedules/doctor/${doctorId.value}`, {
         params: { startDate, endDate }
@@ -267,167 +294,123 @@ async function fetchSchedules() {
       axios.get('/api/fee/type_amount')
     ])
 
-    const scheduleData = scheduleRes.data
-    const feeList = feeRes.data.data || []
+    const feeMap = new Map((feeRes.data.data || []).map(item => [item.appointmentTypeId, item.fee]))
+    
+    if (scheduleRes.data.code === 200) {
+      schedules.value = (scheduleRes.data.data || []).map(s => ({
+        ...s,
+        fee: feeMap.get(s.appointmentTypeId) || 0
+      }))
 
-    // 构建费用映射
-    const feeMapLocal = new Map(feeList.map(item => [item.appointmentTypeId, item.fee]))
-
-    if (scheduleData.code !== 200) {
-      console.warn('排班接口返回异常：', scheduleData.message)
-      schedules.value = []
-      return
-    }
-
-    // 合并费用信息
-    schedules.value = (scheduleData.data || []).map(s => ({
-      ...s,
-      fee: feeMapLocal.get(s.appointmentTypeId) || 0
-    }))
-
-    // 从返回数据提取日期
-    const dates = [...new Set(schedules.value.map(s => s.workDate))].sort()
-    dateOptions.value = dates.map(date => {
-      const d = new Date(date)
-      const today = new Date()
-      const todayStr = today.toISOString().split('T')[0]
-      const tomorrowStr = new Date(today.getTime() + 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split('T')[0]
-      let label = ''
-      if (date === todayStr) label = '今天'
-      else if (date === tomorrowStr) label = '明天'
-      else label = d.toLocaleDateString('zh-CN', { weekday: 'short' })
-      return {
-        value: date,
-        label,
-        display: d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
+      const dates = [...new Set(schedules.value.map(s => s.workDate))].sort()
+      dateOptions.value = dates.map(date => {
+        const d = new Date(date)
+        const todayStr = new Date().toISOString().split('T')[0]
+        let label = (date === todayStr) ? '今天' : d.toLocaleDateString('zh-CN', { weekday: 'short' })
+        return { value: date, label, display: d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) }
+      })
+      if (!selectedDate.value && dateOptions.value.length > 0) {
+        selectedDate.value = dateOptions.value[0].value
       }
-    })
-
-    // 默认选中第一个日期
-    selectedDate.value = dateOptions.value[0]?.value || ''
+    }
   } catch (err) {
-    console.error('加载排班失败', err)
+    console.error('加载失败', err)
   } finally {
     loading.value = false
   }
 }
 
-/* =============================== 工具函数 =============================== */
-function formatDate(date) {
-  const d = new Date(date)
-  return d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', weekday: 'short' })
-}
-
-function formatFullDate(date) {
-  const d = new Date(date)
-  return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
-}
-
-function calculateProgressPercentage(schedule) {
-  return (schedule.bookedSlots / schedule.maxSlots) * 100
-}
-
-function getStatusText(schedule) {
-  if (schedule.availableSlots === 0) return '已满'
-  if (schedule.status === 'open') return '可预约'
-  return '未开放'
-}
-
-/* =============================== 当前日期的排班过滤 =============================== */
-/* =============================== 当前日期的排班过滤 =============================== */
-const dayOverMessage = ref('') // 当天已过预约时间段提示
-
-const filteredSchedules = computed(() => {
-  const todayStr = new Date().toISOString().split('T')[0]
-  const now = new Date()
-  dayOverMessage.value = '' // 重置提示
-
-  let filtered = schedules.value.filter(s => s.workDate === selectedDate.value)
-
-  if (selectedDate.value === todayStr) {
-    const hours = now.getHours()
-    if (hours >= 17) {
-      filtered = []
-      dayOverMessage.value = '已过当天可预约时间段'
-    } else if (hours >= 12) {
-      // 只显示下午排班，假设 timeSlotName 包含 “下午”
-      filtered = filtered.filter(s => /下午|PM/i.test(s.timeSlotName))
+async function fetchDoctorInfo() {
+  try {
+    const response = await axios.get(`/api/doctor/doctorId/${doctorId.value}`)
+    const data = response.data
+    doctorInfo.value = {
+      name: route.query.doctorName || data.name,
+      title: data.title || route.query.doctorTitle,
+      deptName: route.query.deptName || data.deptName,
+      deptId: data.deptId || route.query.deptId,
+      introduction: data.bio || ''
     }
-  }
+  } catch (err) { console.error(err) }
+}
 
-  return filtered
-})
-
-
-/* =============================== 预约逻辑 =============================== */
 function handleAppointment(schedule) {
   selectedSchedule.value = schedule
   showAppointModal.value = true
 }
 
 async function confirmAppointment() {
-  if (!selectedSchedule.value) return alert('请选择排班')
-
+  if (!selectedSchedule.value) return
   const token = localStorage.getItem('token')
-  if (!token) return alert('未登录或登录已过期，请重新登录')
+  if (!token) return alert('请先登录')
 
   isSubmitting.value = true
   try {
-    const response = await axios.post(
-      '/api/patient/appointment/create',
-      {
+    const isWaitlist = selectedSchedule.value.availableSlots === 0
+
+    if (isWaitlist) {
+      // ② 候补逻辑
+      const response = await axios.post('/api/waitlist/create', {
+        scheduleId: selectedSchedule.value.scheduleId
+      }, { headers: { Authorization: `Bearer ${token}` } })
+
+      if (response.data.code === 200) {
+        showAppointModal.value = false
+        alert('候补成功！有号源时将自动为您预约')
+        await fetchSchedules()
+      } else {
+        alert('候补失败：' + response.data.message)
+      }
+    } else {
+      // 正常预约逻辑
+      const response = await axios.post('/api/patient/appointment/create', {
         scheduleId: selectedSchedule.value.scheduleId,
         appointmentTypeId: selectedSchedule.value.appointmentTypeId
-      },
-      {
-        headers: { Authorization: `Bearer ${token}` }
+      }, { headers: { Authorization: `Bearer ${token}` } })
+
+      if (response.data.code === 200) {
+        paymentData.value.appointmentId = response.data.data?.appointmentId
+        showAppointModal.value = false
+        showPaymentModal.value = true
+      } else {
+        alert(response.data.message)
       }
-    )
-
-    const resData = response.data
-    if (resData.code !== 200) return alert('预约失败：' + resData.message)
-
-    // 获取 appointmentId
-    const appointmentId = resData.data?.appointmentId || null
-    showAppointModal.value = false
-
-    // 弹出支付弹窗
-    paymentData.value = { appointmentId }
-    showPaymentModal.value = true
-
-    await fetchSchedules()
+    }
   } catch (err) {
-    console.error('预约失败', err)
-    alert('预约失败，请重试')
+    alert('请求失败，请重试')
   } finally {
     isSubmitting.value = false
   }
 }
 
-/* =============================== 页面初始化 =============================== */
-function updateNavHeight() {
-  if (navRef.value?.$el) navHeight.value = navRef.value.$el.offsetHeight + 30
-}
+const formatDate = (d) => new Date(d).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', weekday: 'short' })
+const formatFullDate = (d) => new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
+const calculateProgressPercentage = (s) => (s.bookedSlots / s.maxSlots) * 100
+const getStatusText = (s) => s.availableSlots === 0 ? '可候补' : (s.status === 'open' ? '可预约' : '未开放')
 
-function handleResize() {
-  updateNavHeight()
-}
+function updateNavHeight() { if (navRef.value?.$el) navHeight.value = navRef.value.$el.offsetHeight + 30 }
 
-onMounted(async () => {
-  await nextTick()
+onMounted(() => {
   updateNavHeight()
-  window.addEventListener('resize', handleResize)
-  // 并行加载医生信息与排班信息
-  await Promise.all([fetchDoctorInfo(), fetchSchedules()])
+  window.addEventListener('resize', updateNavHeight)
+  fetchDoctorInfo()
+  fetchSchedules()
 })
 
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
-})
+onUnmounted(() => window.removeEventListener('resize', updateNavHeight))
 </script>
 
+<style scoped>
+/* 保持原有样式，新增提示状态样式 */
+.notice-state {
+  flex-direction: column;
+  color: #ff9800;
+  background: #fff8e1;
+  padding: 40px;
+  border-radius: 12px;
+  border: 1px dashed #ffe082;
+}
+</style>
 
 
 <style scoped>

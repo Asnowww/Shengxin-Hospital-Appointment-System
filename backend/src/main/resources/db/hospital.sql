@@ -5,6 +5,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS doctor_bio_update_request;
 DROP TABLE IF EXISTS doctor_leaves;
 DROP TABLE IF EXISTS schedules;
+DROP TABLE IF EXISTS appointment_relations;
 DROP TABLE IF EXISTS appointments;
 DROP TABLE IF EXISTS waitlist;
 DROP TABLE IF EXISTS payments;
@@ -16,6 +17,10 @@ DROP TABLE IF EXISTS appointment_audit;
 DROP TABLE IF EXISTS appointment_rules;
 DROP TABLE IF EXISTS user_verifications;
 DROP TABLE IF EXISTS schedule_exceptions;
+DROP TABLE IF EXISTS chat_message;
+DROP TABLE IF EXISTS medical_records;
+DROP TABLE IF EXISTS booking_warnings;
+DROP TABLE IF EXISTS banned_users;
 
 -- 再删除主表（父表）
 DROP TABLE IF EXISTS doctors;
@@ -24,6 +29,7 @@ DROP TABLE IF EXISTS consultation_rooms;
 DROP TABLE IF EXISTS departments;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS appointment_types;
+DROP TABLE IF EXISTS chat_session;
 
 -- 恢复外键检查
 SET FOREIGN_KEY_CHECKS = 1;
@@ -163,6 +169,7 @@ CREATE TABLE doctor_leaves (
                                doctor_id BIGINT NOT NULL COMMENT '请假的医生ID，关联 doctors 表',
                                from_date DATE NOT NULL COMMENT '请假开始日期',
                                to_date DATE NOT NULL COMMENT '请假结束日期',
+                               schedule_ids VARCHAR(255) NULL COMMENT '逗号分隔请假排班ID',
                                reason VARCHAR(255) COMMENT '请假原因说明',
                                status ENUM('pending','approved','rejected') DEFAULT 'pending' COMMENT '请假状态：pending=待审核, approved=批准, rejected=拒绝',
                                applied_by BIGINT COMMENT '提交请假申请的用户ID（通常是医生本人）',
@@ -211,7 +218,7 @@ CREATE TABLE waitlist (
                           patient_id BIGINT NOT NULL,
                           requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                           priority INT DEFAULT 0 COMMENT '优先级：可基于报销级别/紧急程度/先到先得',
-                          status ENUM('waiting','notified','converted','cancelled') DEFAULT 'waiting' COMMENT '等待中,已通知可挂号,已转正式挂号,取消候补',
+                          status ENUM('waiting','failed','converted','cancelled','processing') DEFAULT 'waiting' COMMENT '等待中,候补失败,已转正式挂号,取消候补,正在转正',
                           notified_at DATETIME,
                           converted_appointment_id BIGINT COMMENT '对应正式挂号id',
                           FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE,
@@ -349,3 +356,116 @@ CREATE TABLE medical_records (
                                  FOREIGN KEY (doctor_id) REFERENCES doctors(doctor_id),
                                  FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id)
 ) COMMENT='患者病历表';
+
+CREATE TABLE if not exists chat_session (
+                                            id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+                                            doctor_id       BIGINT NOT NULL,
+                                            patient_id      BIGINT NOT NULL,
+                                            appointment_id  BIGINT NULL,
+                                            status          ENUM('active', 'closed') DEFAULT 'active',
+                                            created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                            updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+                                            INDEX idx_doctor_id (doctor_id),
+                                            INDEX idx_patient_id (patient_id),
+                                            INDEX idx_appointment_id (appointment_id),
+                                            INDEX idx_status (status),
+
+                                            CONSTRAINT fk_chat_session_doctor
+                                                FOREIGN KEY (doctor_id) REFERENCES doctors(doctor_id),
+
+                                            CONSTRAINT fk_chat_session_patient
+                                                FOREIGN KEY (patient_id) REFERENCES patients(patient_id),
+
+                                            CONSTRAINT fk_chat_session_appointment
+                                                FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id)
+)COMMENT='会话记录表';;
+
+CREATE TABLE if NOT EXISTS chat_message (
+                                            id             BIGINT PRIMARY KEY AUTO_INCREMENT,
+                                            session_id     BIGINT NOT NULL,
+                                            sender_type    ENUM('doctor', 'patient', 'system') NOT NULL,
+                                            sender_id      BIGINT NOT NULL,
+                                            content        TEXT NULL,
+                                            content_type   ENUM('text', 'image', 'file') NOT NULL DEFAULT 'text',
+                                            file_url       VARCHAR(500) NULL,
+                                            is_read        BOOLEAN NOT NULL DEFAULT FALSE,
+                                            created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+                                            INDEX idx_session_created (session_id, created_at),
+                                            INDEX idx_sender (sender_type, sender_id),
+                                            INDEX idx_is_read (is_read),
+
+                                            CONSTRAINT fk_chat_message_session
+                                                FOREIGN KEY (session_id) REFERENCES chat_session(id)
+                                                    ON DELETE CASCADE
+)COMMENT='会话具体消息表';;
+
+CREATE TABLE appointment_relations (
+                                       id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+
+                                       source_appointment_id BIGINT NOT NULL COMMENT '源预约ID（被取消/被变更的预约）',
+                                       target_appointment_id BIGINT NOT NULL COMMENT '目标预约ID（自动创建或自动分配的新预约）',
+
+                                       relation_type VARCHAR(50) NOT NULL COMMENT '关联类型，例如 AUTO_REASSIGN、FOLLOWUP 等',
+                                       remark VARCHAR(255) DEFAULT NULL COMMENT '备注信息',
+
+                                       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                                       created_by BIGINT DEFAULT NULL COMMENT '操作人（后台管理员ID或系统ID）',
+
+    -- 索引
+                                       INDEX idx_source_appointment (source_appointment_id),
+                                       INDEX idx_target_appointment (target_appointment_id),
+                                       INDEX idx_relation_type (relation_type),
+
+    -- 外键（启用外键可选，如果正式环境会对预约数据进行归档或分区，建议使用逻辑约束即可）
+                                       CONSTRAINT fk_relation_source_app
+                                           FOREIGN KEY (source_appointment_id) REFERENCES appointments(appointment_id)
+                                               ON DELETE RESTRICT ON UPDATE CASCADE,
+
+                                       CONSTRAINT fk_relation_target_app
+                                           FOREIGN KEY (target_appointment_id) REFERENCES appointments(appointment_id)
+                                               ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='预约关联表，用于记录自动改约、随访预约等关联关系';
+
+ALTER TABLE users
+    ADD COLUMN booking_status ENUM('enabled', 'disabled') DEFAULT 'disabled'
+    COMMENT '预约状态：enabled-可预约，disabled-禁止预约';
+
+CREATE TABLE IF NOT EXISTS booking_warnings (
+                                                warning_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '警告ID',
+                                                patient_id BIGINT NOT NULL COMMENT '患者ID',
+                                                warning_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '警告时间',
+                                                reason VARCHAR(255) COMMENT '警告原因',
+                                                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                                FOREIGN KEY (patient_id) REFERENCES patients(patient_id),
+                                                INDEX idx_patient_time(patient_id, warning_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抢号警告记录表';
+
+CREATE TABLE IF NOT EXISTS banned_users (
+                                            ban_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '禁用记录ID',
+                                            user_id BIGINT NOT NULL COMMENT '用户ID',
+                                            patient_id BIGINT NOT NULL COMMENT '患者ID',
+                                            ban_type ENUM('no_show', 'frequent_cancel', 'frequent_booking') NOT NULL
+                                                COMMENT '禁用类型：no_show-爽约，frequent_cancel-频繁取消，frequent_booking-频繁抢号',
+                                            ban_reason VARCHAR(500) COMMENT '禁用原因详细描述',
+                                            ban_start_time DATETIME NOT NULL COMMENT '禁用开始时间',
+                                            ban_duration_weeks INT NOT NULL COMMENT '禁用时长（周）',
+                                            ban_end_time DATETIME NOT NULL COMMENT '禁用结束时间（自动计算）',
+                                            is_active BOOLEAN DEFAULT TRUE COMMENT '是否当前生效（FALSE表示已解禁）',
+                                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                                            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                                            FOREIGN KEY (user_id) REFERENCES users(user_id),
+                                            FOREIGN KEY (patient_id) REFERENCES patients(patient_id),
+                                            INDEX idx_user_active(user_id, is_active),
+                                            INDEX idx_end_time(ban_end_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='禁止预约用户表';
+
+DROP INDEX idx_patient_status_visit ON appointments;
+CREATE INDEX idx_patient_status_visit ON appointments(patient_id, appointment_status, visit_time);
+
+DROP INDEX idx_patient_status_booking ON appointments;
+CREATE INDEX idx_patient_status_booking ON appointments(patient_id, appointment_status, booking_time);
+
+DROP INDEX idx_patient_booking ON appointments;
+CREATE INDEX idx_patient_booking ON appointments(patient_id, booking_time);

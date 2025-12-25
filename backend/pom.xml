@@ -46,6 +46,11 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
+		<!-- AOP for audit logging -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-aop</artifactId>
+		</dependency>
 		<!--		mybatis-plus-->
 		<dependency>
 			<groupId>com.baomidou</groupId>
@@ -102,13 +107,21 @@
 			<version>1.2.20</version>
 			<!--  或其他稳定版本  -->
 		</dependency>
-		<!--		图形验证码-->
+
+<!--websocket配置-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
+        <!--		图形验证码-->
 		<dependency>
 			<groupId>com.github.whvcse</groupId>
 			<artifactId>easy-captcha</artifactId>
 			<version>1.6.2</version>
 		</dependency>
-	</dependencies>
+
+    </dependencies>
 	<build>
 		<plugins>
 			<plugin>

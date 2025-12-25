@@ -1,71 +1,133 @@
 <template>
-  <div class="consultation-container">
-    <div class="chat-window">
-      <div class="chat-header">
-        <h2>智能问诊助手</h2>
-        <p>请描述您的症状，我将为您提供初步分析和挂号建议。</p>
-      </div>
-      
-      <div class="messages" ref="messagesContainer">
-        <div v-for="(msg, index) in messages" :key="index" :class="['message', msg.role]">
-          <div class="avatar">
-            <span v-if="msg.role === 'model'">🤖</span>
-            <span v-else>👤</span>
+  <Navigation ref="navRef" />
+  <div class="page-container" :style="{ paddingTop: navHeight + 'px' }">
+    <div class="consultation-wrapper">
+      <div class="chat-window">
+        <!-- Header -->
+        <div class="chat-header">
+          <button class="back-btn" @click="goBack" title="返回">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+          </button>
+          <div class="header-content">
+            <h2>智能问诊助手</h2>
+            <p>描述您的症状，AI 智能助手为您提供专业分诊建议</p>
           </div>
-          <div class="content">
-            <div v-if="msg.loading" class="typing-indicator">
-              <span></span><span></span><span></span>
+        </div>
+        
+        <!-- Messages Area -->
+        <div class="messages" ref="messagesContainer">
+          <div v-for="(msg, index) in messages" :key="index" :class="['message-row', msg.role]">
+            <div class="avatar">
+              <span v-if="msg.role === 'model'">🤖</span>
+              <span v-else>👤</span>
             </div>
-            <div v-else v-html="formatMessage(msg.content)"></div>
-            
-            <!-- 显示报告卡片 -->
-            <div v-if="msg.report" class="report-card">
-              <h3>问诊报告</h3>
-              <div class="report-content">{{ msg.report }}</div>
-              <div class="recommendation">
-                <strong>推荐科室：</strong> {{ msg.department }}
+            <div class="message-content">
+              <!-- Loading Indicator -->
+              <div v-if="msg.loading" class="typing-indicator">
+                <span></span><span></span><span></span>
               </div>
-              <button @click="goToRegistration(msg.department)" class="action-btn">
-                去挂号
-              </button>
+              <!-- Text Content -->
+              <div v-else class="bubble" v-html="formatMessage(msg.content)"></div>
+              
+              <!-- Report Card (Only for model) -->
+              <div v-if="msg.report" class="report-card">
+                <div class="report-header">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                  <span>分析报告</span>
+                </div>
+                <div class="report-body">{{ msg.report }}</div>
+                <div class="recommendation-section">
+                  <div class="rec-label">推荐科室</div>
+                  <div class="rec-value">{{ msg.department }}</div>
+                </div>
+                <button @click="goToRegistration(msg.department)" class="action-btn">
+                  立即挂号
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="input-area">
-        <textarea 
-          v-model="userInput" 
-          @keydown.enter.prevent="sendMessage"
-          placeholder="请输入您的症状..."
-          :disabled="isLoading"
-        ></textarea>
-        <button @click="sendMessage" :disabled="isLoading || !userInput.trim()">
-          发送
-        </button>
+        <!-- Input Area -->
+        <div class="input-area">
+          <div class="input-wrapper">
+            <textarea 
+              v-model="userInput" 
+              @keydown.enter.prevent="sendMessage"
+              placeholder="请详细描述您的症状，例如：头痛持续三天，伴有恶心..."
+              :disabled="isLoading"
+              rows="1"
+              ref="textareaRef"
+              @input="autoResize"
+            ></textarea>
+            <button class="send-btn" @click="sendMessage" :disabled="isLoading || !userInput.trim()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
-import { marked } from 'marked' // Assuming marked is available or we can use simple formatting
+import Navigation from '@/components/Navigation.vue'
 
 const router = useRouter()
 const messages = ref([
   { 
     role: 'model', 
-    content: '您好！我是智能问诊助手。请告诉我您哪里不舒服？' 
+    content: '您好！我是您的智能健康助手。请告诉我您哪里不舒服？我会协助您进行初步分诊。' 
   }
 ])
 const userInput = ref('')
 const isLoading = ref(false)
 const messagesContainer = ref(null)
+const textareaRef = ref(null)
 
-// Scroll to bottom
+// Navigation handling
+const navRef = ref(null)
+const navHeight = ref(80)
+
+function updateNavHeight() {
+  if (navRef.value && navRef.value.$el) {
+    navHeight.value = navRef.value.$el.offsetHeight
+  }
+}
+
+function handleResize() {
+  updateNavHeight()
+}
+
+onMounted(async () => {
+  await nextTick()
+  updateNavHeight()
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
+
+const goBack = () => {
+  router.back()
+}
+
+// Auto resize textarea
+const autoResize = () => {
+  const el = textareaRef.value
+  if (el) {
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+  }
+}
+
 const scrollToBottom = async () => {
   await nextTick()
   if (messagesContainer.value) {
@@ -73,42 +135,42 @@ const scrollToBottom = async () => {
   }
 }
 
-// Format message (simple markdown support)
 const formatMessage = (content) => {
-  // If marked is not installed, fallback to simple replacement
-  // For now, let's assume simple text with newlines
   return content.replace(/\n/g, '<br>')
 }
 
 const sendMessage = async () => {
+  const token = localStorage.getItem('token')
   if (!userInput.value.trim() || isLoading.value) return
 
   const text = userInput.value
   userInput.value = ''
+  if (textareaRef.value) textareaRef.value.style.height = 'auto' // Reset height
   
-  // Add user message
   messages.value.push({ role: 'user', content: text })
   scrollToBottom()
 
-  // Add loading state
   isLoading.value = true
   messages.value.push({ role: 'model', content: '', loading: true })
   scrollToBottom()
 
   try {
-    // Prepare history for API
     const history = messages.value
       .filter(m => !m.loading && m.content)
-      .slice(0, -2) // Exclude the just added user message and the loading message
+      .slice(0, -2)
       .map(m => ({ role: m.role, content: m.content }))
 
     const response = await axios.post('http://localhost:8443/api/consultation/chat', {
       message: text,
       history: history
+    },
+    {
+      headers: token
+        ? { Authorization: `Bearer ${token}` }
+        : {}
     })
 
-    // Remove loading message
-    messages.value.pop()
+    messages.value.pop() // Remove loading
 
     const data = response.data
     const aiMsg = {
@@ -121,8 +183,8 @@ const sendMessage = async () => {
     
   } catch (error) {
     console.error('Chat error:', error)
-    messages.value.pop() // Remove loading
-    messages.value.push({ role: 'model', content: '抱歉，我遇到了一些问题，请稍后再试。' })
+    messages.value.pop()
+    messages.value.push({ role: 'model', content: '抱歉，服务暂时不可用，请稍后再试。' })
   } finally {
     isLoading.value = false
     scrollToBottom()
@@ -130,205 +192,302 @@ const sendMessage = async () => {
 }
 
 const goToRegistration = (departmentName) => {
-  // Navigate to department list or specific department if possible
-  // For now, go to department list
   router.push({ path: '/department', query: { recommend: departmentName } })
 }
 </script>
 
 <style scoped>
-.consultation-container {
+.page-container {
+  min-height: 100vh;
+  background-color: #f3f4f6;
   display: flex;
   justify-content: center;
-  padding: 20px;
-  height: calc(100vh - 80px); /* Adjust based on nav height */
-  background-color: #f5f7fa;
-  margin-top: 80px;
+  box-sizing: border-box;
+}
+
+.consultation-wrapper {
+  width: 100%;
+  max-width: 900px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--nav-height, 80px) - 40px); /* Slightly shorter */
 }
 
 .chat-window {
-  width: 100%;
-  max-width: 800px;
+  flex: 1;
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border: 1px solid rgba(229, 231, 235, 1);
 }
 
 .chat-header {
-  padding: 20px;
-  background-color: #EFE7DC;
-  border-bottom: 1px solid #eee;
-  text-align: center;
+  padding: 16px 24px;
+  background: white; /* Clean white header */
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
 }
 
-.chat-header h2 {
-  margin: 0 0 8px 0;
-  color: #333;
+.back-btn {
+  background: #f3f4f6;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #4b5563;
+  transition: all 0.2s;
 }
 
-.chat-header p {
+.back-btn:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.header-content h2 {
   margin: 0;
-  color: #666;
-  font-size: 14px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.header-content p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #6b7280;
 }
 
 .messages {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 24px;
+  background-color: #f9fafb;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
-.message {
+.message-row {
   display: flex;
   gap: 12px;
-  max-width: 80%;
+  max-width: 85%;
 }
 
-.message.user {
+.message-row.user {
   align-self: flex-end;
   flex-direction: row-reverse;
 }
 
-.message.model {
-  align-self: flex-start;
-}
-
 .avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: #eee;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background-color: #e5e7eb;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20px;
   flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
-.message.user .avatar {
-  background-color: #007bff;
+.message-row.model .avatar {
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+}
+
+.message-row.user .avatar {
+  background-color: #3b82f6;
   color: white;
 }
 
-.message.model .avatar {
-  background-color: #F1D06F;
+.message-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
 }
 
-.content {
+.message-row.user .message-content {
+  align-items: flex-end;
+}
+
+.bubble {
   padding: 12px 16px;
   border-radius: 12px;
-  background-color: #f8f9fa;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.6;
   position: relative;
+  word-wrap: break-word;
+  max-width: 100%;
 }
 
-.message.user .content {
-  background-color: #007bff;
-  color: white;
-  border-top-right-radius: 2px;
-}
-
-.message.model .content {
+.message-row.model .bubble {
   background-color: white;
-  border: 1px solid #eee;
-  border-top-left-radius: 2px;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  border-top-left-radius: 4px;
 }
 
+.message-row.user .bubble {
+  background-color: #3b82f6;
+  color: white;
+  border: 1px solid #2563eb;
+  border-top-right-radius: 4px;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+}
+
+/* Report Card Styling */
 .report-card {
-  margin-top: 12px;
-  padding: 12px;
-  background-color: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 8px;
+  margin-top: 4px;
+  background: white;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  width: 280px;
 }
 
-.report-card h3 {
-  margin: 0 0 8px 0;
-  font-size: 16px;
-  color: #0369a1;
-}
-
-.report-content {
+.report-header {
+  background: #eff6ff;
+  padding: 10px 16px;
+  color: #1e40af;
+  font-weight: 600;
   font-size: 14px;
-  color: #334155;
-  margin-bottom: 12px;
-  white-space: pre-wrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid #dbeafe;
 }
 
-.recommendation {
+.report-body {
+  padding: 12px 16px;
   font-size: 14px;
-  color: #0c4a6e;
-  margin-bottom: 12px;
+  color: #4b5563;
+  line-height: 1.5;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.recommendation-section {
+  padding: 12px 16px;
+  background: #f8fafc;
+}
+
+.rec-label {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.rec-value {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 15px;
 }
 
 .action-btn {
-  background-color: #0ea5e9;
-  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  background: #fff;
   border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
+  border-top: 1px solid #e2e8f0;
+  color: #2563eb;
+  font-weight: 600;
   font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
 .action-btn:hover {
-  background-color: #0284c7;
+  background: #f1f5f9;
 }
 
+/* Input Area */
 .input-area {
   padding: 20px;
-  border-top: 1px solid #eee;
+  background: white;
+  border-top: 1px solid #f3f4f6;
+}
+
+.input-wrapper {
   display: flex;
   gap: 12px;
-  background-color: white;
+  background: #f9fafb;
+  padding: 8px 8px 8px 16px;
+  border-radius: 24px;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s;
+  align-items: flex-end;
+}
+
+.input-wrapper:focus-within {
+  background: white;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 textarea {
   flex: 1;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  background: transparent;
+  border: none;
+  padding: 8px 0;
   resize: none;
-  height: 50px;
+  max-height: 120px;
   font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #1f2937;
 }
 
 textarea:focus {
   outline: none;
-  border-color: #007bff;
 }
 
-button {
-  padding: 0 24px;
-  background-color: #007bff;
+.send-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #3b82f6;
   color: white;
   border: none;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  flex-shrink: 0;
 }
 
-button:disabled {
-  background-color: #ccc;
+.send-btn:hover:not(:disabled) {
+  background: #2563eb;
+  transform: scale(1.05);
+}
+
+.send-btn:disabled {
+  background: #d1d5db;
   cursor: not-allowed;
 }
 
-button:not(:disabled):hover {
-  background-color: #0056b3;
-}
-
+/* Animations */
 .typing-indicator span {
   display: inline-block;
-  width: 6px;
-  height: 6px;
-  background-color: #ccc;
+  width: 5px;
+  height: 5px;
+  background-color: #9ca3af;
   border-radius: 50%;
   margin: 0 2px;
   animation: bounce 1.4s infinite ease-in-out;
@@ -340,5 +499,19 @@ button:not(:disabled):hover {
 @keyframes bounce {
   0%, 80%, 100% { transform: scale(0); }
   40% { transform: scale(1); }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .consultation-wrapper {
+    padding: 0;
+    height: calc(100vh - var(--nav-height, 60px));
+  }
+  
+  .chat-window {
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+  }
 }
 </style>

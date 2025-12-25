@@ -3,9 +3,11 @@ package org.example.backend.service.impl;
 import org.example.backend.mapper.AppointmentMapper;
 import org.example.backend.mapper.PaymentMapper;
 import org.example.backend.mapper.RefundMapper;
+import org.example.backend.mapper.ScheduleMapper;
 import org.example.backend.pojo.Appointment;
 import org.example.backend.pojo.Payments;
 import org.example.backend.pojo.Refunds;
+import org.example.backend.pojo.Schedule;
 import org.example.backend.service.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,9 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Autowired
     private AppointmentMapper appointmentMapper;
+
+    @Autowired
+    private ScheduleMapper scheduleMapper;
 
     /**
      * 创建支付记录
@@ -50,26 +55,64 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public boolean markPaymentSuccess(Long paymentId, String tradeNo) {
+
         Payments payment = paymentMapper.selectById(paymentId);
         if (payment == null) {
             return false;
         }
 
+        // 幂等：已成功的不再处理
+        if ("success".equals(payment.getStatus())) {
+            return true;
+        }
+
+        // 1. 更新支付记录
         payment.setStatus("success");
         payment.setTradeNo(tradeNo);
         payment.setPaidAt(LocalDateTime.now());
         paymentMapper.updateById(payment);
 
-        // 同步更新挂号记录的支付状态
-        Appointment appointment = appointmentMapper.selectById(payment.getAppointmentId());
-        if (appointment != null) {
-            appointment.setPaymentStatus("paid");
-            appointment.setAppointmentStatus("booked"); // 已支付即视为挂号成功
-            appointmentMapper.updateById(appointment);
+        // 2. 查询预约记录
+        Appointment appointment =
+                appointmentMapper.selectById(payment.getAppointmentId());
+        if (appointment == null) {
+            throw new RuntimeException("关联的预约记录不存在");
         }
+
+        // 幂等：只有 pending 才能转 booked
+        if (!"pending".equals(appointment.getAppointmentStatus())) {
+            return true;
+        }
+//
+//        // 3. 扣减号源（关键修复点）
+        Schedule schedule =
+                scheduleMapper.selectById(appointment.getScheduleId());
+//        if (schedule == null) {
+//            throw new RuntimeException("排班不存在");
+//        }
+//
+//        if (schedule.getAvailableSlots() <= 0) {
+//            throw new RuntimeException("号源不足，无法完成挂号");
+//        }
+//
+//        schedule.setAvailableSlots(schedule.getAvailableSlots() - 1);
+//        schedule.setUpdatedAt(LocalDateTime.now());
+//        scheduleMapper.updateById(schedule);
+
+        // 4. 生成最终 queueNumber（现在才是稳定的）
+        int currentPaidCount = appointmentMapper.countPaidAppointments(appointment.getScheduleId());
+        appointment.setQueueNumber(currentPaidCount + 1);
+
+
+        // 5. 更新预约状态
+        appointment.setPaymentStatus("paid");
+        appointment.setAppointmentStatus("booked");
+        appointment.setUpdatedAt(LocalDateTime.now());
+        appointmentMapper.updateById(appointment);
 
         return true;
     }
+
 
     /**
      * 标记支付失败

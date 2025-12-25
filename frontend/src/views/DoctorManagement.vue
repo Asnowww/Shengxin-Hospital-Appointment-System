@@ -2,52 +2,7 @@
   <Navigation ref="navRef" />
   <div class="page-container" :style="{ paddingTop: navHeight + 'px' }">
     <div class="profile-layout">
-      <aside class="sidebar">
-        <div class="sidebar-header">
-          <div class="avatar">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"></path>
-            </svg>
-          </div>
-          <h3>管理员中心</h3>
-        </div>
-
-        <nav class="sidebar-nav">
-          <router-link to="/admin/profile" class="nav-item" :class="{ active: $route.path === '/admin/profile' }">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            <span>个人信息</span>
-          </router-link>
-
-          <router-link to="/admin/schedules" class="nav-item" :class="{ active: $route.path === '/admin/schedules' }">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            <span>排班管理</span>
-          </router-link>
-
-          <router-link to="/admin/leaves" class="nav-item" :class="{ active: $route.path === '/admin/leaves' }">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            <span>请假审批</span>
-          </router-link>
-
-          <router-link to="/admin/doctors" class="nav-item" :class="{ active: $route.path === '/admin/doctors' }">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-            <span>医生管理</span>
-          </router-link>
-        </nav>
-      </aside>
+      <AdminSidebar />
 
       <main class="main-content">
         <div class="doctor-management">
@@ -86,6 +41,13 @@
 
                 <transition name="fade">
                   <div v-show="dropdownVisible" class="select-options">
+                    <div 
+                      class="dept-option all-depts" 
+                      :class="{ selected: !filters.department }"
+                      @click.stop="clearDeptFilter"
+                    >
+                      全部科室
+                    </div>
                     <div v-for="dept in departments" :key="dept.deptId" class="dept-group">
                       <div class="dept-group-title">{{ dept.deptName }}</div>
                       <div 
@@ -134,7 +96,7 @@
               <div class="th-doctorId">工号</div>
               <div class="th-dept">科室</div>
               <div class="th-title">职称</div>
-              <div class="th-status">状态</div>
+              <div class="th-status">就职状态</div>
               <div class="th-actions">操作</div>
             </div>
 
@@ -156,42 +118,42 @@
                 <div class="td-dept"><span class="department-badge">{{ doc.departmentName || getDepartmentName(doc.department) }}</span></div>
                 <div class="td-title">{{ doc.title || '-' }}</div>
                 <div class="td-status">
-                  <span :class="['status-badge', doc.enabled ? 'active' : 'disabled']">{{ doc.enabled ? '启用' : '停用' }}</span>
+                  <span :class="['status-badge', doc.status]">{{ getStatusLabel(doc.status) }}</span>
                 </div>
                 <div class="td-actions">
                   <button class="action-btn view-btn" title="查看" @click="viewDoctor(doc)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                       <circle cx="12" cy="12" r="3"></circle>
                     </svg>
+                    <span>查看</span>
                   </button>
                   <button class="action-btn edit-btn" title="编辑" @click="editDoctor(doc)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                     </svg>
+                    <span>编辑</span>
                   </button>
                   <button class="action-btn reset-btn" title="重置密码" @click="resetPassword(doc)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <circle cx="12" cy="12" r="3"></circle>
                       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .69-.28 1.32-.73 1.77A2.5 2.5 0 0 1 19.4 15z"></path>
                     </svg>
+                    <span>重置密码</span>
                   </button>
-                  <button class="action-btn status-btn" :title="doc.enabled ? '停用' : '启用'" @click="toggleStatus(doc)">
-                    <svg v-if="doc.enabled" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <line x1="18" y1="6" x2="6" y2="18"></line>
-                      <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </button>
-                  <button class="action-btn delete-btn" title="删除" @click="removeDoctor(doc)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                  </button>
+
+                  <button
+  class="action-btn status-btn"
+  :class="doc.accountStatus === 'verified' ? 'enabled' : 'disabled'"
+  @click="toggleAccountStatus(doc)"
+>
+  <span>
+    {{ doc.accountStatus === 'verified' ? '已启用' : '已停用' }}
+  </span>
+</button>
+
+
                 </div>
               </div>
             </div>
@@ -202,6 +164,17 @@
                   显示第 {{ ((pagination.pageNum - 1) * pagination.pageSize) + 1 }} - {{ Math.min(pagination.pageNum * pagination.pageSize, pagination.total) }} 条，共 {{ pagination.total }} 条
               </div>
               <div class="pagination-buttons">
+                  <div class="jump-container">
+                    <span>跳至</span>
+                    <input 
+                      v-model="jumpPage" 
+                      type="text" 
+                      class="jump-input" 
+                      @keyup.enter="jumpToPage"
+                    />
+                    <span>页</span>
+                    <button class="jump-btn" @click="jumpToPage">确定</button>
+                  </div>
                   <button 
                       :disabled="pagination.pageNum === 1" 
                       @click="handlePageChange(pagination.pageNum - 1)" 
@@ -234,13 +207,20 @@
     :departments="departments"
     @success="handleEditSuccess"
   />
+
+  <DoctorDetailModal 
+    v-model="showDetailModal" 
+    :doctor="selectedDoctorDetail" 
+  />
 </template>
 
 <script setup>
 import { reactive, ref, onMounted, onUnmounted, nextTick } from 'vue'
 import Navigation from '@/components/Navigation.vue'
+import AdminSidebar from '@/components/AdminSidebar.vue'
 import CreateDocAccount from '@/components/CreateDocAccount.vue'
 import EditDoctorModal from '@/components/EditDoctorModal.vue'
+import DoctorDetailModal from '@/components/DoctorDetailModal.vue'
 import axios from 'axios'
 
 const navRef = ref(null)
@@ -260,10 +240,14 @@ const pagination = reactive({
   total: 0, // 总记录数
   totalPages: 0, // 总页数
 })
+const jumpPage = ref('')
 
 // 编辑相关状态
 const showEditModal = ref(false)
 const editingDoctor = ref(null)
+
+const showDetailModal = ref(false)
+const selectedDoctorDetail = ref(null)
 
 const filters = reactive({
   department: '',
@@ -273,6 +257,45 @@ const filters = reactive({
 function toggleDropdown() {
   dropdownVisible.value = !dropdownVisible.value
 }
+
+
+
+
+//更改账号本身状态
+async function toggleAccountStatus(doc) {
+  const isEnabled = doc.accountStatus === 'verified'
+  const nextStatus = isEnabled ? 'unverified' : 'verified'
+
+  const actionText = isEnabled ? '停用' : '启用'
+
+  if (!confirm(`确定要${actionText}医生【${doc.name}】的账号吗？`)) {
+    return
+  }
+
+  try {
+    const token = localStorage.getItem('token')
+
+    const { data } = await axios.put(
+      `/api/admin/doctors/update/account_status/${doc.id}`,
+      null,
+      {
+        params: { doctorId: doc.id, account_status: nextStatus },
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      }
+    )
+
+    if (data.code === 200) {
+      doc.accountStatus = nextStatus
+      alert(`${actionText}成功`)
+    } else {
+      alert(data.message || `${actionText}失败`)
+    }
+  } catch (e) {
+    console.error('更新账号状态失败', e)
+    alert('请求失败，请稍后重试')
+  }
+}
+
 
 function selectChild(child) {
   selectedDeptId.value = child.deptId
@@ -286,6 +309,15 @@ function selectChild(child) {
 
 function closeDropdown() {
   dropdownVisible.value = false
+}
+
+function clearDeptFilter() {
+  selectedDeptId.value = ''
+  selectedDeptName.value = '全部科室'
+  filters.department = ''
+  dropdownVisible.value = false
+  pagination.pageNum = 1
+  fetchDoctors()
 }
 
 async function fetchDepartments() {
@@ -339,8 +371,8 @@ async function fetchDoctors() {
         email: d.email,
         specialty: d.specialty,
         bio: d.bio,
-        // 根据后端字段判断状态，确保逻辑不变
-        enabled: (d.doctorStatus === 'active') && (d.userStatus === 'verified')
+        status: d.doctorStatus || 'active',
+        accountStatus:d.userStatus || 'verified'
       }))
       
       // 更新分页状态
@@ -389,6 +421,16 @@ function handlePageChange(newPage) {
   }
 }
 
+function jumpToPage() {
+  const page = parseInt(jumpPage.value)
+  if (!isNaN(page) && page > 0 && page <= pagination.totalPages) {
+    handlePageChange(page)
+    jumpPage.value = ''
+  } else {
+    alert(`请输入 1 到 ${pagination.totalPages} 之间的有效页码`)
+  }
+}
+
 // 保持不变：查找科室名称的逻辑 (如果需要)
 function getDepartmentName(deptId) {
     // 假设这个函数遍历 departments 查找名称，如果不需要可以移除
@@ -404,8 +446,14 @@ async function viewDoctor(doc) {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
     if (data && data.code === 200) {
-      const detail = data.data
-      alert(`医生详情\n姓名：${detail.username}\n科室：${detail.deptName || ''}\n职称：${detail.title || ''}\n状态：${detail.doctorStatus || ''}`)
+      selectedDoctorDetail.value = {
+        ...data.data,
+        id: data.data.doctorId,
+        name: data.data.username,
+        status: data.data.doctorStatus,
+        departmentName: data.data.deptName // 确保外部组件能正确获取科室名
+      }
+      showDetailModal.value = true
     }
   } catch (e) {
     alert('获取医生详情失败')
@@ -436,31 +484,43 @@ async function resetPassword(doc) {
   }
 }
 
-async function toggleStatus(doctor) {
-  const token = localStorage.getItem('token')
-  const newStatus = doctor.enabled ? 'rejected' : 'verified'
-
-  try {
-    const { data } = await axios.put(
-      `/api/admin/doctors/status/${doctor.id}`,
-      null,
-      {
-        params: { status: newStatus },
-        headers: { Authorization: `Bearer ${token}` }
-      }
-    )
-
-    if (data.code === 200) {
-      doctor.enabled = !doctor.enabled
-      alert(data.message)
-    } else {
-      alert(data.message || '操作失败')
-    }
-  } catch (e) {
-    console.error('更新医生状态失败', e)
-    alert('请求出错')
+function getStatusLabel(status) {
+  const labels = {
+    'active': '在职',
+    'on-leave': '休假',
+    'retired': '退休'
   }
+  return labels[status] || status
 }
+
+// async function cycleStatus(doctor) {
+//   const statusCycle = ['active', 'on-leave', 'retired']
+//   const currentIndex = statusCycle.indexOf(doctor.status)
+//   const nextStatus = statusCycle[(currentIndex + 1) % statusCycle.length]
+  
+//   const token = localStorage.getItem('token')
+
+//   try {
+//     const { data } = await axios.put(
+//       `/api/admin/doctors/status/${doctor.id}`,
+//       null,
+//       {
+//         params: { status: nextStatus },
+//         headers: { Authorization: `Bearer ${token}` }
+//       }
+//     )
+
+//     if (data.code === 200) {
+//       doctor.status = nextStatus
+//       alert(`状态已更新为：${getStatusLabel(nextStatus)}`)
+//     } else {
+//       alert(data.message || '操作失败')
+//     }
+//   } catch (e) {
+//     console.error('更新医生状态失败', e)
+//     alert('请求出错')
+//   }
+// }
 
 async function removeDoctor(doc) {
   alert('后端暂未提供删除接口，无法删除该医生账号')
@@ -497,6 +557,7 @@ onUnmounted(() => {
 .page-container {
   min-height: 100vh;
 }
+
 /* ---------------------------------- */
 /* 新增：分页控制样式 */
 /* ---------------------------------- */
@@ -786,30 +847,48 @@ onUnmounted(() => {
 .doctor-table { 
   padding-bottom: 1.5rem; /* 在列表下方增加一些间隔 */
 }
-.table-header { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 0.8fr 1.5fr; gap: 1rem; padding: 1rem; background: #f7fafc; border-radius: 10px; font-weight: 600; color: #4a5568; font-size: 0.9rem; }
-.table-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 0.8fr 1.5fr; gap: 1rem; padding: 1rem; background: white; border: 2px solid #e2e8f0; border-radius: 10px; align-items: center; transition: all 0.3s; }
+.table-header { display: grid; grid-template-columns: 1fr 0.8fr 1fr 1fr 0.8fr 2.5fr; gap: 1rem; padding: 1rem; background: #f7fafc; border-radius: 10px; font-weight: 600; color: #4a5568; font-size: 0.9rem; }
+.table-row { display: grid; grid-template-columns: 1fr 0.8fr 1fr 1fr 0.8fr 2.5fr; gap: 1rem; padding: 1rem; background: white; border: 2px solid #e2e8f0; border-radius: 10px; align-items: center; transition: all 0.3s; margin-bottom: 0; }
 .table-row:hover { border-color: #f093fb; box-shadow: 0 2px 8px rgba(240, 147, 251, 0.2); }
-.table-row {
-    margin-bottom: 0;
-}
+.table-header > div, .table-row > div { text-align: left; display: flex; align-items: center; justify-content: flex-start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-actions { flex-wrap: wrap; white-space: normal; }
 .doctor-name { font-weight: 600; color: #2d3748; }
 .department-badge { display: inline-block; padding: 0.25rem 0.75rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #fff; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
 
 .status-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; text-align: center; }
 .status-badge.active { background: #d4edda; color: #28a745; }
-.status-badge.disabled { background: #ffe6e6; color: #d93025; }
+.status-badge.on-leave { background: #fff3cd; color: #856404; }
+.status-badge.retired { background: #f8d7da; color: #721c24; }
 
-.td-actions { display: flex; gap: 0.5rem; justify-content: center; }
-.action-btn { width: 32px; height: 32px; border: none; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s ease; }
+.td-actions { display: flex; gap: 0.5rem; justify-content: flex-start; align-items: center; flex-wrap: wrap; }
+.action-btn { 
+    height: 32px; 
+    padding: 0 0.5rem;
+    border: none; 
+    border-radius: 8px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 0.25rem;
+    cursor: pointer; 
+    transition: all 0.3s ease; 
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.action-btn span { display: inline; }
 .view-btn { background: #e3f2fd; color: #2196f3; }
 .view-btn:hover { background: #2196f3; color: #fff; }
 .edit-btn { background: #fff3e0; color: #ff9800; }
 .edit-btn:hover { background: #ff9800; color: #fff; }
-.action-btn.reset-btn { background: #ede7f6; color: #673ab7; }
+.action-btn.reset-btn { background: #ede7f6; color: #673ab7; width: auto; }
 .action-btn.reset-btn:hover { background: #673ab7; color: #fff; }
-.status-btn { background: #f1f8e9; color: #689f38; }
-.status-btn:hover { background: #689f38; color: #fff; }
-.delete-btn { background: #ffebee; color: #f44336; }
+
+.status-btn.enabled { background: #f1f8e9; color: #689f38; }
+.status-btn.enabled:hover { background: #689f38; color: #fff; }
+.status-btn.disabled {background: #fff1f0;   color: #cf1322;        }
+.status-btn.disabled:hover {background: #cf1322;color: #fff;}
+
+.delete-btn { background: #ffebee; color: #f44336; width: 32px; padding: 0; }
 .delete-btn:hover { background: #f44336; color: #fff; }
 
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; color: #a0aec0; }
@@ -998,7 +1077,7 @@ onUnmounted(() => {
 @media (max-width: 1024px) {
   .profile-layout { padding: 1.5rem; gap: 1.5rem; }
   .sidebar { width: 240px; }
-  .table-header, .table-row { grid-template-columns: 1.2fr 1fr 1fr 1fr 0.8fr 1.6fr; }
+  .table-header, .table-row { grid-template-columns: 1fr 0.8fr 1fr 1fr 0.8fr 2.5fr; }
 }
 
 @media (max-width: 768px) {
@@ -1021,4 +1100,9 @@ onUnmounted(() => {
     padding: 1.5rem;
   }
 }
+.jump-container { display: flex; align-items: center; gap: 0.5rem; margin-right: 1rem; font-size: 0.9rem; color: #4a5568; }
+.jump-input { width: 45px; height: 32px; border: 2px solid #e2e8f0; border-radius: 6px; text-align: center; font-size: 0.9rem; transition: all 0.3s; }
+.jump-input:focus { outline: none; border-color: #f5576c; box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.1); }
+.jump-btn { padding: 4px 10px; height: 32px; background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem; font-weight: 600; color: #4a5568; cursor: pointer; transition: all 0.3s; }
+.jump-btn:hover { background: #edf2f7; border-color: #cbd5e0; color: #2d3748; }
 </style>

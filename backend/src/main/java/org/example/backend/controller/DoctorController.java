@@ -1,12 +1,11 @@
 package org.example.backend.controller;
 
-
 import jakarta.annotation.Resource;
 import org.example.backend.dto.DoctorVO;
 import org.example.backend.dto.Result;
+import org.example.backend.service.OnlineStatusService;
 import org.example.backend.mapper.DoctorBioUpdateRequestMapper;
 import org.example.backend.mapper.DoctorMapper;
-import org.example.backend.pojo.Doctor;
 import org.example.backend.service.DoctorAccountService;
 import org.example.backend.service.DoctorService;
 import org.springframework.web.bind.annotation.*;
@@ -29,13 +28,15 @@ public class DoctorController {
     @Resource
     private DoctorBioUpdateRequestMapper requestMapper;
 
+    @Resource
+    private OnlineStatusService onlineStatusService;
+
     // 查询所有医生
     @GetMapping("/list")
     public Result<List<DoctorVO>> getAllDoctors() {
         List<DoctorVO> doctors = doctorService.getAllDoctorsWithNameAndDept();
         return Result.success(doctors);
     }
-
 
     // 根据 ID 查询医生详情
     @GetMapping("/{id}")
@@ -61,7 +62,6 @@ public class DoctorController {
         }
     }
 
-
     /**
      * 修改医生信息
      * 前端：在医生信息编辑页面，提交修改表单。
@@ -78,6 +78,23 @@ public class DoctorController {
             return Result.error("修改失败：" + e.getMessage());
         }
     }
+    /**
+     * 医生修改自己的信息
+     */
+    @PutMapping("/{doctorId}/update-contact")
+    public Result<String> updateDoctorInfoBySelf(
+            @PathVariable Long doctorId,
+            @RequestBody DoctorVO doctorVO) {
+        try {
+
+            doctorVO.setDoctorId(doctorId);
+            doctorService.updateDoctorInfoBySelf(doctorVO);
+            return Result.success("修改成功");
+        } catch (RuntimeException e) {
+            return Result.error("修改失败：" + e.getMessage());
+        }
+    }
+
 
     /**
      * 删除医生
@@ -103,10 +120,15 @@ public class DoctorController {
             return Result.error("科室ID不能为空");
         }
         List<DoctorVO> doctors = doctorService.getDoctorVOByDeptId(deptId);
+        // 注入实时在线状态
+        for (DoctorVO doctor : doctors) {
+            boolean online = onlineStatusService.isDoctorOnline(doctor.getDoctorId());
+            doctor.setOnlineStatus(online ? "online" : "offline");
+        }
         return Result.success(doctors);
     }
 
-    //---医生端---//
+    // ---医生端---//
     /**
      * 医生提交修改擅长领域的申请
      */
@@ -121,4 +143,3 @@ public class DoctorController {
     }
 
 }
-

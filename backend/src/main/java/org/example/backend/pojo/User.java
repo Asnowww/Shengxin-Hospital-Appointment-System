@@ -38,4 +38,7 @@ public class User {
     public String getName() {
         return username;
     }
+
+    @TableField("booking_status")
+    private String bookingStatus;
 }

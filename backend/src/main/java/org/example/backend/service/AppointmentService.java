@@ -18,11 +18,11 @@ public interface AppointmentService {
 
     /**
      * 创建预约（患者端挂号）
+     * 
      * @param param 预约参数
      * @return 创建的预约对象
      */
     Appointment createAppointmentByPatient(AppointmentCreateParam param);
-
 
     /**
      * 根据患者ID查询所有预约
@@ -42,7 +42,7 @@ public interface AppointmentService {
     /**
      * 取消预约
      */
-    boolean cancelAppointment(Long appointmentId, Long patientId);
+    boolean cancelAppointment(Long appointmentId, Long patientId, Integer cancelType);
 
     // === 医生端 ===
     /**
@@ -77,6 +77,7 @@ public interface AppointmentService {
 
     /**
      * 叫号
+     * 
      * @param appointmentId 预约ID
      * @return 是否成功
      */
@@ -84,6 +85,7 @@ public interface AppointmentService {
 
     /**
      * 修改预约（改期、改时间段）
+     * 
      * @param param 修改参数
      * @return 是否修改成功
      */
@@ -93,6 +95,7 @@ public interface AppointmentService {
     /**
      *
      * 支付挂号订单
+     * 
      * @param appointmentId
      * @param patientId
      * @param method
@@ -100,12 +103,11 @@ public interface AppointmentService {
      */
     boolean payAppointment(Long appointmentId, Long patientId, String method);
 
-
-
     /**
      * 验证预约是否可以修改
+     * 
      * @param appointmentId 预约ID
-     * @param patientId 患者ID
+     * @param patientId     患者ID
      * @return 是否可修改
      */
     boolean canUpdateAppointment(Long appointmentId, Long patientId);
@@ -123,10 +125,41 @@ public interface AppointmentService {
 
     /**
      * 通过返回的appointmentId，计算对应号别和患者的报销比例
+     * 
      * @param appointmentId 挂号id
      * @return 实际支付费用
      */
     Result<Object> calculateFee(Long appointmentId);
 
     BigDecimal computeFinalFee(AppointmentType type, Patient patient);
+
+    /**
+     * 患者确认系统自动分配的替代预约
+     * 
+     * @param targetAppointmentId 新建的预约ID
+     * @param patientId           患者ID
+     */
+    void confirmReassignedAppointment(Long targetAppointmentId, Long patientId);
+
+    /**
+     * 患者确认知晓无替代排班的取消
+     * 
+     * @param appointmentId 预约ID（waiting_patient_action）
+     * @param patientId     患者ID
+     */
+    void acknowledgeCancelledAppointment(Long appointmentId, Long patientId);
+
+    /**
+     * 患者拒绝系统自动改期的新预约
+     * 
+     * @param targetAppointmentId 新建预约ID
+     * @param patientId           患者ID
+     */
+    void rejectReassignedAppointment(Long targetAppointmentId, Long patientId);
+
+    /**
+     * 统计请假审批时，受影响的预约人数
+     * 只用于审批通过时冻结受影响人数
+     */
+    int countAffectedAppointments(String scheduleIds);
 }

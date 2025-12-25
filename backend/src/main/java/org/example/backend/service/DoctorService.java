@@ -10,14 +10,19 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface DoctorService extends IService<Doctor> {
-    List<DoctorVO> getAllDoctorsWithNameAndDept() ;
+    List<DoctorVO> getAllDoctorsWithNameAndDept();
+
     List<DoctorVO> getDoctorVOByDeptId(Integer deptId);
 
     DoctorVO getDoctorById(Long userId);
+
     DoctorVO getDoctorByDoctorId(Long doctorId);
+
     void addDoctor(DoctorVO doctorVO);
+
     void updateDoctorInfo(DoctorVO doctorVO);
 
+    void updateDoctorInfoBySelf(DoctorVO doctorVO);
     List<DoctorWorkloadStats> getDoctorWorkloadStats(LocalDate startDate, LocalDate endDate);
 
     List<DoctorAttendanceStats> getDoctorAttendanceStats(LocalDate startDate, LocalDate endDate);

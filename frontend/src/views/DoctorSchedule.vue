@@ -6,12 +6,12 @@
       <!-- 页面标题 -->
       <div class="header-section">
         <h1>排班管理</h1>
-        <button @click="showAdjustDialog" class="adjust-btn">
+        <button @click="goToLeaveApplication" class="adjust-btn">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
             <polyline points="12 6 12 12 16 14"></polyline>
           </svg>
-          申请调整出诊时间
+          申请请假
         </button>
       </div>
 
@@ -37,67 +37,100 @@
 
       <!-- 排班列表 -->
       <div v-else class="schedule-content">
-        <!-- 今日排班 -->
+        <!-- ================= 今日排班（多排班） ================= -->
         <div v-if="activeDate === 'today'" class="schedule-section">
-          <div class="schedule-info-card">
-            <div class="info-row">
-              <span class="label">出诊日期：</span>
-              <span class="value">{{ todaySchedule.date }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">出诊时间：</span>
-              <span class="value">{{ todaySchedule.timeRange }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">预约患者：</span>
-              <span class="value highlight">{{ todaySchedule.patients.length }} 人</span>
-            </div>
-          </div>
 
-          <!-- 患者列表 -->
-          <div class="patients-section">
-            <h3>预约患者列表</h3>
-            <div v-if="todaySchedule.patients.length === 0" class="empty-state">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-              <p>今日暂无患者预约</p>
+          <div
+            v-for="schedule in todaySchedules"
+            :key="schedule.scheduleId"
+            class="schedule-block"
+          >
+            <!-- 排班信息 -->
+            <div class="schedule-info-card">
+              <div class="info-row">
+                <span class="label">出诊日期：</span>
+                <span class="value">{{ schedule.date }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">出诊时间：</span>
+                <span class="value">{{ schedule.timeRange }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">预约患者：</span>
+                <span class="value highlight">
+                  {{ schedule.patients.length }} 人
+                </span>
+              </div>
             </div>
-            <div v-else class="patients-list">
-              <div 
-                v-for="patient in todaySchedule.patients" 
-                :key="patient.id"
-                class="patient-card"
-                @click="showPatientDetail(patient)">
-                <div class="patient-header">
-                  <div class="patient-basic">
-                    <h4>{{ patient.name }}</h4>
-                    <span :class="['status-badge', patient.status]">
-                      {{ getStatusText(patient.status) }}
+
+            <!-- 患者列表 -->
+            <div class="patients-section">
+              <h3>预约患者列表</h3>
+
+              <div
+                v-if="schedule.patients.length === 0"
+                class="empty-state"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <p>该时间段暂无患者预约</p>
+              </div>
+
+              <div v-else class="patients-list">
+                <div
+                  v-for="patient in schedule.patients"
+                  :key="patient.appointmentId"
+                  class="patient-card"
+                  @click="showPatientDetail(patient)"
+                >
+                  <div class="patient-header">
+                    <div class="patient-basic">
+                      <h4>{{ patient.name }}</h4>
+                      <span :class="['status-badge', patient.status]">
+                        {{ getStatusText(patient.status) }}
+                      </span>
+                    </div>
+                    <span class="appointment-time">
+                      {{ patient.appointmentTime }}
                     </span>
                   </div>
-                  <span class="appointment-time">{{ patient.appointmentTime }}</span>
-                </div>
-                <div class="patient-info">
-                  <div class="info-item">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
-                    <span>{{ patient.gender }} / {{ patient.age }}岁</span>
+
+                  <div class="patient-info">
+                    <div class="info-item">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                      </svg>
+                      <span>{{ patient.gender }} / {{ patient.age }}岁</span>
+                    </div>
                   </div>
-                </div>
-                <div v-if="patient.hasVisited" class="history-tag">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                  </svg>
-                  曾就诊患者
+
+                  <div v-if="patient.hasVisited" class="history-tag">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                      viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    曾就诊患者
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+
+          <div
+            v-if="todaySchedules.length === 0"
+            class="empty-state"
+          >
+            <p>今日暂无排班</p>
+          </div>
+          </div>
 
         <!-- 未来排班 -->
         <div v-else class="schedule-section">
@@ -158,6 +191,9 @@
                   <button @click="viewScheduleDetail(schedule)" class="view-btn primary">
                     查看详情
                   </button>
+                  <button @click="showLeaveDialog(schedule)" class="view-btn leave-btn">
+                    请假
+                  </button>
                 </div>
               </div>
             </div>
@@ -168,7 +204,11 @@
 
     <!-- 患者详情弹窗 -->
     <transition name="modal">
-      <div v-if="showPatientModal" class="modal-overlay" @click.self="closePatientModal">
+      <div
+        v-if="showPatientModal"
+        class="modal-overlay patient-modal-overlay"
+        @click.self="closePatientModal"
+      >
         <div class="modal-container">
           <button @click="closePatientModal" class="close-btn">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -230,13 +270,25 @@
                   </div>
                   <div class="history-content">
                     <div class="history-row">
+                      <span class="history-label">主诉：</span>
+                      <span class="history-value">{{ visit.illness }}</span>
+                    </div>
+
+                    <div class="history-row">
                       <span class="history-label">诊断：</span>
                       <span class="history-value">{{ visit.diagnosis }}</span>
                     </div>
-                    <div v-if="visit.notes" class="history-row">
-                      <span class="history-label">备注：</span>
-                      <span class="history-value">{{ visit.notes }}</span>
+
+                    <div class="history-row">
+                      <span class="history-label">治疗：</span>
+                      <span class="history-value">{{ visit.treatment }}</span>
                     </div>
+
+                    <div class="history-row">
+                      <span class="history-label">医嘱：</span>
+                      <span class="history-value">{{ visit.advice }}</span>
+                    </div>
+
                   </div>
                 </div>
               </div>
@@ -295,7 +347,8 @@
                 <div 
                   v-for="patient in detailPatients" 
                   :key="patient.id"
-                  class="patient-card compact">
+                  class="patient-card compact"
+                  @click="showPatientDetail(patient)">
                   <div class="patient-header">
                     <div class="patient-basic">
                       <h4>{{ patient.name }}</h4>
@@ -385,13 +438,87 @@
         </div>
       </div>
     </transition>
+
+    <!-- 请假弹窗 -->
+    <transition name="modal">
+      <div v-if="showLeaveModal" class="modal-overlay" @click.self="closeLeaveModal">
+        <div class="modal-container">
+          <button @click="closeLeaveModal" class="close-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+
+          <div class="modal-header">
+            <h2>申请请假</h2>
+            <p class="subtitle">请填写请假原因</p>
+          </div>
+
+          <form @submit.prevent="submitLeaveRequest" class="modal-body">
+            <div class="form-group">
+              <label>排班信息</label>
+              <div class="schedule-info-display">
+                <div class="info-display-row">
+                  <span class="info-label">日期：</span>
+                  <span class="info-value">{{ leaveForm.scheduleDate }}</span>
+                </div>
+                <div class="info-display-row">
+                  <span class="info-label">时间：</span>
+                  <span class="info-value">{{ leaveForm.scheduleTime }}</span>
+                </div>
+                <div v-if="leaveForm.patientCount > 0" class="info-display-row warning">
+                  <span class="info-label">已预约：</span>
+                  <span class="info-value">{{ leaveForm.patientCount }} 人</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>请假事由 <span class="required">*</span></label>
+              <textarea 
+                v-model="leaveForm.reason" 
+                class="form-input"
+                rows="4"
+                placeholder="请输入请假原因"
+                required
+              ></textarea>
+            </div>
+
+            <div v-if="leaveForm.patientCount > 0" class="warning-box">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              <div>
+                <strong>注意：</strong>该排班已有 {{ leaveForm.patientCount }} 位患者预约，
+                请假申请通过后，这些患者需要重新安排就诊时间
+              </div>
+            </div>
+
+            <div class="button-group">
+              <button type="button" @click="closeLeaveModal" class="cancel-btn">
+                取消
+              </button>
+              <button type="submit" class="submit-btn" :disabled="submittingLeave">
+                {{ submittingLeave ? '提交中...' : '提交申请' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import Navigation from '@/components/Navigation.vue'
 import axios from 'axios'
+
+const router = useRouter()
 
 const navRef = ref(null)
 const navHeight = ref(110)
@@ -422,6 +549,16 @@ const adjustForm = ref({
   patientCount: 0
 })
 
+const showLeaveModal = ref(false)
+const submittingLeave = ref(false)
+const leaveForm = ref({
+  scheduleId: null,
+  scheduleDate: '',
+  scheduleTime: '',
+  patientCount: 0,
+  reason: ''
+})
+
 const showScheduleModal = ref(false)
 const detailSchedule = ref({
   date: '',
@@ -431,15 +568,23 @@ const detailSchedule = ref({
 })
 const detailPatients = ref([])
 const detailLoading = ref(false)
+const todaySchedules = ref([])
+
 
 const minDate = computed(() => {
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  return tomorrow.toISOString().split('T')[0]
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 })
 
 function formatInputDate(date) {
-  return date.toISOString().split('T')[0]
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 function addDays(date, days) {
@@ -479,7 +624,8 @@ function mapAppointmentStatus(status) {
   if (status === 'completed') return 'completed'
   if (status === 'missed' || status === 'no_show') return 'missed'
   if (status === 'cancelled' || status === 'refunded') return 'cancelled'
-  if (status === 'pending') return 'pending'
+  if (status === 'pending' || status === 'pending_patient_confirm' || status === 'waiting_patient_action') return 'pending'
+  if (status === 'booked') return 'waiting'
   return 'confirmed'
 }
 
@@ -488,11 +634,13 @@ function transformPatients(patients, slotName) {
   return patients.map(p => {
     const status = mapAppointmentStatus(p.appointmentStatus)
     return {
-      id: p.appointmentId || p.patientId,
+      // id: p.appointmentId || p.patientId,
+      appointmentId: p.appointmentId,   // ✅ 明确
+      patientId: p.patientId,           // ✅ 明确
       name: p.patientName || '患者',
       gender: p.gender === 'M' ? '男' : (p.gender === 'F' ? '女' : '未知'),
       age: p.age ?? '--',
-      appointmentTime: buildAppointmentTime(p.bookingTime, slotName, p.queueNumber),
+      appointmentTime: buildAppointmentTime(p.timeSlot, slotName, p.queueNumber),
       status,
       hasVisited: status === 'completed',
       visitHistory: []
@@ -501,12 +649,27 @@ function transformPatients(patients, slotName) {
 }
 
 function calculatePatientCount(schedule) {
-  if (typeof schedule?.bookedSlots === 'number') return schedule.bookedSlots
-  if (typeof schedule?.maxSlots === 'number' && typeof schedule?.availableSlots === 'number') {
+  // ✅ 最高优先级：患者列表
+  if (Array.isArray(schedule?.patients)) {
+    return schedule.patients.length
+  }
+
+  // 次优先：后端直接给的已预约数
+  if (typeof schedule?.bookedSlots === 'number') {
+    return schedule.bookedSlots
+  }
+
+  // 最后兜底：号源 - 剩余
+  if (
+    typeof schedule?.maxSlots === 'number' &&
+    typeof schedule?.availableSlots === 'number'
+  ) {
     return Math.max(schedule.maxSlots - schedule.availableSlots, 0)
   }
+
   return 0
 }
+
 
 function sortByTimeSlot(a, b) {
   return (a?.timeSlot ?? 0) - (b?.timeSlot ?? 0)
@@ -558,19 +721,43 @@ async function fetchTodaySchedule() {
       fetchPatientSchedules(todayStr)
     ])
 
-    const candidate = [...patientSchedules].sort(sortByTimeSlot)[0]
-      || (scheduleList.length ? { ...scheduleList.sort(sortByTimeSlot)[0], patients: [] } : null)
+    // 以 scheduleId 为准，优先用 patientSchedules
+    const scheduleMap = new Map()
 
-    if (!candidate) {
-      todaySchedule.value = { date: '', timeRange: '', patients: [], scheduleId: null }
-      return
-    }
+    // 先放入带 patients 的排班
+    patientSchedules.forEach(item => {
+      scheduleMap.set(item.scheduleId, {
+        scheduleId: item.scheduleId,
+        date: buildDateLabel(item.workDate),
+        timeSlot: item.timeSlot,
+        timeRange: item.timeSlotName || formatTimeSlot(item.timeSlot),
+        patients: transformPatients(
+          item.patients || [],
+          item.timeSlotName || formatTimeSlot(item.timeSlot)
+        )
+      })
+    })
 
-    todaySchedule.value = {
-      scheduleId: candidate.scheduleId,
-      date: buildDateLabel(candidate.workDate),
-      timeRange: candidate.timeSlotName || formatTimeSlot(candidate.timeSlot),
-      patients: transformPatients(candidate.patients || [], candidate.timeSlotName || formatTimeSlot(candidate.timeSlot))
+    // 再补充没有患者的排班
+    scheduleList.forEach(item => {
+      if (!scheduleMap.has(item.scheduleId)) {
+        scheduleMap.set(item.scheduleId, {
+          scheduleId: item.scheduleId,
+          date: buildDateLabel(item.workDate),
+          timeSlot: item.timeSlot,
+          timeRange: item.timeSlotName || formatTimeSlot(item.timeSlot),
+          patients: []
+        })
+      }
+    })
+
+    // 转成数组并排序（上午 → 下午）
+    todaySchedules.value = Array.from(scheduleMap.values())
+      .sort(sortByTimeSlot)
+
+    // 没有排班兜底
+    if (todaySchedules.value.length === 0) {
+      todaySchedules.value = []
     }
   } catch (err) {
     loadError.value = err?.response?.data?.message || err?.message || '获取今日排班失败'
@@ -622,6 +809,26 @@ async function fetchFutureSchedules() {
   }
 }
 
+// 获取患者就诊历史
+async function fetchPatientHistory(patientId) {
+  const headers = token.value
+    ? { Authorization: `Bearer ${token.value}` }
+    : {}
+
+  const { data } = await axios.get(
+    `/api/doctor/medical-record/history/${patientId}`,
+    { headers }
+  )
+
+  if (data?.code !== 200) {
+    throw new Error(data?.message || '获取就诊历史失败')
+  }
+  console.log('history param =', patientId, 'selectedPatient=', selectedPatient.value)
+
+
+  return Array.isArray(data.data) ? data.data : []
+}
+
 // 获取状态文案
 function getStatusText(status) {
   const map = {
@@ -630,15 +837,41 @@ function getStatusText(status) {
     completed: '已完成',
     cancelled: '已取消',
     missed: '已过号',
-    pending: '待支付'
+    pending: '待确认/支付'
   }
   return map[status] || '未知'
 }
 
 // 显示患者详情
-function showPatientDetail(patient) {
-  selectedPatient.value = patient
+async function showPatientDetail(patient) {
+  // 先展示基础信息
+  selectedPatient.value = {
+    ...patient,
+    visitHistory: []   // 先清空，避免上一个患者残留
+  }
   showPatientModal.value = true
+
+  try {
+    const history = await fetchPatientHistory(patient.patientId)
+
+    // 映射成前端需要的结构
+    selectedPatient.value.visitHistory = history.map(item => ({
+      date: item.createdAt?.slice(0, 10) || '—',
+      diagnosis: item.diagnosis || '—',
+      illness: item.presentIllness || '—',
+      treatment: item.treatment || '—',
+      advice: item.doctorAdvice || '—',
+      notes: item.notes || ''
+    }))
+
+    // 如果有历史，标记为曾就诊
+    selectedPatient.value.hasVisited =
+      selectedPatient.value.visitHistory.length > 0
+
+  } catch (err) {
+    console.error('获取就诊历史失败', err)
+    alert(err.message || '获取就诊历史失败')
+  }
 }
 
 // 关闭患者详情
@@ -686,6 +919,93 @@ function viewScheduleDetail(schedule) {
 function closeScheduleModal() {
   showScheduleModal.value = false
 }
+
+// 跳转到请假申请界面
+function goToLeaveApplication() {
+  router.push('/doctor/leave/apply')
+}
+
+// 显示请假弹窗
+function showLeaveDialog(schedule) {
+  leaveForm.value = {
+    scheduleId: schedule.scheduleId,
+    scheduleDate: schedule.date,
+    scheduleTime: schedule.timeRange,
+    patientCount: schedule.patientCount,
+    reason: ''
+  }
+  showLeaveModal.value = true
+}
+
+// 关闭请假弹窗
+function closeLeaveModal() {
+  showLeaveModal.value = false
+  leaveForm.value = {
+    scheduleId: null,
+    scheduleDate: '',
+    scheduleTime: '',
+    patientCount: 0,
+    reason: ''
+  }
+}
+
+// 提交请假申请
+async function submitLeaveRequest() {
+  const reason = leaveForm.value.reason?.trim()
+  if (!reason) {
+    alert('请输入请假事由')
+    return
+  }
+
+  const scheduleId = Number(leaveForm.value.scheduleId)
+  if (!scheduleId || Number.isNaN(scheduleId)) {
+    alert('排班信息错误，请重试')
+    return
+  }
+
+  const uid = Number(userId.value)
+  if (!uid) {
+    alert('无法识别用户，请重新登录')
+    return
+  }
+
+  const payload = {
+    userId: uid,
+    scheduleIds: [scheduleId],
+    reason
+  }
+
+  const headers = token.value
+    ? { Authorization: `Bearer ${token.value}` }
+    : {}
+
+  try {
+    submittingLeave.value = true
+
+    const res = await axios.post(
+      '/api/doctor/schedules/leave/apply',
+      payload,
+      { headers }
+    )
+
+    if (res.data?.code && res.data.code !== 200) {
+      alert(res.data.message || '提交失败，请重试')
+      return
+    }
+
+    alert('请假申请已提交，请等待审批')
+    closeLeaveModal()
+    await fetchFutureSchedules()
+
+  } catch (err) {
+    console.error('提交请假申请失败', err)
+    alert(err?.response?.data?.message || '提交失败，请重试')
+  } finally {
+    submittingLeave.value = false
+  }
+}
+
+
 
 // 显示调整时间弹窗
 function showAdjustDialog() {
@@ -925,7 +1245,7 @@ h1 {
 }
 
 .patient-card.compact {
-  cursor: default;
+  cursor: pointer;
 }
 
 .patient-card:hover {
@@ -1236,8 +1556,14 @@ h1 {
   font-size: 0.9rem;
 }
 
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
 .view-btn {
-  align-self: center;
   padding: 0.5rem 1rem;
   background: #f7fafc;
   border: 1px solid #e2e8f0;
@@ -1263,6 +1589,18 @@ h1 {
 
 .view-btn.primary:hover {
   box-shadow: 0 10px 30px rgba(76, 111, 255, 0.25);
+}
+
+.view-btn.leave-btn {
+  background: #fff5f5;
+  border-color: #fc8181;
+  color: #c53030;
+}
+
+.view-btn.leave-btn:hover {
+  background: #fed7d7;
+  border-color: #fc8181;
+  box-shadow: 0 4px 12px rgba(197, 48, 48, 0.2);
 }
 
 /* 弹窗样式 */
@@ -1299,6 +1637,16 @@ h1 {
   padding: 1rem;
   z-index: 1000;
   backdrop-filter: blur(4px);
+}
+
+/* 二级弹窗：患者详情 */
+.patient-modal-overlay {
+  z-index: 1100; /* 一定要高于排班详情 */
+}
+
+.patient-modal-overlay .modal-container {
+  position: relative;
+  z-index: 1101;
 }
 
 .modal-container {
@@ -1482,6 +1830,43 @@ h1 {
   font-weight: 600;
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
+}
+
+.required {
+  color: #e53e3e;
+}
+
+.schedule-info-display {
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.info-display-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.info-display-row:last-child {
+  margin-bottom: 0;
+}
+
+.info-display-row.warning {
+  color: #c53030;
+}
+
+.info-label {
+  color: #718096;
+  font-weight: 500;
+  min-width: 60px;
+}
+
+.info-value {
+  color: #2d3748;
+  font-weight: 600;
 }
 
 .form-input {

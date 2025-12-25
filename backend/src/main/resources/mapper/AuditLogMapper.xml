@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.example.backend.mapper.AuditLogMapper">
+
+    <!-- 分页查询 -->
+    <select id="selectPageList"
+            resultType="org.example.backend.pojo.AuditLog">
+
+        SELECT
+        log_id        AS logId,
+        user_id       AS userId,
+        action,
+        resource_type AS resourceType,
+        resource_id   AS resourceId,
+        message,
+        ip,
+        created_at    AS createdAt
+        FROM logs
+
+        <where>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+
+            <if test="action != null and action != ''">
+                AND action = #{action}
+            </if>
+
+            <if test="resourceType != null and resourceType != ''">
+                AND resource_type = #{resourceType}
+            </if>
+
+            <if test="resourceId != null">
+                AND resource_id = #{resourceId}
+            </if>
+
+            <if test="startTime != null">
+                AND created_at <![CDATA[ >= ]]> #{startTime}
+            </if>
+
+            <if test="endTime != null">
+                AND created_at <![CDATA[ <= ]]> #{endTime}
+            </if>
+        </where>
+
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 统计总数 -->
+    <select id="countPageList" resultType="long">
+
+        SELECT COUNT(1)
+        FROM logs
+
+        <where>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+
+            <if test="action != null and action != ''">
+                AND action = #{action}
+            </if>
+
+            <if test="resourceType != null and resourceType != ''">
+                AND resource_type = #{resourceType}
+            </if>
+
+            <if test="resourceId != null">
+                AND resource_id = #{resourceId}
+            </if>
+
+            <if test="startTime != null">
+                AND created_at <![CDATA[ >= ]]> #{startTime}
+            </if>
+
+            <if test="endTime != null">
+                AND created_at <![CDATA[ <= ]]> #{endTime}
+            </if>
+        </where>
+    </select>
+
+</mapper>

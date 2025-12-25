@@ -14,6 +14,7 @@ import org.example.backend.pojo.DoctorBioUpdateRequest;
 import org.example.backend.pojo.User;
 import org.example.backend.service.DoctorService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -164,6 +165,65 @@ public class DoctorServiceImpl extends ServiceImpl<DoctorMapper, Doctor> impleme
         this.updateById(doctor);
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public void updateDoctorInfoBySelf(DoctorVO doctorVO) {
+
+        // 1. 校验医生
+        Doctor doctor = this.getById(doctorVO.getDoctorId());
+        if (doctor == null) {
+            throw new RuntimeException("医生不存在");
+        }
+
+        Long userId = doctor.getUserId();
+
+        // 2. 查询当前用户
+        User currentUser = userMapper.selectById(userId);
+        if (currentUser == null) {
+            throw new RuntimeException("用户不存在");
+        }
+
+        String newEmail = doctorVO.getEmail();
+        String oldEmail = currentUser.getEmail();
+
+        // 3. 仅当 email 真正发生变化时，才做唯一性校验
+        if (newEmail != null && !newEmail.equals(oldEmail)) {
+
+            User exist = userMapper.selectOne(
+                    new QueryWrapper<User>()
+                            .eq("email", newEmail)
+                            .ne("user_id", userId)
+            );
+
+            if (exist != null) {
+                throw new RuntimeException("邮箱已存在");
+            }
+        }
+
+        String newPhone = doctorVO.getPhone();
+        String oldPhone = currentUser.getPhone();
+        if (newPhone != null && !newPhone.equals(oldPhone)) {
+
+            User exist = userMapper.selectOne(
+                    new QueryWrapper<User>()
+                            .eq("phone", newPhone)
+                            .ne("user_id", userId)
+            );
+
+            if (exist != null) {
+                throw new RuntimeException("手机号码已存在");
+            }
+        }
+
+        // 4. 更新 users（只用 phone / email）
+        User update = new User();
+        update.setUserId(userId);
+        update.setPhone(doctorVO.getPhone());
+        update.setEmail(newEmail);
+
+        userMapper.updateById(update);
+    }
+
 
     /**
      * 统计每个医生的工作量（排班数、预约数、空余号源数）
@@ -232,6 +292,7 @@ public class DoctorServiceImpl extends ServiceImpl<DoctorMapper, Doctor> impleme
     public DoctorVO getDoctorByDoctorId(Long doctorId) {
 
     Doctor doctor = doctorMapper.selectById(doctorId);
+    User user= userMapper.selectById(doctor.getUserId());
 
         // 3. 查询科室信息
         Department dept = departmentMapper.selectById(doctor.getDeptId());
@@ -248,23 +309,16 @@ public class DoctorServiceImpl extends ServiceImpl<DoctorMapper, Doctor> impleme
         DoctorVO vo = new DoctorVO();
         vo.setDoctorId(doctorId);
         vo.setDeptId(doctor.getDeptId());
-
-//        vo.setDoctorName(doctor : null);
+        vo.setDoctorName(user != null ? user.getUsername() : null);
         vo.setDeptName(dept != null ? dept.getDeptName() : null);
         vo.setTitle(doctor.getTitle());
         vo.setBio(doctor.getBio());
-//        vo.setStatus(user != null ? user.getStatus() : null);
+        vo.setStatus(user != null ? user.getStatus() : null);
 
         // 新增：返回最新审核状态
         // 若没有记录，则设为 null 或自定义值（例如 -1 表示无申请）
         vo.setBioStatus(latestRequest != null ? latestRequest.getStatus() : null);
 
         return vo;
-
-
     }
-
-
-
-
 }

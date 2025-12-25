@@ -6,11 +6,16 @@ import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
 import org.example.backend.dto.PatientRegisterParam;
 import org.example.backend.dto.Result;
+import org.example.backend.pojo.Doctor;
 import org.example.backend.pojo.Patient;
 import org.example.backend.pojo.User;
 import org.example.backend.service.CaptchaService;
+import org.example.backend.service.DoctorService;
+import org.example.backend.service.OnlineStatusService;
 import org.example.backend.service.PatientService;
 import org.example.backend.service.UserService;
+import org.example.backend.service.AuditLogService;
+import org.example.backend.dto.AuditLogCreateDTO;
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -18,6 +23,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -37,17 +43,26 @@ public class LoginController {
     @Resource
     private PatientService patientService;
 
+    @Resource
+    private DoctorService doctorService;
+
+    @Resource
+    private OnlineStatusService onlineStatusService;
+
+    @Resource
+    private AuditLogService auditLogService;
+
     @PostMapping("/login")
     @ResponseBody
-    public Result<Map<String, Object>> login(@RequestBody Map<String, String> loginMap) {
+    public Result<Map<String, Object>> login(@RequestBody Map<String, String> loginMap,
+            HttpServletRequest request) {
         String account = loginMap.get("account");
         String password = loginMap.get("password");
         String roleType = loginMap.get("roleType");
 
-        //验证码
+        // 验证码
         String captchaId = loginMap.get("captchaId");
         String captchaCode = loginMap.get("captchaCode");
-
 
         // ===== 1. 校验图形验证码 =====
         if (StringUtils.isAnyBlank(captchaId, captchaCode)) {
@@ -58,7 +73,6 @@ public class LoginController {
         if (!captchaValid) {
             return new Result<>(401, "验证码错误或已过期", null);
         }
-
 
         if (account == null || password == null) {
             return new Result<>(400, "账号或密码不能为空", null);
@@ -92,6 +106,13 @@ public class LoginController {
             return new Result<>(403, "账户或密码错误", null);
         }
 
+        // ===== 医生账号状态校验（status 在 user 表）=====
+        if ("doctor".equalsIgnoreCase(roleType)) {
+            if ("unverified".equalsIgnoreCase(user.getStatus())) {
+                return new Result<>(403, "您的账号已停用，请联系管理员", null);
+            }
+        }
+
         // 生成 token（UUID）
         String token = UUID.randomUUID().toString();
 
@@ -107,20 +128,35 @@ public class LoginController {
         data.put("account", user.getUserId());
         data.put("password", ""); // 返回空密码
         data.put("token", token);
-        data.put("roleType",roleType);
+        data.put("roleType", roleType);
         data.put("email", user.getEmail());
         data.put("status", user.getStatus());
 
-        // 如果是患者，查询 patientId 并返回
         if ("patient".equalsIgnoreCase(roleType)) {
             Patient patient = patientService.getOne(
                     new QueryWrapper<Patient>().lambda()
-                            .eq(Patient::getUserId, user.getUserId())
-            );
+                            .eq(Patient::getUserId, user.getUserId()));
             if (patient != null) {
                 data.put("patientId", patient.getPatientId());
+                onlineStatusService.markPatientOnline(patient.getPatientId());
+            }
+        } else if ("doctor".equalsIgnoreCase(roleType)) {
+            Doctor doctor = doctorService.getOne(new QueryWrapper<Doctor>().lambda()
+                    .eq(Doctor::getUserId, user.getUserId()));
+            if (doctor != null) {
+                data.put("doctorId", doctor.getDoctorId());
+                onlineStatusService.markDoctorOnline(doctor.getDoctorId());
             }
         }
+
+        // 审计：登录成功
+        AuditLogCreateDTO logDto = new AuditLogCreateDTO();
+        logDto.setAction("login");
+        logDto.setResourceType("auth");
+        logDto.setResourceId(user.getUserId());
+        logDto.setMessage("login role=" + roleType + " account=" + account);
+        logDto.setIp(request != null ? request.getRemoteAddr() : null);
+        auditLogService.recordLog(user.getUserId(), logDto);
 
         return new Result<>(200, "登录成功", data);
     }
@@ -168,8 +204,8 @@ public class LoginController {
         String code = hashOps.get("captcha");
 
         System.out.println("Redis key: login:email:captcha:" + email);
-        System.out.println("Redis value: " + stringRedisTemplate.opsForHash().get("login:email:captcha:" + email, "captcha"));
-
+        System.out.println(
+                "Redis value: " + stringRedisTemplate.opsForHash().get("login:email:captcha:" + email, "captcha"));
 
         if (code == null)
             return new Result<>(400, "验证码已过期或不存在", null);

@@ -40,18 +40,19 @@
     <!-- 医生列 -->
     <div class="results-column">
       <div class="column-header">
-        <h2>医生 ({{ matchedDoctors.length }})</h2>
+        <h2>医生 ({{ doctorTotal}})</h2>
       </div>
+
       <div class="column-content">
         <template v-if="matchedDoctors.length > 0">
           <div 
             v-for="doctor in matchedDoctors" 
             :key="doctor.id"
             class="result-card doctor-card"
-            @click="handleDoctorClick(doctor)">
-            
+            @click="handleDoctorClick(doctor)"
+          >
             <div class="card-avatar">{{ doctor.name.charAt(0) }}</div>
-            
+
             <div class="card-main">
               <div class="card-name">{{ doctor.name }}</div>
               <div class="card-title">{{ doctor.title }}</div>
@@ -62,11 +63,40 @@
             </div>
 
             <div class="card-arrow">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                   viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
             </div>
           </div>
+
+          <!-- ⭐ 查看更多医生 -->
+          <button
+            v-if="doctorTotal > matchedDoctors.length"
+            class="load-more-btn"
+            type="button"
+            @click="loadMoreDoctors"
+          >
+            <span>查看更多医生</span>
+            <span class="count">
+              {{ matchedDoctors.length }} / {{ doctorTotal }}
+            </span>
+
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
         </template>
 
         <div v-else class="empty-column">
@@ -176,6 +206,8 @@ const departments = ref([])
 const matchedDoctors = ref([])
 const matchedDepartments = ref([])
 const hasSearched = ref(false)
+const doctorDisplayLimit = ref(20)
+const doctorTotal = ref(0)
 
 function clearSearch() {
   searchQuery.value = ''
@@ -193,7 +225,7 @@ function truncateText(text, length) {
 let searchTimeout = null
 function handleSearch() {
   const query = searchQuery.value.trim().toLowerCase()
-  
+
   if (!query) {
     clearSearch()
     return
@@ -201,29 +233,62 @@ function handleSearch() {
 
   hasSearched.value = true
   clearTimeout(searchTimeout)
-  searchTimeout = setTimeout(async () => {
+
+  // ⭐ 只有“新搜索”才重置
+  doctorDisplayLimit.value = 20
+
+  searchTimeout = setTimeout(fetchSearchResult, 300)
+}
+
+async function fetchSearchResult() {
   loading.value = true
   try {
-    const res = await axios.get('/api/patient/search', { params: { keyword: query } })
-    const data = res.data.data || {}  // 取 data
+    const res = await axios.get('/api/patient/search', {
+      params: { keyword: searchQuery.value.trim() }
+    })
 
-    // 医生字段映射
-    matchedDoctors.value = (data.doctors || []).slice(0, 20).map((d, index) => ({
-      id: d.doctorId || '',
-      name: d.doctorName || '',
-      deptName: d.deptName || '',
-      title: d.title || '',
-      description: d.bio || ''
+    const data = res.data.data || {}
+
+    /* ===== 医生 ===== */
+    const doctors = data.doctors || []
+    doctorTotal.value = doctors.length
+
+    matchedDoctors.value = doctors
+      .slice(0, doctorDisplayLimit.value)
+      .map(d => ({
+        id: d.doctorId,
+        name: d.doctorName,
+        deptName: d.deptName,
+        title: d.title,
+        description: d.bio
+      }))
+
+    /* ===== 科室（你原来的逻辑，未动） ===== */
+    const rawDepts = data.departments || []
+
+    const matchedPrimaryDeptIds = rawDepts
+      .filter(d => !d.parentDeptId)
+      .map(d => d.deptId)
+
+    const directMatchedSubDepts = rawDepts.filter(d => d.parentDeptId)
+
+    const expandedSubDepts = departments.value
+      .filter(p => matchedPrimaryDeptIds.includes(p.id))
+      .flatMap(p => p.subDepartments || [])
+
+    const deptMap = new Map()
+    ;[...directMatchedSubDepts, ...expandedSubDepts].forEach(d => {
+      deptMap.set(d.id || d.deptId, d)
+    })
+
+    matchedDepartments.value = Array.from(deptMap.values()).map(d => ({
+      id: d.id || d.deptId,
+      deptName: d.name || d.deptName,
+      building: d.building,
+      floor: d.floor,
+      description: d.description
     }))
 
-    // 科室字段映射
-    matchedDepartments.value = (data.departments || []).slice(0, 20).map(d => ({
-      id: d.deptId,
-      deptName: d.deptName,
-      building: d.building || '',
-      floor: d.floor || '',
-      description: d.description || ''
-    }))
   } catch (err) {
     console.error('搜索失败', err)
     matchedDoctors.value = []
@@ -231,8 +296,12 @@ function handleSearch() {
   } finally {
     loading.value = false
   }
-}, 300)
+}
 
+
+function loadMoreDoctors() {
+  doctorDisplayLimit.value += 20
+  fetchSearchResult()
 }
 
 // 加载所有科室信息（仅在页面初始加载时）
@@ -475,6 +544,58 @@ h1 {
   font-weight: bold;
   font-size: 1.25rem;
   flex-shrink: 0;
+}
+
+/* 查看更多医生 */
+.load-more-btn {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+
+  border: none;
+  border-radius: 12px;
+
+  font-size: 0.9rem;
+  font-weight: 600;
+
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+/* hover */
+.load-more-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35);
+}
+
+/* 点击反馈 */
+.load-more-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.25);
+}
+
+/* 数量 */
+.load-more-btn .count {
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+/* 小箭头动画 */
+.load-more-btn svg {
+  transition: transform 0.25s ease;
+}
+
+.load-more-btn:hover svg {
+  transform: translateY(2px);
 }
 
 /* 科室卡片 */

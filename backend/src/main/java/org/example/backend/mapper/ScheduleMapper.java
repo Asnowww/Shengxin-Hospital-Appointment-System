@@ -117,4 +117,15 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
             @Param("endDate") LocalDate endDate
     );
 
+    /**
+     * 查询还有剩余号源且在有效时间的排班
+     * @return 符合条件的排班列表
+     */
+    @Select("SELECT * FROM schedules " +
+            "WHERE available_slots > 0 " +
+            "AND status = 'open' " +
+            "AND work_date >= CURDATE() " +
+            "ORDER BY work_date ASC, time_slot ASC")
+    List<Schedule> selectSchedulesWithAvailableSlots();
+
 }

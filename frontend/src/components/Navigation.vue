@@ -17,14 +17,13 @@
         智能问诊
       </router-link>
 
-      <!-- 患者端：我的候补 -->
-      <!-- <router-link
-        v-if="isLoggedIn && currentRole === 'patient'"
-        to="/waitlist/my"
-        class="nav-item"
-        :class="{ active: isActive('/waitlist/my') }">
-        我的候补
-      </router-link> -->
+      <router-link
+    v-if="isLoggedIn && currentRole === 'patient'|| isLoggedIn && currentRole === 'doctor'"
+    :to="ChatPath"
+    class="nav-item"
+    :class="{ active: isActive(ChatPath) }">
+    在线问诊
+  </router-link>
 
       <!-- 医生端：仅医生登录后显示 -->
       <router-link
@@ -75,6 +74,15 @@
         class="nav-item"
         :class="{ active: isActive('/admin/doctors') }">
         医生管理
+      </router-link>
+
+      <!-- 管理端：科室管理 -->
+      <router-link
+          v-if="isLoggedIn && currentRole === 'admin'"
+          to="/admin/departments"
+          class="nav-item"
+          :class="{ active: isActive('/admin/departments') }">
+        科室管理
       </router-link>
 
       <!-- 登录状态判断：已登录显示"个人中心"，未登录显示"登录/注册" -->
@@ -142,6 +150,17 @@ const roleRoutes = {
   admin: '/admin/profile'
 }
 
+const ChatPath = computed(() => {
+  switch (currentRole.value) {
+    case 'doctor':
+      return '/doctor/chat'
+    case 'patient':
+      return '/patient/chat'
+    default:
+      return '/home'
+  }
+})
+
 // 退出登录
 function handleLogout() {
   if (confirm('确定要退出登录吗？')) {
@@ -154,7 +173,7 @@ function handleLogout() {
     currentRole.value = null
     
     // 跳转到首页
-    router.push('/home')
+    router.push('/welcome')
     
     alert('已退出登录')
   }

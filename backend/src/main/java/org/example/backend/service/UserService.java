@@ -10,6 +10,10 @@ import org.example.backend.pojo.User;
 public interface UserService extends IService<User> {
 
     /**
+     * 查询用户状态
+     */
+    String selectStatusByUserId(Long userId);
+    /**
      * 注册用户
      * 
      * @param user 用户对象
@@ -37,10 +41,16 @@ public interface UserService extends IService<User> {
     User getOneByEmail(String email);
 
     /**
-     * 修改密码
+     * 重置密码
      * @param email
      * @param newPassword
      * @return
      */
     boolean updatePasswordByEmail(String email, String newPassword);
+
+    /**
+     *
+     * 修改密码
+     */
+    void changePassword(Long userId, String oldPassword, String newPassword);
 }

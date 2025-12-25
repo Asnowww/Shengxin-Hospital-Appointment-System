@@ -1,6 +1,7 @@
 package org.example.backend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.DoctorAccountDTO;
 import org.example.backend.dto.DoctorQueryDTO;
@@ -14,6 +15,7 @@ import org.example.backend.pojo.User;
 import org.example.backend.mapper.DoctorMapper;
 import org.example.backend.mapper.UserMapper;
 import org.example.backend.service.DoctorAccountService;
+import org.example.backend.service.UserService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -42,6 +44,9 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
     private AppointmentMapper appointmentMapper;
 
     @Autowired
+    private UserService userService;
+
+    @Autowired
     private PasswordEncoder passwordEncoder; // Spring Security 密码加密器
 
     private static final String DEFAULT_PASSWORD = "123456"; // 新账号默认密码
@@ -63,21 +68,16 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
                 queryDTO.getStatus(),
                 queryDTO.getDoctorStatus(),
                 offset,
-                queryDTO.getPageSize()
-        );
+                queryDTO.getPageSize());
 
         int total = doctorMapper.countDoctorList(
                 queryDTO.getDeptId(),
                 queryDTO.getUsername(),
                 queryDTO.getStatus(),
-                queryDTO.getDoctorStatus()
-        );
+                queryDTO.getDoctorStatus());
 
         return new PageResult<>(total, list, queryDTO.getPageNum(), queryDTO.getPageSize());
     }
-
-
-
 
     /**
      * 添加医生账号（同时创建 user 和 doctor 两张表的记录）
@@ -127,50 +127,80 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
 
         // 2. 更新 user 表中的信息（基础信息）
         User user = userMapper.selectById(doctor.getUserId());
-        if (doctorDTO.getUsername() != null) user.setUsername(doctorDTO.getUsername());
-        if (doctorDTO.getEmail() != null) user.setEmail(doctorDTO.getEmail());
-        if (doctorDTO.getGender() != null) user.setGender(doctorDTO.getGender());
+        if (doctorDTO.getUsername() != null)
+            user.setUsername(doctorDTO.getUsername());
+        if (doctorDTO.getEmail() != null)
+            user.setEmail(doctorDTO.getEmail());
+        if (doctorDTO.getPhone() != null)
+            user.setPhone(doctorDTO.getPhone());
+        if (doctorDTO.getGender() != null)
+            user.setGender(doctorDTO.getGender());
+
         user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
 
         // 3. 更新 doctor 表中的专业信息
-        if (doctorDTO.getDeptId() != null) doctor.setDeptId(doctorDTO.getDeptId());
-        if (doctorDTO.getTitle() != null) doctor.setTitle(doctorDTO.getTitle());
-        if (doctorDTO.getBio() != null) doctor.setBio(doctorDTO.getBio());
-        if (doctorDTO.getDoctorStatus() != null) doctor.setStatus(doctorDTO.getDoctorStatus());
+        if (doctorDTO.getDeptId() != null)
+            doctor.setDeptId(doctorDTO.getDeptId());
+        if (doctorDTO.getTitle() != null)
+            doctor.setTitle(doctorDTO.getTitle());
+        if (doctorDTO.getBio() != null)
+            doctor.setBio(doctorDTO.getBio());
+        if (doctorDTO.getDoctorStatus() != null)
+            doctor.setStatus(doctorDTO.getDoctorStatus());
         doctor.setUpdatedAt(LocalDateTime.now());
         doctorMapper.updateById(doctor);
     }
 
     /**
-     * 修改医生账号状态(启用 / 禁用)
+     * 修改医生账号状态(启用verified / 禁用 unverified)
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateDoctorStatus(Long doctorId, String status) {
+    public void updateDoctorAccountStatus(Long doctorId, String status) {
+
+        Doctor doctor = doctorMapper.selectById(doctorId);
+        if (doctor == null || doctor.getUserId() == null) {
+            throw new IllegalArgumentException("医生或绑定用户不存在");
+        }
+
+        LambdaUpdateWrapper<User> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(User::getUserId, doctor.getUserId())
+                .set(User::getStatus, status);
+
+        boolean success = userService.update(wrapper);
+        if (!success) {
+            throw new IllegalArgumentException("用户状态更新失败");
+        }
+    }
+
+
+    /**
+     * 修改医生账号状态 (在职 / 休假 / 退休)
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateDoctorStatus(Long doctorId, String doctorStatus) {
         // 1. 查询医生
         Doctor doctor = doctorMapper.selectById(doctorId);
         if (doctor == null) {
             throw new IllegalArgumentException("医生不存在");
         }
 
-        // 2. 更新 user 表状态(账号层面)
-        User user = userMapper.selectById(doctor.getUserId());
-        user.setStatus(status);
-        user.setUpdateTime(LocalDateTime.now());
-        userMapper.updateById(user);
+        // 2. 更新医生表状态
+        doctor.setStatus(doctorStatus);
+        doctor.setUpdatedAt(LocalDateTime.now());
+        doctorMapper.updateById(doctor);
 
-        // 3. 同步更新医生状态
-        if ("rejected".equals(status)) {
-            // 禁用账号时,标记医生为退休
-            doctor.setStatus("retired");
-            doctor.setUpdatedAt(LocalDateTime.now());
-            doctorMapper.updateById(doctor);
-        } else if ("verified".equals(status)) {
-            // 启用账号时,恢复医生为在职状态
-            doctor.setStatus("active");
-            doctor.setUpdatedAt(LocalDateTime.now());
-            doctorMapper.updateById(doctor);
+        // 3. 同步更新 user 表状态 (账号层面)
+        // 退休账号禁用，在职和休假账号启用
+        String userStatus = "retired".equals(doctorStatus) ? "rejected" : "verified";
+
+        User user = userMapper.selectById(doctor.getUserId());
+        if (user != null) {
+            user.setStatus(userStatus);
+            user.setUpdateTime(LocalDateTime.now());
+            userMapper.updateById(user);
         }
     }
 
@@ -212,15 +242,14 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
         // 校验是否有待审核记录
         Long count = requestMapper.selectCount(new QueryWrapper<DoctorBioUpdateRequest>()
                 .eq("doctor_id", doctor.getDoctorId())
-                .eq("status", "pending")
-        );
+                .eq("status", "pending"));
 
         if (count > 0) {
             throw new RuntimeException("已有修改申请正在审核中");
         }
 
         DoctorBioUpdateRequest req = new DoctorBioUpdateRequest();
-        req.setDoctorId(doctor.getDoctorId());  // 仍用 doctorId 插入关联表
+        req.setDoctorId(doctor.getDoctorId()); // 仍用 doctorId 插入关联表
         req.setOldBio(doctor.getBio());
         req.setNewBio(newBio);
         req.setStatus("pending");
@@ -228,7 +257,6 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
 
         requestMapper.insert(req);
     }
-
 
     /**
      * 管理员审核bio修改

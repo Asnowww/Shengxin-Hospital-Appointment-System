@@ -34,11 +34,17 @@ public interface ScheduleService {
     ScheduleDetailVO getScheduleDetail(Integer scheduleId);
 
     /**
+     * 批量查询排班详情
+     */
+    List<ScheduleDetailVO> getScheduleDetailsByIds(List<Integer> scheduleIds);
+
+    /**
      * 查询医生的排班列表
      */
     List<ScheduleDetailVO> getDoctorSchedules(Long userId, LocalDate startDate, LocalDate endDate);
 
     List<ScheduleDetailVO> getDoctorSchedulesByDoctorId(Long doctorId, LocalDate startDate, LocalDate endDate);
+
     /**
      * 查询科室的排班列表
      */
@@ -47,7 +53,8 @@ public interface ScheduleService {
     /**
      * 查询所有排班（管理员用，支持多条件筛选）
      */
-    List<ScheduleDetailVO> getAllSchedules(Integer deptId, Long doctorId, LocalDate startDate, LocalDate endDate, String status);
+    List<ScheduleDetailVO> getAllSchedules(Integer deptId, Long doctorId, LocalDate startDate, LocalDate endDate,
+            String status);
 
     /**
      * 临时加号

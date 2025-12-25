@@ -101,7 +101,8 @@ public class EmailAPI {
         helper.setTo(to);
         helper.setSubject(subject);
 
-        String contentHtml = "<html><body>This email contains an inline image:<img src='cid:" + rscId + "'>" + content + "</body></html>";
+        String contentHtml = "<html><body>This email contains an inline image:<img src='cid:" + rscId + "'>" + content
+                + "</body></html>";
         helper.setText(contentHtml, true);
 
         FileSystemResource res = new FileSystemResource(new File(rscPath));
