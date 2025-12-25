@@ -205,6 +205,14 @@
       :appointment-info="navigatorInfo"
       @close="navigatorVisible = false"
     />
+    <!-- 改约弹窗 -->
+    <RescheduleModal
+      :visible="rescheduleModalVisible"
+      :appointment-id="rescheduleAppointmentId"
+      :appointment-info="rescheduleInfo"
+      @close="rescheduleModalVisible = false"
+      @success="handleRescheduleSuccess"
+    />
   </div>
   
 
@@ -216,12 +224,18 @@ import axios from 'axios'
 import AppointmentRecordCard from './AppointmentRecordCard.vue'
 import Payment from './Payment.vue'
 import HospitalNavigator from './HospitalNavigator.vue'
+import RescheduleModal from './RescheduleModal.vue'
 
 const payDialogVisible = ref(false)
 const payInfo = ref({ appointmentId: null })
 const navigatorVisible = ref(false)
 const navigatorDestination = ref('')
 const navigatorInfo = ref({})
+
+// 改约弹窗状态
+const rescheduleModalVisible = ref(false)
+const rescheduleAppointmentId = ref(null)
+const rescheduleInfo = ref({})
 
 async function handlePay(record) {
   if (!record || !record.appointmentId) {
@@ -498,11 +512,23 @@ async function handleAcknowledgeCancel(record) {
     loading.value = false
   }
 }
-
-//改约
+// 改约
 function handleChangeAppointment(record) {
-  // 可添加改约逻辑
-  alert('改约功能暂未实现')
+  rescheduleAppointmentId.value = record.appointmentId
+  rescheduleInfo.value = {
+    currentDeptId: record.deptId,
+    currentDoctorName: record.doctorName,
+    currentTime: record.appointmentTime
+  }
+  rescheduleModalVisible.value = true
+}
+
+// 改约成功回调
+async function handleRescheduleSuccess() {
+  rescheduleModalVisible.value = false
+  closeDetailDrawer()
+  await fetchAppointments()
+  alert('改约成功！')
 }
 
 function openNavigator(record) {
