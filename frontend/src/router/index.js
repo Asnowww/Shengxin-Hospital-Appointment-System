@@ -57,6 +57,9 @@ const routes = [
   // AI Consultation
   { path: '/consultation', name: 'AIConsultation', component: () => import('../views/AIConsultation.vue') },
 
+  // 挂号须知
+  { path: '/patient/notice', name: 'registrationNotice', component: () => import('@/views/RegistrationNotice.vue') },
+
   { path: '/:pathMatch(.*)*', redirect: '/home' } // 其他未定义路由定向到首页
 ]
 
