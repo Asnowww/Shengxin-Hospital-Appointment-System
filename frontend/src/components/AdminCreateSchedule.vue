@@ -285,12 +285,11 @@ const visibleAppointmentTypes = computed(() => {
   const title = (selectedDoctor.title || '').trim()
   
   console.log('🔍 当前医生职称:', title)
-  console.log('📋 所有号别类型:', appointmentTypes.value.map(t => ({ name: t.typeName, key: t.typeKey })))
-
+  
   // 住院 / 主治：只允许普通号
   if (title.includes('住院') || title.includes('主治')) {
     const filtered = appointmentTypes.value.filter(t => 
-      t.typeKey === 'NORMAL' || t.typeKey === 'normal' || t.typeName.includes('普通')
+     t.typeName.includes('普通')
     )
     console.log('✓ 住院/主治医师可选:', filtered)
     return filtered
@@ -299,10 +298,8 @@ const visibleAppointmentTypes = computed(() => {
   // 副主任：普通 + 专家
   if (title.includes('副主任')) {
     const filtered = appointmentTypes.value.filter(t => {
-      const key = (t.typeKey || '').toUpperCase()
       const name = t.typeName || ''
-      return key === 'NORMAL' || key === 'EXPERT' || 
-             name.includes('普通') || name.includes('专家')
+      return  name.includes('普通') || name.includes('专家')
     })
     console.log('✓ 副主任医师可选:', filtered)
     return filtered

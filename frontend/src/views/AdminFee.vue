@@ -32,7 +32,6 @@
                   <th>默认挂号人数</th>
                   <th>费用（元）</th>
                   <th>描述</th>
-                  <th>状态</th>
                   <th>操作</th>
                 </tr>
               </thead>
@@ -56,11 +55,6 @@
                   <td class="text-center">{{ item.maxSlots }}</td>
                   <td class="text-center font-medium">¥{{ item.feeAmount.toFixed(2) }}</td>
                   <td class="desc-text">{{ item.description || '-' }}</td>
-                  <td class="text-center">
-                    <span class="status-badge" :class="`status-1`">
-                      启用
-                    </span>
-                  </td>
                   <td class="action-buttons">
                     <button @click="editFee(item)" class="btn-edit">编辑</button>
                     <button @click="deleteFee(item)" class="btn-delete">删除</button>
@@ -159,7 +153,6 @@ const feeList = ref([])
 const formData = reactive({
   appointmentTypeId: null,
   typeName: '',
-  typeKey: '',
   maxSlots: null,
   feeAmount: null,
   description: ''
@@ -168,7 +161,6 @@ const formData = reactive({
 const initialFormData = {
   appointmentTypeId: null,
   typeName: '',
-  typeKey: '',
   maxSlots: null,
   feeAmount: null,
   description: ''
@@ -188,7 +180,6 @@ function editFee(item) {
   Object.assign(formData, {
     appointmentTypeId: item.appointmentTypeId,
     typeName: item.typeName,
-    typeKey: item.typeKey,
     maxSlots: item.maxSlots,
     feeAmount: item.feeAmount,
     description: item.description
@@ -201,7 +192,6 @@ async function submitForm() {
     if (isEditing.value) {
       const response = await axios.put(`/api/admin/appointment-types/${formData.appointmentTypeId}`, {
         typeName: formData.typeName,
-        typeKey: formData.typeKey,
         maxSlots: formData.maxSlots,
         feeAmount: formData.feeAmount,
         description: formData.description
@@ -214,7 +204,6 @@ async function submitForm() {
     } else {
       const response = await axios.post('/api/admin/appointment-types', {
         typeName: formData.typeName,
-        typeKey: formData.typeKey,
         maxSlots: formData.maxSlots,
         feeAmount: formData.feeAmount,
         description: formData.description
@@ -224,21 +213,6 @@ async function submitForm() {
         closeModal()
         fetchFeeList()
       }
-    }
-  } catch (err) {
-    alert('操作失败：' + (err.response?.data?.message || err.message))
-  }
-}
-
-async function toggleStatus(item) {
-  try {
-    const newStatus = item.status === 1 ? 0 : 1
-    const response = await axios.put(`/api/admin/appointment-types/${item.appointmentTypeId}/status`, {
-      status: newStatus
-    })
-    if (response.data.code === 200) {
-      item.status = newStatus
-      alert(newStatus === 1 ? '已启用' : '已禁用')
     }
   } catch (err) {
     alert('操作失败：' + (err.response?.data?.message || err.message))
@@ -590,15 +564,6 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.status-1 {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status-0 {
-  background: #fee2e2;
-  color: #991b1b;
-}
 
 .action-buttons {
   display: flex;
