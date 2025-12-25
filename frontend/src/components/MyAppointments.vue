@@ -309,6 +309,8 @@ async function fetchAppointments() {
         || appt.status === 'cancelled'
         || appt.status === 'no_show'
         || appt.status === 'refunded'
+        || appt.status === 'converted'
+
       )
     } else {
       console.warn('获取预约失败：', resData.message)
@@ -384,6 +386,7 @@ function mapStatus(apiStatus) {
     'cancelled': 'cancelled',
     'refunded': 'cancelled',
     'no_show': 'no-show',
+    'converted':'converted',
     'pending_patient_confirm': 'pending_confirm',
     'waiting_patient_action': 'waiting_action',
     // 映射原预约状态
@@ -408,7 +411,8 @@ function getStatusLabel(status) {
     'waiting_action': '待确认',
     // 增加对原预约状态的标签
     'source_booked': '原待就诊',
-    'source_cancelled': '原已取消'
+    'source_cancelled': '原已取消',
+    'converted':'已改约'
   }
   return statusMap[status] || status || '未知'
 }
