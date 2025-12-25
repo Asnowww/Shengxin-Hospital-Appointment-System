@@ -192,6 +192,10 @@ const showModal = ref(false)
 const editingSchedule = ref(null)
 const creatingFromTable = ref(false)
 
+const MORNING_DEADLINE_HOUR = 11   // 11:00 后不能加上午
+const ALLDAY_DEADLINE_HOUR = 16   // 16:00 后不能加任何
+
+
 const timeSlots = ['上午', '下午']
 
 const getTypeLabel = (typeId) => {
@@ -295,20 +299,36 @@ watch(
 
 // 判断日期限制
 const canOperate = (date, timeSlot) => {
-  const now = new Date()
-  const todayStr = formatDate(now)
+  const now = new Date(
+  new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
+)
 
+  const todayStr = formatDate(now)
   const dateStr = typeof date === 'string' ? date : formatDate(date)
 
+  // 1️ 过去日期：一律不可操作
   if (dateStr < todayStr) return false
+
+  // 2️ 未来日期：一律可操作
   if (dateStr > todayStr) return true
 
+  // 3️ 当天：按时间段限制
   const hour = now.getHours()
 
-  if (hour < 7) return true
-  if (hour < 12) return timeSlot === 1
-  return false
+  //  16:00 后：当天全部不可添加
+  if (hour >= ALLDAY_DEADLINE_HOUR) {
+    return false
+  }
+
+  //  11:00 后：当天上午不可添加
+  if (hour >= MORNING_DEADLINE_HOUR) {
+    return timeSlot === 1   // 仅允许下午
+  }
+
+  //  11:00 前：全天可添加
+  return true
 }
+
 
 // 获取本周日期数组
 const getMonday = (date) => {
