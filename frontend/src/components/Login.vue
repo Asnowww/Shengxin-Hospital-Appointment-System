@@ -156,22 +156,22 @@ async function handleLogin() {
 
       switch (res.data.roleType) {
         case 'admin':
-          router.push('/admin/dashboard')
+          router.push('/admin/profile')
           break
         case 'doctor':
           router.push('/doctor/profile')
           break
         default:
-          router.push('/home')
+          router.push('/department')
       }
     } else {
-      alert(res.msg || '登录失败')
+      alert(res.message || '登录失败')
       loadCaptcha()
       captchaCode.value = ''
     }
   } catch (err) {
     console.error(err)
-    alert(err?.response?.data?.msg || '服务器连接错误')
+    alert(err?.response?.data?.message || '服务器连接错误')
     loadCaptcha()
     captchaCode.value = ''
   }

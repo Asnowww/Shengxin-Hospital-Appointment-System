@@ -263,8 +263,8 @@ const scheduleNotice = ref('') // 提示信息
 
 const appointmentTabs = [
   { id: 'general', label: '普通门诊', typeId: 1 },
-  { id: 'special', label: '特需门诊', typeId: 3 },
-  { id: 'expert', label: '专家门诊', typeId: 2 }
+  { id: 'expert', label: '专家门诊', typeId: 2 },
+  { id: 'special', label: '特需门诊', typeId: 3 }  
 ]
 
 const timeSlots = [

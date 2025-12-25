@@ -173,7 +173,7 @@ function handleLogout() {
     currentRole.value = null
     
     // 跳转到首页
-    router.push('/home')
+    router.push('/welcome')
     
     alert('已退出登录')
   }
