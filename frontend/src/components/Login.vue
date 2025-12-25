@@ -5,7 +5,7 @@
       <!-- 顶部导航卡片 -->
       <div class="nav-card">
         <div class="brand" @click="goHome">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="brand-icon">
+          <svg xmlns="https://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="brand-icon">
              <path d="M11.484 2.17a.75.75 0 011.032 0 11.209 11.209 0 007.877 3.08.75.75 0 01.722.515 12.74 12.74 0 01.635 3.985c0 5.942-4.064 10.933-9.563 12.348a.749.749 0 01-.374 0C6.314 20.683 2.25 15.692 2.25 9.75c0-1.39.223-2.73.635-3.985a.75.75 0 01.722-.516 11.209 11.209 0 007.877-3.08zM12 6.972a.75.75 0 01.75.75v2.06h2.06a.75.75 0 010 1.5h-2.06v2.06a.75.75 0 01-1.5 0v-2.06H9.19a.75.75 0 010-1.5h2.06V7.722a.75.75 0 01.75-.75z" />
           </svg>
           <span class="brand-text">圣心医院 | Shengxin Hospital</span>

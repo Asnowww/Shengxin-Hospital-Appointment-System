@@ -4,7 +4,7 @@
     <div v-if="showScheduleModal" class="modal-overlay" @click.self="closeScheduleModal">
       <div class="modal-container large">
         <button @click="closeScheduleModal" class="close-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="https://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
@@ -115,10 +115,10 @@
                 <option value="">请选择号别类型</option>
                 <option
                   v-for="t in visibleAppointmentTypes"
-                  :key="t.appointmentTypeId"
-                  :value="t.appointmentTypeId"
+                  :key="t.id"
+                  :value="t.id"
                 >
-                  {{ t.typeName }} 
+                  {{ t.label }}
                 </option>
               </select>
             </div>
@@ -166,7 +166,7 @@
 
           <!-- 冲突警告 -->
           <div v-if="hasConflict" class="warning-box">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg xmlns="https://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
               <line x1="12" y1="9" x2="12" y2="13"></line>
               <line x1="12" y1="17" x2="12.01" y2="17"></line>
@@ -180,7 +180,7 @@
           <div class="button-group">
             <button type="button" @click="closeScheduleModal" class="cancel-btn">取消</button>
             <button type="submit" class="submit-btn" :disabled="hasConflict || scheduleForm.timeSlots.length === 0">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg xmlns="https://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
               {{ isEditing ? '保存修改' : (scheduleForm.isBatch ? '批量创建' : '创建排班') }}
@@ -199,7 +199,6 @@ import axios from 'axios'
 // 数据源
 const rooms = ref([])
 const doctors = ref([])
-const appointmentTypes = ref([])
 
 // Props
 const props = defineProps({
@@ -214,6 +213,7 @@ const props = defineProps({
     default: null
   }
 })
+
 
 // Emits
 const emit = defineEmits(['close', 'submit'])
@@ -242,10 +242,38 @@ const scheduleForm = reactive({
   roomId: null,
   appointmentTypeId: '',
   timeSlots: [],
-  maxSlots: null,
+  maxSlots: 10,
   notes: '',
   isBatch: false,
   weekdays: []
+})
+
+const APPOINTMENT_TYPES = [
+  { id: '1', label: '普通号' },
+  { id: '2', label: '专家号' },
+  { id: '3', label: '特需号' }
+]
+
+// 根据医生职级过滤号别：
+// 住院医师、主治医师 -> 仅普通
+// 主任医师 -> 普通 + 专家
+// 其它放开全部
+const visibleAppointmentTypes = computed(() => {
+  const selected = doctors.value.find(d => d.doctorId === scheduleForm.doctorId)
+  const title = (selected?.title || '').trim()
+
+  // 住院医师 / 主治医师：仅普通号
+  if (title.includes('住院') || title.includes('主治')) {
+    return APPOINTMENT_TYPES.filter(t => t.id === '1')
+  }
+
+  // 副主任医师：普通 + 专家
+  if (title.includes('副主任')) {
+    return APPOINTMENT_TYPES.filter(t => t.id === '1' || t.id === '2')
+  }
+
+  // 其它：默认全显示（你没时间细分就别动它）
+  return APPOINTMENT_TYPES
 })
 
 const errors = reactive({
@@ -260,64 +288,15 @@ const minDate = computed(() =>
   new Date().toISOString().split('T')[0]
 )
 
-// 加载号别类型
-async function loadAppointmentTypes() {
-  try {
-    const { data } = await axios.get('/api/admin/appointment-types/list')
-    // 兼容两种数据结构：{ data: [...] } 或直接 [...]
-    const list = Array.isArray(data) ? data : (data?.data || [])
-    appointmentTypes.value = list
-    console.log('✓ 号别类型加载完成:', list)
-  } catch (err) {
-    console.error('✗ 获取号别类型失败', err)
-    appointmentTypes.value = []
-  }
-}
-
-// 根据医生职级过滤号别：
-// 住院医师、主治医师 -> 仅普通
-// 副主任医师 -> 普通 + 专家
-// 主任医师 -> 全部
-const visibleAppointmentTypes = computed(() => {
-  const selectedDoctor = doctors.value.find(d => d.doctorId === scheduleForm.doctorId)
-  if (!selectedDoctor) return appointmentTypes.value
-
-  const title = (selectedDoctor.title || '').trim()
-  
-  console.log('🔍 当前医生职称:', title)
-  
-  // 住院 / 主治：只允许普通号
-  if (title.includes('住院') || title.includes('主治')) {
-    const filtered = appointmentTypes.value.filter(t => 
-     t.typeName.includes('普通')
-    )
-    console.log('✓ 住院/主治医师可选:', filtered)
-    return filtered
-  }
-
-  // 副主任：普通 + 专家
-  if (title.includes('副主任')) {
-    const filtered = appointmentTypes.value.filter(t => {
-      const name = t.typeName || ''
-      return  name.includes('普通') || name.includes('专家')
-    })
-    console.log('✓ 副主任医师可选:', filtered)
-    return filtered
-  }
-
-  // 主任及其他：全部
-  console.log('✓ 主任医师可选: 全部')
-  return appointmentTypes.value
-})
-
 // 加载诊室
 async function loadRooms() {
   try {
     const { data } = await axios.get(`/api/rooms/dept/${props.deptId}`)
-    console.log('接口返回:', data)
-    const roomList = data?.data || data || []
-    rooms.value = [...roomList.sort((a, b) => a.roomId - b.roomId)]
-    console.log('✓ 诊室数据:', rooms.value)
+console.log('接口返回:', data)
+const roomList = data?.data || data || []
+rooms.value = [...roomList.sort((a, b) => a.roomId - b.roomId)]
+console.log('✓ 诊室数据:', rooms.value)
+
   } catch (err) {
     console.error('✗ 获取诊室列表失败', err)
   }
@@ -343,46 +322,24 @@ watch(
     if (val) {
       loadRooms()
       loadDoctors()
-      loadAppointmentTypes()
     }
-    if (!props.isEditing && props.deptId) {
-      scheduleForm.deptId = props.deptId
-    }
+     if (!props.isEditing && props.deptId) {
+        scheduleForm.deptId = props.deptId
+      }
   }
 )
 
-// 选医生 → 自动回填科室 + 重置号别
+// 选医生 → 自动回填科室
 watch(
   () => scheduleForm.doctorId,
   (newDoctorId) => {
     const selected = doctors.value.find(d => d.doctorId === newDoctorId)
-    scheduleForm.deptId = selected ? selected.deptId : null
+    scheduleForm.deptId = selected ? selected.deptId : ''
 
-    // 如果当前已选号别不在新的允许列表中，自动重置
-    const allowedIds = visibleAppointmentTypes.value.map(t => t.appointmentTypeId)
-    if (scheduleForm.appointmentTypeId && !allowedIds.includes(scheduleForm.appointmentTypeId)) {
+    // 如果当前已选号别不在允许列表中，自动重置
+    const allowedIds = visibleAppointmentTypes.value.map(t => t.id)
+    if (scheduleForm.appointmentTypeId && !allowedIds.includes(String(scheduleForm.appointmentTypeId))) {
       scheduleForm.appointmentTypeId = ''
-      scheduleForm.maxSlots = null
-    }
-  }
-)
-
-// 选号别 → 自动回填默认最大接诊人数
-watch(
-  () => scheduleForm.appointmentTypeId,
-  (typeId) => {
-    if (!typeId) return
-
-    const selectedType = appointmentTypes.value.find(
-      t => t.appointmentTypeId === typeId
-    )
-
-    if (selectedType?.maxSlots) {
-      // 编辑模式：如果用户已自定义过，则不覆盖
-      if (props.isEditing && scheduleForm.maxSlots) return
-      
-      scheduleForm.maxSlots = selectedType.maxSlots
-      console.log(`✓ 自动设置最大接诊人数: ${selectedType.maxSlots}`)
     }
   }
 )
@@ -395,7 +352,7 @@ watch(
 
     scheduleForm.id = data.scheduleId
     scheduleForm.doctorId = data.doctorId
-    scheduleForm.deptId = data.deptId || null
+    scheduleForm.deptId = data.deptId || ''
     scheduleForm.date = data.date
     scheduleForm.roomId = data.roomId
     scheduleForm.appointmentTypeId = data.appointmentTypeId
@@ -423,13 +380,12 @@ function resetForm() {
   Object.assign(scheduleForm, {
     id: null,
     doctorId: '',
-    deptId: null,
     date: '',
     startDate: '',
     endDate: '',
     roomId: null,
     appointmentTypeId: '',
-    maxSlots: null,
+    maxSlots: 10,
     notes: '',
     isBatch: false,
     timeSlots: [],
@@ -473,12 +429,11 @@ function validateForm() {
   }
 
   // 号别必须在允许范围内
-  const allowedIds = visibleAppointmentTypes.value.map(t => t.appointmentTypeId)
-  if (!scheduleForm.appointmentTypeId || !allowedIds.includes(scheduleForm.appointmentTypeId)) {
+  const allowedIds = visibleAppointmentTypes.value.map(t => t.id)
+  if (!scheduleForm.appointmentTypeId || !allowedIds.includes(String(scheduleForm.appointmentTypeId))) {
     alert('该医生职级不允许选择该号别，请重新选择')
     ok = false
   }
-  
   return ok
 }
 
@@ -724,37 +679,20 @@ async function handleSubmit() {
   padding: 0.75rem;
   background: #f7fafc;
   border: 2px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 0.3s ease;
   user-select: none;
 }
 
-/* hover */
 .weekday-checkbox:hover {
   background: #edf2f7;
   border-color: #cbd5e0;
 }
 
-/* ⭐ 关键：checkbox 选中 → 高亮整个卡片 */
-.weekday-checkbox:has(input:checked) {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  border-color: transparent;
-  color: white;
-  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.35);
-}
-
-/* 选中时文字 */
-.weekday-checkbox:has(input:checked) .checkbox-label {
-  font-weight: 700;
-}
-
-/* checkbox 本身 */
-.weekday-checkbox input[type="checkbox"] {
-  accent-color: white;
-  cursor: pointer;
-  width: 18px;
-  height: 18px;
+.weekday-checkbox input[type="checkbox"]:checked ~ .checkbox-label {
+  color: #f5576c;
+  font-weight: 600;
 }
 
 .warning-box {

@@ -3,12 +3,14 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
+import basicSsl from '@vitejs/plugin-basic-ssl'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
-    vueDevTools(),
+    //vueDevTools(),
+    basicSsl(),
   ],
   resolve: {
     alias: {
@@ -16,7 +18,8 @@ export default defineConfig({
     },
   },
   server: {
-    secure: false,
+    https: true,
+    //secure: false,
     port: 5173, // 默认是 5173，可以改
     proxy: {
       '/api': {
