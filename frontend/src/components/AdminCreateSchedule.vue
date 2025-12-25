@@ -724,20 +724,37 @@ async function handleSubmit() {
   padding: 0.75rem;
   background: #f7fafc;
   border: 2px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
   user-select: none;
 }
 
+/* hover */
 .weekday-checkbox:hover {
   background: #edf2f7;
   border-color: #cbd5e0;
 }
 
-.weekday-checkbox input[type="checkbox"]:checked ~ .checkbox-label {
-  color: #f5576c;
-  font-weight: 600;
+/* ⭐ 关键：checkbox 选中 → 高亮整个卡片 */
+.weekday-checkbox:has(input:checked) {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.35);
+}
+
+/* 选中时文字 */
+.weekday-checkbox:has(input:checked) .checkbox-label {
+  font-weight: 700;
+}
+
+/* checkbox 本身 */
+.weekday-checkbox input[type="checkbox"] {
+  accent-color: white;
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
 }
 
 .warning-box {
