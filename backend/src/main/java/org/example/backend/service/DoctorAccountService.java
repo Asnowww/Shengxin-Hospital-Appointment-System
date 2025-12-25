@@ -66,6 +66,11 @@ public interface DoctorAccountService {
     List<DoctorBioUpdateRequest> getPendingBioRequests();
 
     /**
+     * 获取所有bio修改申请（用于管理端筛选）
+     */
+    List<DoctorBioUpdateRequest> getAllBioRequests();
+
+    /**
      * 获取详细bio修改申请
      */
     DoctorBioUpdateRequest getBioRequestDetail(Long requestId);
