@@ -22,8 +22,8 @@ public class UserVerificationController {
     private final UserMapper userMapper;
 
     public UserVerificationController(UserVerificationService verificationService,
-                                      TokenUtil tokenUtil,
-                                      UserMapper userMapper) {
+            TokenUtil tokenUtil,
+            UserMapper userMapper) {
         this.verificationService = verificationService;
         this.tokenUtil = tokenUtil;
         this.userMapper = userMapper;
@@ -43,14 +43,15 @@ public class UserVerificationController {
             @RequestParam(value = "token", required = false) String tokenParam,
             @RequestParam("identityType") String identityType,
             @RequestParam("idNumber") String idNumber,
-            @RequestParam("file") MultipartFile file
-    ) {
+            @RequestParam("file") MultipartFile file) {
         try {
             String token = tokenUtil.extractToken(authorizationHeader, tokenParam);
             Long userId = tokenUtil.resolveUserIdFromToken(token);
-            if (userId == null) return Result.error(401, "无效的登录凭证");
+            if (userId == null)
+                return Result.error(401, "无效的登录凭证");
 
-            UserVerification verification = verificationService.submitVerification(userId, identityType, idNumber, file);
+            UserVerification verification = verificationService.submitVerification(userId, identityType, idNumber,
+                    file);
             User user = userMapper.selectById(userId);
             Map<String, Object> data = verification.toMap(user);
 
@@ -69,15 +70,17 @@ public class UserVerificationController {
             @RequestParam(value = "token", required = false) String tokenParam,
             @RequestParam("verificationId") Long verificationId,
             @RequestParam("result") UserVerification.VerificationStatus result,
-            @RequestParam(value = "reason", required = false) String reason
-    ) {
+            @RequestParam(value = "reason", required = false) String reason) {
         try {
             String token = tokenUtil.extractToken(authorizationHeader, tokenParam);
             Long reviewerId = tokenUtil.resolveUserIdFromToken(token);
-            if (reviewerId == null) return Result.error(401, "无效的管理员凭证");
+            if (reviewerId == null)
+                return Result.error(401, "无效的管理员凭证");
 
-            UserVerification updated = verificationService.reviewVerification(verificationId, reviewerId, result, reason);
-            if (updated == null) return Result.error("审核失败：记录不存在或更新失败");
+            UserVerification updated = verificationService.reviewVerification(verificationId, reviewerId, result,
+                    reason);
+            if (updated == null)
+                return Result.error("审核失败：记录不存在或更新失败");
 
             User user = userMapper.selectById(updated.getUserId());
             Map<String, Object> data = updated.toMap(user);
@@ -95,15 +98,16 @@ public class UserVerificationController {
     @GetMapping("/status")
     public Result<Map<String, Object>> getStatus(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @RequestParam(value = "token", required = false) String tokenParam
-    ) {
+            @RequestParam(value = "token", required = false) String tokenParam) {
         try {
             String token = tokenUtil.extractToken(authorizationHeader, tokenParam);
             Long userId = tokenUtil.resolveUserIdFromToken(token);
-            if (userId == null) return Result.error(401, "无效的登录凭证");
+            if (userId == null)
+                return Result.error(401, "无效的登录凭证");
 
             UserVerification verification = verificationService.getLatestByUserId(userId);
-            if (verification == null) return Result.error("未找到认证记录");
+            if (verification == null)
+                return Result.error("未找到认证记录");
 
             User user = userMapper.selectById(userId);
             return Result.success("查询成功", verification.toMap(user));
@@ -116,6 +120,19 @@ public class UserVerificationController {
     public Result<List<Map<String, Object>>> getAllPending() {
         try {
             List<Map<String, Object>> data = verificationService.getAllPending();
+            return Result.success("查询成功", data);
+        } catch (Exception e) {
+            return Result.error("查询失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 查询所有认证记录（管理员：支持前端筛选）
+     */
+    @GetMapping("/list")
+    public Result<List<Map<String, Object>>> getAllVerifications() {
+        try {
+            List<Map<String, Object>> data = verificationService.getAllVerifications();
             return Result.success("查询成功", data);
         } catch (Exception e) {
             return Result.error("查询失败：" + e.getMessage());

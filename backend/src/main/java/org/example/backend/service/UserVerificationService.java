@@ -9,14 +9,19 @@ import java.util.Map;
 
 public interface UserVerificationService extends IService<UserVerification> {
 
-    //用户提交认证
-    UserVerification submitVerification(Long userId, String identityType, String idNumber, MultipartFile file) throws Exception;
+    // 用户提交认证
+    UserVerification submitVerification(Long userId, String identityType, String idNumber, MultipartFile file)
+            throws Exception;
 
-    //管理员审核
-    UserVerification reviewVerification(Long verificationId, Long reviewerId, UserVerification.VerificationStatus result, String reason);
+    // 管理员审核
+    UserVerification reviewVerification(Long verificationId, Long reviewerId,
+            UserVerification.VerificationStatus result, String reason);
 
     UserVerification getLatestByUserId(Long userId);
 
     List<Map<String, Object>> getAllPending();
+
+    // 获取所有认证记录（用于管理端筛选）
+    List<Map<String, Object>> getAllVerifications();
 
 }
