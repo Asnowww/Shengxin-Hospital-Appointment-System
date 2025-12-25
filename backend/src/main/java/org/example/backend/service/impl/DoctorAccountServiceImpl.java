@@ -174,7 +174,6 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
         }
     }
 
-
     /**
      * 修改医生账号状态 (在职 / 休假 / 退休)
      */
@@ -290,6 +289,11 @@ public class DoctorAccountServiceImpl implements DoctorAccountService {
     @Override
     public List<DoctorBioUpdateRequest> getPendingBioRequests() {
         return requestMapper.selectPendingRequests();
+    }
+
+    @Override
+    public List<DoctorBioUpdateRequest> getAllBioRequests() {
+        return requestMapper.selectAllRequests();
     }
 
     @Override
