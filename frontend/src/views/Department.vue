@@ -217,13 +217,41 @@ function handleSearch() {
     }))
 
     // 科室字段映射
-    matchedDepartments.value = (data.departments || []).slice(0, 20).map(d => ({
-      id: d.deptId,
-      deptName: d.deptName,
-      building: d.building || '',
-      floor: d.floor || '',
-      description: d.description || ''
-    }))
+    /* ================= 科室（核心修改点） ================= */
+
+    const rawDepts = data.departments || []
+
+    // 1️⃣ 命中的一级科室 id
+    const matchedPrimaryDeptIds = rawDepts
+      .filter(d => !d.parentDeptId)
+      .map(d => d.deptId)
+
+    // 2️⃣ 直接命中的二级科室
+    const directMatchedSubDepts = rawDepts.filter(d => d.parentDeptId)
+
+    // 3️⃣ 展开：如果命中一级科室 → 拿它下面的所有二级
+    const expandedSubDepts = departments.value
+      .filter(primary => matchedPrimaryDeptIds.includes(primary.id))
+      .flatMap(primary => primary.subDepartments || [])
+
+    // 4️⃣ 合并 + 去重（用 Map 防止重复）
+    const deptMap = new Map()
+
+    ;[...directMatchedSubDepts, ...expandedSubDepts].forEach(d => {
+      const id = d.id || d.deptId
+      deptMap.set(id, d)
+    })
+
+    // 5️⃣ 映射成页面展示结构（只保留二级科室）
+    matchedDepartments.value = Array.from(deptMap.values())
+      .slice(0, 20)
+      .map(d => ({
+        id: d.id || d.deptId,
+        deptName: d.name || d.deptName,
+        building: d.building || '',
+        floor: d.floor || '',
+        description: d.description || ''
+      }))
   } catch (err) {
     console.error('搜索失败', err)
     matchedDoctors.value = []
