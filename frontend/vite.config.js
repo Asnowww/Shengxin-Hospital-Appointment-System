@@ -20,12 +20,14 @@ export default defineConfig({
     port: 5173, // 默认是 5173，可以改
     proxy: {
       '/api': {
-        target: 'http://localhost:8080', // Spring Boot 后端地址
+        target: 'https://localhost:8443', // Spring Boot 后端地址
         changeOrigin: true,
+        secure: false, // 忽略自签名证书
       },
       '/captcha': {
-        target: 'http://localhost:8080', // 验证码接口也代理到后端
+        target: 'https://localhost:8443', // 验证码接口也代理到后端
         changeOrigin: true,
+        secure: false, // 忽略自签名证书
       },
     },
   },

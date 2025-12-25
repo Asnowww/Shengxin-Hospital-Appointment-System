@@ -160,7 +160,7 @@ const sendMessage = async () => {
       .slice(0, -2)
       .map(m => ({ role: m.role, content: m.content }))
 
-    const response = await axios.post('http://localhost:8080/api/consultation/chat', {
+    const response = await axios.post('http://localhost:8443/api/consultation/chat', {
       message: text,
       history: history
     },
