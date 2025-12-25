@@ -161,8 +161,8 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
         ScheduleException exception = new ScheduleException();
         exception.setScheduleId(param.getScheduleId());
         exception.setDoctorId(originalSchedule.getDoctorId());
-        exception.setStartDate(originalSchedule.getWorkDate());
-        exception.setEndDate(originalSchedule.getWorkDate());
+//        exception.setStartDate(originalSchedule.getWorkDate());
+//        exception.setEndDate(originalSchedule.getWorkDate());
         exception.setExceptionType("partial_adjust");
         exception.setAdjustedDate(param.getAdjustedDate());
         exception.setAdjustedTimeSlot(param.getAdjustedTimeSlot());
@@ -239,8 +239,8 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
                 ScheduleException exception = new ScheduleException();
                 exception.setScheduleId(schedule.getScheduleId());
                 exception.setDoctorId(schedule.getDoctorId());
-                exception.setStartDate(schedule.getWorkDate());
-                exception.setEndDate(schedule.getWorkDate());
+//                exception.setStartDate(schedule.getWorkDate());
+//                exception.setEndDate(schedule.getWorkDate());
                 exception.setExceptionType("leave");
                 exception.setReason("医生请假：" + leave.getReason());
                 exception.setCreatedBy(param.getReviewedBy());
@@ -320,6 +320,7 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
 
         scheduleExceptionMapper.updateById(exception);
     }
+
 
     /**
      * 处理取消排班后的挂号迁移逻辑（保留旧预约 + 新建新预约）：
@@ -561,4 +562,51 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
         return vo;
     }
 
+
+    /**
+     * 管理员手动取消排班操作
+     * @param scheduleId 需要取消的排班ID
+     * @param operatorId 操作员（管理员）用户ID
+     * @param reason 取消原因
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void handleCancelSchedule(Integer scheduleId, Long operatorId, String reason) {
+        // 1. 获取并校验排班信息
+        Schedule schedule = scheduleMapper.selectById(scheduleId);
+        if (schedule == null) {
+            throw new RuntimeException("该排班记录不存在");
+        }
+
+        if ("cancelled".equals(schedule.getStatus())) {
+            throw new RuntimeException("该排班已经处于取消状态，请勿重复操作");
+        }
+
+        // 2. 更新排班状态为已取消
+        schedule.setStatus("cancelled");
+        schedule.setUpdatedAt(LocalDateTime.now());
+        int updateCount = scheduleMapper.updateById(schedule);
+        if (updateCount <= 0) {
+            throw new RuntimeException("更新排班状态失败");
+        }
+
+        // 3. 记录排班异常/变更日志 (schedule_exceptions)
+        ScheduleException exception = new ScheduleException();
+        exception.setScheduleId(schedule.getScheduleId());
+        exception.setDoctorId(schedule.getDoctorId());
+//        exception.setStartDate(schedule.getWorkDate());
+//        exception.setEndDate(schedule.getWorkDate());
+        exception.setExceptionType("cancel_all"); // 标记为管理员取消
+        exception.setReason("管理员手动取消：" + (reason != null ? reason : "无原因"));
+        exception.setCreatedBy(operatorId);
+        exception.setCreatedAt(LocalDateTime.now());
+        exception.setStatus("approved"); // 管理员直接取消，状态默认为已通过
+        scheduleExceptionMapper.insert(exception);
+
+        log.info("【管理员取消排班】排班ID: {}, 操作员: {}, 原因: {}", scheduleId, operatorId, reason);
+
+        // 4. 复用现有逻辑处理受影响的预约
+        // 该方法会自动查询该排班下的所有有效预约，进行退款、尝试迁移并发送邮件通知
+        reassignAppointments(schedule, operatorId, exception.getExceptionId());
+    }
 }

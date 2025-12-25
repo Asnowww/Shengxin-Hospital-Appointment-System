@@ -22,12 +22,6 @@ public class ScheduleException {
     @TableField("doctor_id")
     private Long doctorId;
 
-    @TableField("start_date")
-    private LocalDate startDate;
-
-    @TableField("end_date")
-    private LocalDate endDate;
-
     @TableField("exception_type")
     private String exceptionType; // leave, cancel_all, partial_adjust, special_add
 
