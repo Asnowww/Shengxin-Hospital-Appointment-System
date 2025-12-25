@@ -66,7 +66,6 @@
                         </div>
                       </div>
                       <div class="actions" @click.stop>
-                        <!-- <button @click.stop="editSchedule(schedule)" class="btn-edit" title="编辑">编</button> -->
                         <button @click.stop="deleteSchedule(schedule)" class="btn-delete" title="删除">删</button>
                       </div>
                     </div>
@@ -120,17 +119,17 @@
             </select>
           </div>
 
-            <div class="form-group">
+          <div class="form-group">
             <label>号别</label>
             <select v-model="formData.appointmentTypeId" class="form-input" required>
               <option value="">请选择号别类型</option>
               <option
-                  v-for="t in visibleAppointmentTypes"
-                  :key="t.id"
-                  :value="t.id"
-                >
-                  {{ t.label }}
-                </option>
+                v-for="t in visibleAppointmentTypes"
+                :key="t.appointmentTypeId"
+                :value="t.appointmentTypeId"
+              >
+                {{ t.typeName }} 
+              </option>
             </select>
           </div>
 
@@ -139,25 +138,26 @@
             <input v-model="formData.workDate" type="date" class="form-input" :disabled="editingSchedule||creatingFromTable" required />
           </div>
 
-         <div class="form-group">
-          <label>时间段</label>
-          <select 
-            v-model="formData.timeSlot" 
-            :disabled="editingSchedule||creatingFromTable " 
-            class="form-input" 
-            required
-          >
-            <option value="">请选择时间段</option>
-            <option 
-              v-for="(slot, idx) in timeSlots" 
-              :key="idx" 
-              :value="idx"
-              :disabled="!canOperate(formData.workDate, idx)"
+          <div class="form-group">
+            <label>时间段</label>
+            <select 
+              v-model="formData.timeSlot" 
+              :disabled="editingSchedule||creatingFromTable" 
+              class="form-input" 
+              required
             >
-              {{ slot }}
-            </option>
-          </select>
-        </div>
+              <option value="">请选择时间段</option>
+              <option 
+                v-for="(slot, idx) in timeSlots" 
+                :key="idx" 
+                :value="idx"
+                :disabled="!canOperate(formData.workDate, idx)"
+              >
+                {{ slot }}
+              </option>
+            </select>
+          </div>
+
           <div class="form-group">
             <label>最大预约数</label>
             <input v-model.number="formData.maxSlots" type="number" min="1" class="form-input" required />
@@ -186,6 +186,7 @@ const currentDate = ref(new Date())
 const rooms = ref([])
 const doctors = ref([])
 const schedules = ref([])
+const appointmentTypes = ref([])
 const loading = ref(false)
 const showModal = ref(false)
 const editingSchedule = ref(null)
@@ -209,59 +210,105 @@ const formData = ref({
   doctorId: '',
   workDate: '',
   timeSlot: '',
+  appointmentTypeId: '',
   maxSlots: ''
 })
 
-const APPOINTMENT_TYPES = [
-  { id: '1', label: '普通号' },
-  { id: '2', label: '专家号' },
-  { id: '3', label: '特需号' }
-]
+// 加载号别类型
+async function loadAppointmentTypes() {
+  try {
+    const { data } = await axios.get('/api/admin/appointment-types/list')
+    const list = Array.isArray(data) ? data : (data?.data || [])
+    appointmentTypes.value = list
+    console.log('✓ 号别类型加载完成:', list)
+  } catch (err) {
+    console.error('✗ 获取号别类型失败', err)
+    appointmentTypes.value = []
+  }
+}
 
-// 根据医生职级过滤号别：
-// 住院医师、主治医师 -> 仅普通
-// 主任医师 -> 普通 + 专家
-// 其它放开全部
+// 根据医生职级过滤号别
 const visibleAppointmentTypes = computed(() => {
-  const selected = doctors.value.find(d => d.doctorId === formData.value.doctorId)
-  const title = (selected?.title || '').trim()
+  const selectedDoctor = doctors.value.find(d => d.doctorId === formData.value.doctorId)
+  if (!selectedDoctor) return appointmentTypes.value
 
+  const title = (selectedDoctor.title || '').trim()
+  
+  console.log('🔍 当前医生职称:', title)
+
+
+  // 住院 / 主治：只允许普通号
   if (title.includes('住院') || title.includes('主治')) {
-    return APPOINTMENT_TYPES.filter(t => t.id === '1')
+    const filtered = appointmentTypes.value.filter(t => 
+     t.typeName.includes('普通')
+    )
+    console.log('✓ 住院/主治医师可选:', filtered)
+    return filtered
   }
 
+  // 副主任：普通 + 专家
   if (title.includes('副主任')) {
-    return APPOINTMENT_TYPES.filter(t => t.id === '1' || t.id === '2')
+    const filtered = appointmentTypes.value.filter(t => {
+      const name = t.typeName || ''
+      return name.includes('普通') || name.includes('专家')
+    })
+    console.log('✓ 副主任医师可选:', filtered)
+    return filtered
   }
 
-  return APPOINTMENT_TYPES
+  // 主任及其他：全部
+  console.log('✓ 主任医师可选: 全部')
+  return appointmentTypes.value
 })
+
+// 监听医生选择 - 重置号别
+watch(
+  () => formData.value.doctorId,
+  (newDoctorId) => {
+    const allowedIds = visibleAppointmentTypes.value.map(t => t.appointmentTypeId)
+    if (formData.value.appointmentTypeId && !allowedIds.includes(formData.value.appointmentTypeId)) {
+      formData.value.appointmentTypeId = ''
+      formData.value.maxSlots = ''
+    }
+  }
+)
+
+// 监听号别选择 - 自动回填最大预约数
+watch(
+  () => formData.value.appointmentTypeId,
+  (typeId) => {
+    if (!typeId) return
+
+    const selectedType = appointmentTypes.value.find(
+      t => t.appointmentTypeId === typeId
+    )
+
+    if (selectedType?.maxSlots) {
+      // 编辑模式且用户已自定义，不覆盖
+      if (editingSchedule.value && formData.value.maxSlots) return
+      
+      formData.value.maxSlots = selectedType.maxSlots
+      console.log(`✓ 自动设置最大预约数: ${selectedType.maxSlots}`)
+    }
+  }
+)
 
 // 判断日期限制
 const canOperate = (date, timeSlot) => {
   const now = new Date()
   const todayStr = formatDate(now)
 
-  // date 可能是字符串 YYYY-MM-DD
   const dateStr = typeof date === 'string' ? date : formatDate(date)
 
-  // 1) 如果日期 < 今天 → 禁止
   if (dateStr < todayStr) return false
-
-  // 2) 如果是未来日期 → 永远可操作
   if (dateStr > todayStr) return true
 
-  // 下面是 “今天” 的逻辑
   const hour = now.getHours()
 
-  // 上午 slot = 0；下午 slot = 1
-
-  if (hour < 7) return true       // 上午7点前，上午/下午都可操作
-  if (hour < 12) return timeSlot === 1 // 上午过了，只能操作下午
-  return false                    // 超过12点，今天不可操作
+  if (hour < 7) return true
+  if (hour < 12) return timeSlot === 1
+  return false
 }
-
-
 
 // 获取本周日期数组
 const getMonday = (date) => {
@@ -306,21 +353,18 @@ const getSchedules = (roomId, date, timeSlot) => {
   })
 }
 
-
 // 请求接口
 async function fetchRooms() {
   try {
     const { data } = await axios.get(`/api/rooms/dept/${props.deptId}`)
-console.log('接口返回:', data)
-const roomList = data?.data || data || []
-rooms.value = [...roomList.sort((a, b) => a.roomId - b.roomId)]
-console.log('✓ 诊室数据:', rooms.value)
-
+    console.log('接口返回:', data)
+    const roomList = data?.data || data || []
+    rooms.value = [...roomList.sort((a, b) => a.roomId - b.roomId)]
+    console.log('✓ 诊室数据:', rooms.value)
   } catch (err) {
     console.error('✗ 获取诊室列表失败', err)
   }
 }
-
 
 async function fetchDoctors() {
   try {
@@ -381,7 +425,7 @@ const addSchedule = (roomId, date, timeSlot) => {
     workDate: formatDate(date),
     timeSlot: timeSlot.toString(),
     appointmentTypeId: '',
-    maxSlots: 10
+    maxSlots: ''
   }
   showModal.value = true
 }
@@ -393,6 +437,7 @@ const editSchedule = (schedule) => {
     doctorId: schedule.doctorId,
     workDate: schedule.workDate.split(' ')[0],
     timeSlot: schedule.timeSlot.toString(),
+    appointmentTypeId: schedule.appointmentTypeId,
     maxSlots: schedule.maxSlots
   }
   showModal.value = true
@@ -402,12 +447,12 @@ const deleteSchedule = async (schedule) => {
   if (!confirm('确定删除该排班吗？')) return
   const operatorId = localStorage.getItem('userId') 
   try {
-   await axios.delete(`/api/admin/schedules/${schedule.scheduleId}`, {
-  params: {
-    reason: '管理员删除',
-    operatorId: operatorId
-  }
-})
+    await axios.delete(`/api/admin/schedules/${schedule.scheduleId}`, {
+      params: {
+        reason: '管理员删除',
+        operatorId: operatorId
+      }
+    })
     alert('删除成功')
     fetchSchedules()
   } catch (err) {
@@ -416,25 +461,36 @@ const deleteSchedule = async (schedule) => {
 }
 
 const saveSchedule = async () => {
-  if (!formData.value.doctorId) { alert('请选择医生'); return }
+  if (!formData.value.doctorId) { 
+    alert('请选择医生')
+    return 
+  }
+  
+  // 验证号别是否在允许范围内
+  const allowedIds = visibleAppointmentTypes.value.map(t => t.appointmentTypeId)
+  if (!formData.value.appointmentTypeId || !allowedIds.includes(formData.value.appointmentTypeId)) {
+    alert('该医生职级不允许选择该号别，请重新选择')
+    return
+  }
+  
   try {
     if (editingSchedule.value) {
       await axios.put('/api/admin/schedules/update', {
         scheduleId: editingSchedule.value.scheduleId,
         doctorId: formData.value.doctorId,
+        appointmentTypeId: parseInt(formData.value.appointmentTypeId),
         maxSlots: formData.value.maxSlots
       })
     } else {
-    await axios.post('/api/admin/schedules/create', {
-      roomId: formData.value.roomId,
-      deptId: props.deptId,
-      doctorId: formData.value.doctorId,
-      startDate: formData.value.workDate,  
-      timeSlots: [parseInt(formData.value.timeSlot)],  
-      appointmentTypeId: parseInt(formData.value.appointmentTypeId),
-      maxSlots: formData.value.maxSlots
-    })
-
+      await axios.post('/api/admin/schedules/create', {
+        roomId: formData.value.roomId,
+        deptId: props.deptId,
+        doctorId: formData.value.doctorId,
+        startDate: formData.value.workDate,  
+        timeSlots: [parseInt(formData.value.timeSlot)],  
+        appointmentTypeId: parseInt(formData.value.appointmentTypeId),
+        maxSlots: formData.value.maxSlots
+      })
     }
     alert('保存成功')
     closeModal()
@@ -444,22 +500,26 @@ const saveSchedule = async () => {
   }
 }
 
-const closeModal = () => { showModal.value = false; editingSchedule.value = null; creatingFromTable.value = false}
+const closeModal = () => { 
+  showModal.value = false
+  editingSchedule.value = null
+  creatingFromTable.value = false
+}
 
 // 初始化和监听
 onMounted(async () => {
-  console.log('🚀 组件挂载，开始加载数据...')
+  console.log('组件挂载，开始加载数据...')
   await fetchRooms()
   await fetchDoctors()
+  await loadAppointmentTypes()
   await fetchSchedules()
 })
 
 watch(currentDate, () => {
-  console.log('📅 日期变化，重新加载排班')
+  console.log('日期变化，重新加载排班')
   fetchSchedules()
 })
 </script>
-
 <style scoped>
 * {
   margin: 0;

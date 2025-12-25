@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import WelcomePortal from '@/views/WelcomePortal.vue'
 import Login from '@/components/Login.vue'
 import Register from '@/components/Register.vue'
 import Profile from '@/views/Profile.vue'
@@ -19,7 +20,8 @@ import AdminDepartments from "@/views/AdminDepartments.vue";
 
 
 const routes = [
-  { path: '/', redirect: '/home' },   // 默认定向到首页
+  { path: '/', redirect: '/welcome' },   // 默认定向到欢迎页
+  { path: '/welcome', name: 'welcome', component: WelcomePortal }, // 欢迎门户页
   { path: '/home', name: 'home', component: HomePage }, // 首页
   { path: '/login/:role', name: 'login', component: Login },        // 具体登录页
   { path: '/register', name: 'register', component: Register }, // 注册页
