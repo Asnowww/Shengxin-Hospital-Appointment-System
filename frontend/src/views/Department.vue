@@ -1,5 +1,6 @@
 <template>
   <Navigation ref="navRef" />
+  <Notice :visible="showNotice" @close="handleNoticeClose" />
   <div class="page-container" :style="{ paddingTop: navHeight + 'px' }">
     <div class="overview-wrapper">
       <!-- 页面标题和搜索 -->
@@ -195,6 +196,9 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import Navigation from '@/components/Navigation.vue'
+import Notice from '@/components/Notice.vue'
+
+const showNotice = ref(false)
 
 const router = useRouter()
 
@@ -361,6 +365,10 @@ function handleSubDepartmentClick(subDept) {
   })
 }
 
+const handleNoticeClose = () => {
+  showNotice.value = false
+}
+
 function updateNavHeight() {
   if (navRef.value?.$el) {
     const height = navRef.value.$el.offsetHeight
@@ -373,6 +381,7 @@ function handleResize() {
 }
 
 onMounted(async () => {
+  showNotice.value = true // 这里设置为每次进入页面直接弹出
   await nextTick()
   updateNavHeight()
   window.addEventListener('resize', handleResize)
