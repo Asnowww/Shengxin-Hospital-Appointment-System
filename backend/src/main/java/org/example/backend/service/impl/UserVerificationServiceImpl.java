@@ -117,7 +117,7 @@ public class UserVerificationServiceImpl
         // 同步更新用户状态
         User user = userMapper.selectById(v.getUserId());
         if (user != null) {
-            user.setStatus(result == UserVerification.VerificationStatus.approved ? "verified" : "pending");
+            user.setStatus(result == UserVerification.VerificationStatus.approved ? "verified" : "rejected");
             user.setBookingStatus("enable");
             userMapper.updateById(user);
         }
