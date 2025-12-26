@@ -69,7 +69,7 @@ public class ScheduleCreateTask {
     private static final Set<String> DAY_ONLY_PARENT_DEPTS = Set.of("妇产科", "医学检验科");
 
     // 每周五早上8点执行，创建下周的排班
-    @Scheduled(cron = "0 00 8 * * Fri")
+    @Scheduled(cron = "0 * * * * ?")
     @Transactional
     public void createSchedule() {
         System.out.println("=== 开始自动创建排班任务 ===");
@@ -79,6 +79,11 @@ public class ScheduleCreateTask {
         LocalDate nextSunday = nextMonday.plusDays(6);
 
         System.out.println("创建排班周期: " + nextMonday + " 至 " + nextSunday);
+
+        if (hasSchedulesInWeek(nextMonday, nextSunday)) {
+            System.out.println("该周期已存在排班，跳过创建");
+            return;
+        }
 
         try {
             // 获取所有一级科室
@@ -635,5 +640,16 @@ public class ScheduleCreateTask {
             case 2: return "晚上";
             default: return "未知";
         }
+    }
+
+    /**
+     * 检查指定周期是否已有排班
+     */
+    private boolean hasSchedulesInWeek(LocalDate startDate, LocalDate endDate) {
+        QueryWrapper<Schedule> wrapper = new QueryWrapper<>();
+        wrapper.ge("work_date", startDate)
+                .le("work_date", endDate);
+        Long count = scheduleMapper.selectCount(wrapper);
+        return count != null && count > 0;
     }
 }
