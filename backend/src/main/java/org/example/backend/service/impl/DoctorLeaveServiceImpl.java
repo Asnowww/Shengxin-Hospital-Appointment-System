@@ -341,7 +341,8 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
             Schedule alternative = findAlternativeSchedule(
                     cancelledSchedule.getDeptId(),
                     cancelledSchedule.getWorkDate(),
-                    cancelledSchedule.getTimeSlot()
+                    cancelledSchedule.getTimeSlot(),
+                    cancelledSchedule.getAppointmentTypeId()
             );
 
             // 2. 尝试执行取消和退款逻辑
@@ -416,6 +417,11 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
                 );
             } else {
                 // 无替代排班，仅通知已退款
+                Appointment update = new Appointment();
+                update.setAppointmentId(oldApp.getAppointmentId());
+                update.setAppointmentStatus("waiting_patient_action");
+                appointmentMapper.updateById(update);
+
                 notificationEmailService.sendScheduleCancelledNotification(
                         oldApp.getPatientId(),
                         cancelledSchedule.getScheduleId(),
@@ -427,13 +433,15 @@ public class DoctorLeaveServiceImpl implements DoctorLeaveService {
 
     /**
      * 查找替代排班（查询顺序、策略可按需求微调）
+     * 同时段同部门同级别
      */
-    private Schedule findAlternativeSchedule(Integer deptId, java.time.LocalDate workDate, Integer timeSlot) {
+    private Schedule findAlternativeSchedule(Integer deptId, java.time.LocalDate workDate, Integer timeSlot, Integer appointmentTypeId) {
         QueryWrapper<Schedule> q = new QueryWrapper<>();
         q.eq("dept_id", deptId)
                 .eq("work_date", workDate)
                 .eq("time_slot", timeSlot)
                 .eq("status", "open")
+                .eq("appointment_type_id", appointmentTypeId)
                 .gt("available_slots", 0)
                 .orderByDesc("available_slots")
                 .last("LIMIT 1");
