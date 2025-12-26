@@ -400,6 +400,15 @@ const filteredSchedules = computed(() => {
   scheduleNotice.value = ''
 
   return schedules.value.filter(s => {
+    // ======= 核心修复点 =======
+    if (
+      s.timeSlotName?.includes('晚') ||
+      s.timeSlotName?.includes('夜') ||
+      s.timeSlot === 2
+    ) {
+      return false
+    }
+    // ========================
     if (s.status === 'cancelled') return false
     if (s.appointmentTypeId !== typeId) return false
     if (selectedDate.value && s.workDate !== selectedDate.value) return false
