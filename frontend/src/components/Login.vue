@@ -52,7 +52,7 @@
               <input 
                 v-model="captchaCode" 
                 type="text" 
-                placeholder="验证码" 
+                placeholder="请输入验证码，区分大小写" 
                 required 
                 class="custom-input captcha-input"
               />
@@ -322,16 +322,21 @@ async function handleLogin() {
 
 .captcha-box {
   width: 110px;
-  height: 48px; /* Match input height approx */
-  border-radius: 12px;
-  overflow: hidden;
-  cursor: pointer;
-  border: 2px solid #f0f0f0;
+  height: 48px;
   display: flex;
   align-items: center;
+  border-radius: 12px;
+  border: 2px solid #f0f0f0;
   justify-content: center;
   background: #fff;
 }
+
+.captcha-box img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
 
 .captcha-img {
   width: 100%;
