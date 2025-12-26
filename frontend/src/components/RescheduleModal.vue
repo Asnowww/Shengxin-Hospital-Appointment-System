@@ -21,6 +21,9 @@
               <span class="info-doctor">{{ appointmentInfo.currentDoctorName }}</span>
               <span class="info-time">{{ appointmentInfo.currentTime }}</span>
             </div>
+            <div class="same-type-hint">
+              ⚠️ 改约仅支持同一号别（如普通 / 专家 / 特需）
+            </div>
           </div>
 
           <!-- 筛选区域 -->
@@ -56,7 +59,7 @@
                     :key="doc.doctorId" 
                     :value="doc.doctorId"
                   >
-                    {{ doc.doctorName }} - {{ doc.title }}
+                    {{ doc.doctorName }} - {{ doc.deptName }} - {{ doc.title }}
                   </option>
                 </select>
               </div>
@@ -194,7 +197,8 @@ const availableDoctors = computed(() => {
       doctorMap.set(s.doctorId, {
         doctorId: s.doctorId,
         doctorName: s.doctorName,
-        title: s.doctorTitle
+        title: s.doctorTitle,
+        deptName:s.deptName
       })
     }
   })
@@ -251,7 +255,8 @@ async function fetchAvailableSchedules() {
     
     const params = {
       startDate: currentMinDate,
-      endDate: currentMaxDate
+      endDate: currentMaxDate,
+      appointmentId: props.appointmentId
     }
     
     console.log('[RescheduleModal] 请求号源参数:', params)
@@ -707,6 +712,13 @@ watch(() => props.visible, (newVal) => {
 .modal-fade-leave-to {
   opacity: 0;
 }
+
+.same-type-hint {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #718096;
+}
+
 
 /* 响应式 */
 @media (max-width: 480px) {
