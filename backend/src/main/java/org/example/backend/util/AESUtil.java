@@ -23,6 +23,11 @@ public class AESUtil {
     }
 
     public static String encrypt(String plainText) {
+        System.out.println("AESUtil.encrypt called, value = " + plainText);
+        if (plainText == null) {
+            System.out.println("AESUtil.encrypt: plainText is null, return null");
+            return null;
+        }
         try {
             byte[] iv = new byte[IV_LENGTH];
             SecureRandom random = new SecureRandom();
@@ -44,6 +49,11 @@ public class AESUtil {
     }
 
     public static String decrypt(String cipherText) {
+        System.out.println("AESUtil.decrypt called, value = " + cipherText);
+        if (cipherText == null) {
+            System.out.println("AESUtil.decrypt: null, return null");
+            return null;
+        }
         try {
             byte[] decoded = Base64.getDecoder().decode(cipherText);
             ByteBuffer buffer = ByteBuffer.wrap(decoded);

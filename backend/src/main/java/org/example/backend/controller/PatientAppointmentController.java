@@ -337,26 +337,17 @@ public class PatientAppointmentController {
         return Result.success(list);
     }
 
-    /**
-     * 查询可预约的号源（根据排班）
-     * 支持按科室、医生、日期范围筛选
-     *
-     * @param deptId    科室ID（可选）
-     * @param doctorId  医生ID（可选）
-     * @param startDate 开始日期（可选，默认当天）
-     * @param endDate   结束日期（可选，默认7天后）
-     * @param timeSlot  时间段（可选：0-上午，1-下午，2-晚上）
-     * @return 可预约的排班列表
-     */
     @GetMapping("/available-schedules")
     public Result<List<ScheduleDetailVO>> getAvailableSchedules(
             @RequestParam(required = false) Integer deptId,
             @RequestParam(required = false) Long doctorId,
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate,
-            @RequestParam(required = false) Integer timeSlot) {
+            @RequestParam(required = false) Integer timeSlot,
+            @RequestParam(required = false) Integer appointmentTypeId,
+            @RequestParam(required = false) Long appointmentId) {
 
-        // 设置默认日期范围：从今天开始到7天后
+        // 默认日期范围
         if (startDate == null) {
             startDate = LocalDate.now();
         }
@@ -365,55 +356,75 @@ public class PatientAppointmentController {
         }
 
         if (doctorId != null) {
-            Doctor doctor = doctorService.getById(doctorId); // 或者 doctorMapper.selectById(doctorId)
+            Doctor doctor = doctorService.getById(doctorId);
             if (doctor == null) {
                 return Result.error("医生不存在，doctorId=" + doctorId);
             }
         }
 
-        // 查询所有状态为open且有剩余号源的排班
+        // ① 先算“最终号别”（只算一次）
+        Integer resolvedAppointmentTypeId = appointmentTypeId;
+
+        if (appointmentId != null) {
+            Appointment appointment = appointmentService.getById(appointmentId);
+            if (appointment == null) {
+                return Result.error("预约不存在");
+            }
+            resolvedAppointmentTypeId = appointment.getAppointmentTypeId();
+        }
+
+        // ② 查询排班
         List<ScheduleDetailVO> schedules = scheduleService.getAllSchedules(
                 deptId, doctorId, startDate, endDate, "open");
 
-        // 过滤：只显示有剩余号源的排班
+        // ③ lambda 里只用 final 变量
+        final Integer finalAppointmentTypeId = resolvedAppointmentTypeId;
+
         List<ScheduleDetailVO> availableSchedules = schedules.stream()
-                .filter(schedule -> schedule.getAvailableSlots() > 0)
-                .filter(schedule -> {
-                    // 如果指定了时间段，进行过滤
-                    if (timeSlot != null) {
-                        return schedule.getTimeSlot().equals(timeSlot);
-                    }
-                    return true;
-                })
+                .filter(s -> s.getAvailableSlots() > 0)
+                .filter(s -> timeSlot == null || timeSlot.equals(s.getTimeSlot()))
+                .filter(s -> finalAppointmentTypeId == null
+                        || finalAppointmentTypeId.equals(s.getAppointmentTypeId()))
                 .toList();
 
         return Result.success(availableSchedules);
     }
 
-    /**
-     * 查询指定科室某一天的可预约号源
-     * 常用于患者选择具体就诊日期
-     *
-     * @param deptId 科室ID
-     * @param date   就诊日期
-     * @return 当天该科室所有可预约的排班
-     */
     @GetMapping("/available-schedules/dept/{deptId}")
     public Result<List<ScheduleDetailVO>> getAvailableSchedulesByDept(
             @PathVariable Integer deptId,
-            @RequestParam LocalDate date) {
+            @RequestParam LocalDate date,
+            @RequestParam(required = false) Integer appointmentTypeId,
+            @RequestParam(required = false) Long appointmentId) {
 
+        // ① 先算“最终号别”
+        Integer resolvedAppointmentTypeId = appointmentTypeId;
+
+        if (appointmentId != null) {
+            Appointment appointment = appointmentService.getById(appointmentId);
+            if (appointment == null) {
+                return Result.error("预约不存在");
+            }
+            resolvedAppointmentTypeId = appointment.getAppointmentTypeId();
+        }
+
+        // ② 查询科室排班
         List<ScheduleDetailVO> schedules = scheduleService.getDepartmentSchedules(
                 deptId, date, date);
 
-        // 过滤：只显示状态为open且有剩余号源的排班
+        // ③ lambda 只读 final 变量
+        final Integer finalAppointmentTypeId = resolvedAppointmentTypeId;
+
         List<ScheduleDetailVO> availableSchedules = schedules.stream()
-                .filter(schedule -> "open".equals(schedule.getStatus()))
-                .filter(schedule -> schedule.getAvailableSlots() > 0)
+                .filter(s -> "open".equals(s.getStatus()))
+                .filter(s -> s.getAvailableSlots() > 0)
+                .filter(s -> finalAppointmentTypeId == null
+                        || finalAppointmentTypeId.equals(s.getAppointmentTypeId()))
                 .toList();
 
         return Result.success(availableSchedules);
     }
+
 
     /**
      * 查询指定医生全部号源
@@ -451,9 +462,11 @@ public class PatientAppointmentController {
     public Result<List<ScheduleDetailVO>> getAvailableSchedulesByDoctor(
             @PathVariable Long doctorId,
             @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate) {
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false) Integer appointmentTypeId,
+            @RequestParam(required = false) Long appointmentId) {
 
-        // 设置默认日期范围：从今天开始到14天后
+        // 默认日期范围
         if (startDate == null) {
             startDate = LocalDate.now();
         }
@@ -461,17 +474,34 @@ public class PatientAppointmentController {
             endDate = startDate.plusDays(14);
         }
 
+        // ① 如果传了 appointmentId，就用原预约的号别
+        Integer resolvedAppointmentTypeId = appointmentTypeId;
+
+        if (appointmentId != null) {
+            Appointment appointment = appointmentService.getById(appointmentId);
+            if (appointment == null) {
+                return Result.error("预约不存在");
+            }
+            resolvedAppointmentTypeId = appointment.getAppointmentTypeId();
+        }
+
+        // ② 查询医生排班
         List<ScheduleDetailVO> schedules = scheduleService.getDoctorSchedules(
                 doctorId, startDate, endDate);
 
-        // 过滤：只显示状态为open且有剩余号源的排班
+        // ③ 过滤：open + 有号 + 同号别
+        final Integer finalAppointmentTypeId = resolvedAppointmentTypeId;
+
         List<ScheduleDetailVO> availableSchedules = schedules.stream()
-                .filter(schedule -> "open".equals(schedule.getStatus()))
-                .filter(schedule -> schedule.getAvailableSlots() > 0)
+                .filter(s -> "open".equals(s.getStatus()))
+                .filter(s -> s.getAvailableSlots() > 0)
+                .filter(s -> finalAppointmentTypeId == null
+                        || finalAppointmentTypeId.equals(s.getAppointmentTypeId()))
                 .toList();
 
         return Result.success(availableSchedules);
     }
+
 
     /**
      * 修改预约（改期、改时间段）

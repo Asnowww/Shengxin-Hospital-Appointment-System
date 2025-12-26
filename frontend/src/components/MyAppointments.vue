@@ -49,7 +49,7 @@
             <h4>基本信息</h4>
             <div class="detail-row">
               <span class="label">医生：</span>
-              <span class="value">{{ selectedRecord.doctorName }} - {{ selectedRecord.doctorTitle }}</span>
+              <span class="value">{{ selectedRecord.doctorName }} - {{ selectedRecord.deptName }}-{{ selectedRecord.doctorTitle }}</span>
             </div>
             <div class="detail-row">
               <span class="label">患者：</span>
@@ -175,9 +175,11 @@
           </button>
           
           <button 
-            v-if="activeStatus === 'current' && selectedRecord.status !== 'cancelled' && selectedRecord.status !== 'waiting_action' && selectedRecord.status !== 'pending_confirm'"
+            v-if="activeStatus === 'current' && selectedRecord.status !== 'cancelled' && selectedRecord.status !== 'waiting_action' && selectedRecord.status !== 'pending_confirm' && selectedRecord.status !== 'pending'"
             @click="handleChangeAppointment(selectedRecord)"
-            class="action-btn secondary">
+            :disabled="selectedRecord.sourceStatus === 'converted'"
+            :class="['action-btn secondary', { 'disabled': (selectedRecord.sourceStatus === 'converted') }]"
+            :title="selectedRecord.sourceStatus === 'converted' ? '该预约不可改约' : ''">
             改约
           </button>
           
@@ -522,7 +524,8 @@ function handleChangeAppointment(record) {
   rescheduleInfo.value = {
     currentDeptId: record.deptId,
     currentDoctorName: record.doctorName,
-    currentTime: record.appointmentTime
+    currentTime: record.appointmentTime,
+    currentAppointmentTypeName: record.typeName
   }
   rescheduleModalVisible.value = true
 }

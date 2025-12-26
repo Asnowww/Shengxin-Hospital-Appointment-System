@@ -19,7 +19,11 @@
             <div class="info-label">当前预约</div>
             <div class="info-content">
               <span class="info-doctor">{{ appointmentInfo.currentDoctorName }}</span>
+              <span class="info-appointmentType">{{ appointmentInfo.currentAppointmentTypeName }}</span>
               <span class="info-time">{{ appointmentInfo.currentTime }}</span>
+            </div>
+            <div class="same-type-hint">
+              ⚠️ 改约仅支持同一号别（如普通 / 专家 / 特需）
             </div>
           </div>
 
@@ -42,7 +46,6 @@
                   <option value="">全部</option>
                   <option value="0">上午</option>
                   <option value="1">下午</option>
-                  <option value="2">晚上</option>
                 </select>
               </div>
             </div>
@@ -56,10 +59,23 @@
                     :key="doc.doctorId" 
                     :value="doc.doctorId"
                   >
-                    {{ doc.doctorName }} - {{ doc.title }}
+                    {{ doc.doctorName }} - {{ doc.deptName }} - {{ doc.title }}
                   </option>
                 </select>
               </div>
+              <div class="filter-item full-width">
+    <label>科室</label>
+    <select v-model="filterDept" class="select-input">
+      <option value="">全部科室</option>
+      <option
+        v-for="dept in availableDepts"
+        :key="dept.deptId"
+        :value="dept.deptId"
+      >
+        {{ dept.deptName }}
+      </option>
+    </select>
+  </div>
             </div>
           </div>
 
@@ -90,6 +106,7 @@
                   <div class="schedule-doctor">
                     <span class="doctor-name">{{ schedule.doctorName }}</span>
                     <span class="doctor-title">{{ schedule.doctorTitle }}</span>
+                    <span class="appointment-type-tag">{{ schedule.appointmentTypeName }}</span>
                   </div>
                   <div class="schedule-time">
                     <span class="date">{{ formatDate(schedule.workDate) }}</span>
@@ -149,6 +166,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'success'])
+// 科室筛选
+const filterDept = ref('')
 
 // 状态
 const loading = ref(false)
@@ -179,28 +198,48 @@ const availableDoctors = computed(() => {
       doctorMap.set(s.doctorId, {
         doctorId: s.doctorId,
         doctorName: s.doctorName,
-        title: s.doctorTitle
+        title: s.doctorTitle,
+        deptName:s.deptName
       })
     }
   })
   return Array.from(doctorMap.values())
 })
 
+// 可选科室列表（从号源中提取）
+const availableDepts = computed(() => {
+  const deptMap = new Map()
+  schedules.value.forEach(s => {
+    if (s.availableSlots > 0 && !deptMap.has(s.deptId)) {
+      deptMap.set(s.deptId, {
+        deptId: s.deptId,
+        deptName: s.deptName
+      })
+    }
+  })
+  return Array.from(deptMap.values())
+})
+
 // 筛选后的号源
 const filteredSchedules = computed(() => {
   return schedules.value.filter(s => {
-    // 只显示有余量的号源
+    // 1. 基础状态过滤：只显示有余量的号源
     if (s.availableSlots <= 0) return false
     
-    // 日期筛选
+    // 2. 核心逻辑：同级别改约校验
+    // 假设 props.appointmentInfo 中包含了当前预约的 appointmentTypeName 或 ID
+    // 如果后端没给，建议在打开弹窗请求号源前，先确认当前预约的级别
+    if (props.appointmentInfo.currentAppointmentTypeName && 
+        s.appointmentTypeName !== props.appointmentInfo.currentAppointmentTypeName) {
+      return false
+    }
+
+    // 3. 既有的 UI 筛选条件
     if (filterDate.value && s.workDate !== filterDate.value) return false
-    
-    // 时间段筛选
     if (filterTimeSlot.value !== '' && String(s.timeSlot) !== filterTimeSlot.value) return false
-    
-    // 医生筛选
     if (filterDoctor.value && s.doctorId !== filterDoctor.value) return false
-    
+    if (filterDept.value && s.deptId !== filterDept.value) return false
+
     return true
   })
 })
@@ -220,7 +259,8 @@ async function fetchAvailableSchedules() {
     
     const params = {
       startDate: currentMinDate,
-      endDate: currentMaxDate
+      endDate: currentMaxDate,
+      appointmentId: props.appointmentId
     }
     
     console.log('[RescheduleModal] 请求号源参数:', params)
@@ -290,6 +330,7 @@ function handleClose() {
   filterDate.value = ''
   filterTimeSlot.value = ''
   filterDoctor.value = ''
+  filterDept.value = ''
   emit('close')
 }
 
@@ -340,6 +381,26 @@ watch(() => props.visible, (newVal) => {
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   animation: modalSlideIn 0.3s ease;
+}
+
+/* 新增号别标签样式 */
+.appointment-type-tag {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  background: #e6fffa; /* 浅绿色背景 */
+  color: #2c7a7b; /* 深青色文字 */
+  border: 1px solid #81e6d9;
+  border-radius: 4px;
+  margin-left: 4px;
+  font-weight: 500;
+}
+
+/* 调整医生信息容器，防止溢出 */
+.schedule-doctor {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap; /* 手机端自动换行 */
 }
 
 @keyframes modalSlideIn {
@@ -405,7 +466,10 @@ watch(() => props.visible, (newVal) => {
   font-weight: 600;
   color: #2d3748;
 }
-
+.info-appointmentType {
+  font-size: 0.875rem;
+  color: #4a5568;
+}
 .info-time {
   font-size: 0.875rem;
   color: #4a5568;
@@ -675,6 +739,13 @@ watch(() => props.visible, (newVal) => {
 .modal-fade-leave-to {
   opacity: 0;
 }
+
+.same-type-hint {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #718096;
+}
+
 
 /* 响应式 */
 @media (max-width: 480px) {

@@ -160,15 +160,28 @@ const sendMessage = async () => {
       .slice(0, -2)
       .map(m => ({ role: m.role, content: m.content }))
 
-    const response = await axios.post('https://localhost:8443/api/consultation/chat', {
-      message: text,
-      history: history
-    },
-    {
-      headers: token
-        ? { Authorization: `Bearer ${token}` }
-        : {}
-    })
+    // const response = await axios.post('https://localhost:8443/api/consultation/chat', {
+    //   message: text,
+    //   history: history
+    // },
+    // {
+    //   headers: token
+    //     ? { Authorization: `Bearer ${token}` }
+    //     : {}
+    // })
+    const response = await axios.post(
+      '/api/consultation/chat',
+      {
+        message: text,
+        history
+      },
+      {
+        headers: token
+          ? { Authorization: `Bearer ${token}` }
+          : {}
+      }
+    )
+
 
     messages.value.pop() // Remove loading
 
