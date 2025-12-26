@@ -1,7 +1,7 @@
 <template>
   <div class="navigation">
     <div class="logo-title" @click="goToHomePage">
-      医院预约系统
+      圣心医院预约系统
     </div>
 
     <div class="items">
