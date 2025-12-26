@@ -7,60 +7,89 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import static org.springframework.security.config.Customizer.withDefaults;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import java.util.List;
 
 @Configuration
 public class SecurityConfig {
+
+    /**
+     * Spring Security 主过滤链
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(withDefaults())
+                // ✅ 关键：让 Security 使用下面定义的 CORS 规则
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // 开发阶段关闭 CSRF
                 .csrf(AbstractHttpConfigurer::disable)
+
+                // 权限策略（开发阶段全放行）
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ 所有认证相关接口全部放行
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/captcha/**",
                                 "/public/**",
                                 "/error"
                         ).permitAll()
-
-                        // ✅ 开发阶段：API 全放行
                         .requestMatchers("/api/**").permitAll()
-
-                        // 其他一切
                         .anyRequest().permitAll()
                 )
+
+                // 关闭默认认证方式
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable);
 
         return http.build();
     }
 
+    /**
+     * ✅ CORS 核心配置（Spring Security 专用）
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
 
+        // ⚠️ allowCredentials(true) 时，必须使用 allowedOriginPatterns
+        config.setAllowedOriginPatterns(List.of(
+                "https://localhost:5173",
+                "https://127.0.0.1:5173",
+                "https://10.*.*.*:5173",
+                "https://192.168.*.*:5173"
+        ));
+
+        config.setAllowedMethods(List.of(
+                "GET",
+                "POST",
+                "PUT",
+                "DELETE",
+                "OPTIONS"
+        ));
+
+        config.setAllowedHeaders(List.of("*"));
+
+        // 如果前端使用 Cookie / Authorization
+        config.setAllowCredentials(true);
+
+        // 缓存预检请求 1 小时
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+
+    /**
+     * 密码加密器
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
-    }
-
-    // ✅ CORS 正确写法（HTTPS）
-    @Bean
-    public WebMvcConfigurer corsConfigurer() {
-        return new WebMvcConfigurer() {
-            @Override
-            public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/**")
-                        .allowedOrigins(
-                                "https://localhost:5173" // ✅ 注意是 https
-                        )
-                        .allowedMethods("*")
-                        .allowedHeaders("*")
-                        .allowCredentials(true);
-            }
-        };
     }
 }
