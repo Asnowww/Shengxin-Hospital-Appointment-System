@@ -18,6 +18,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0', // 允许局域网内其他设备访问
     https: true,
     //secure: false,
     port: 5173, // 默认是 5173，可以改
