@@ -48,6 +48,12 @@
               去认证
             </button>
           </div>
+          <div
+            v-if="profile.status === 'rejected' && profile.rejectionReason"
+            class="reject-reason"
+          >
+            审核未通过原因：{{ profile.rejectionReason }}
+          </div>
         </div>
 
         <div class="form-group">
@@ -212,6 +218,7 @@ const profile = reactive({
   username: '',
   patientAccount: '',
   status: '',
+  rejectionReason: '', 
   birthDate: '',
   gender: '',
   bookingStatus:'',
@@ -568,6 +575,12 @@ h2 {
 
 .verify-btn:hover {
   background-color: #c53030;
+}
+
+.reject-reason {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  color: #718096;
 }
 
 @media (max-width: 768px) {

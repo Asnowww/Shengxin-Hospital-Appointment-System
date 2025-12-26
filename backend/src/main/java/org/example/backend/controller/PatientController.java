@@ -1,11 +1,14 @@
 package org.example.backend.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import org.example.backend.dto.PatientUpdateParam;
 import org.example.backend.dto.Result;
 import org.example.backend.pojo.User;
+import org.example.backend.pojo.UserVerification;
 import org.example.backend.service.PatientService;
 import org.example.backend.service.UserService;
+import org.example.backend.service.UserVerificationService;
 import org.example.backend.util.TokenUtil;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +28,9 @@ public class PatientController {
 
     @Resource
     private TokenUtil tokenUtil; // 注入工具类
+
+    @Resource
+    private UserVerificationService userVerificationService;
 
     /**
      * 使用 token 获取患者个人信息
@@ -52,6 +58,21 @@ public class PatientController {
                 return new Result<>(404, "患者信息不存在", null);
 
             Map<String, Object> data = new HashMap<>();
+            // 查询最近一次认证记录（用于返回审核失败原因）
+            UserVerification verification = userVerificationService.getOne(
+                    new QueryWrapper<UserVerification>()
+                            .eq("user_id", userId)
+                            .orderByDesc("created_at")
+                            .last("limit 1")
+            );
+
+            if (verification != null
+                    && verification.getStatus() == UserVerification.VerificationStatus.rejected) {
+                data.put("rejectionReason", verification.getRejectionReason());
+            } else {
+                data.put("rejectionReason", null);
+            }
+
             data.put("username", user.getUsername());
             data.put("gender", user.getGender());
             data.put("phone", user.getPhone());
