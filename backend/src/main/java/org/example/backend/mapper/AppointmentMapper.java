@@ -30,23 +30,22 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
             "WHERE appointment_id = #{appointmentId}")
     int updateStatusOnly(Appointment appointment);
 
-    /*
-    获取最大队列数（用于后台调剂时）
-     */
     default Integer getMaxQueueNumberByScheduleId(Long scheduleId) {
         QueryWrapper<Appointment> qw = new QueryWrapper<>();
-        qw.eq("schedule_id", scheduleId)
-                .select("MAX(queue_number) AS maxQueueNumber");
+        qw.select("MAX(queue_number)") // 无需别名，直接取值
+                .eq("schedule_id", scheduleId);
 
-        // 返回一个 Map
-        Map<String, Object> result = this.selectMaps(qw).stream().findFirst().orElse(null);
+        // selectObj 返回列表中的第一个字段对象
+        Object result = this.selectObjs(qw).stream()
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(0);
 
-        if (result == null) {
-            return 0;
+        if (result instanceof Number) {
+            return ((Number) result).intValue();
         }
 
-        Object val = result.get("maxQueueNumber");
-        return val == null ? 0 : ((Number) val).intValue();
+        return 0;
     }
 
     // 根据 scheduleId 查询挂号（可以按状态过滤）

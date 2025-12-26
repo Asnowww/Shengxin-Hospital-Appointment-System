@@ -218,7 +218,6 @@ public class ScheduleServiceImpl implements ScheduleService {
             if (param.getCancelReason() == null || param.getCancelReason().trim().isEmpty()) {
                 throw new RuntimeException("取消排班必须提供原因");
             }
-            // 这里会在后续处理受影响的患者
         }
 
         // 更新排班信息
@@ -262,8 +261,9 @@ public class ScheduleServiceImpl implements ScheduleService {
             ScheduleException exception = new ScheduleException();
             exception.setScheduleId(schedule.getScheduleId());
             exception.setDoctorId(schedule.getDoctorId());
-            exception.setStartDate(schedule.getWorkDate());
-            exception.setEndDate(schedule.getWorkDate());
+            //以下两个字段已从表中删除
+//            exception.setStartDate(schedule.getWorkDate());
+//            exception.setEndDate(schedule.getWorkDate());
             exception.setExceptionType("cancel_all");
             exception.setReason(param.getCancelReason());
             exception.setCreatedAt(LocalDateTime.now());
@@ -421,8 +421,9 @@ public class ScheduleServiceImpl implements ScheduleService {
         ScheduleException exception = new ScheduleException();
         exception.setScheduleId(schedule.getScheduleId());
         exception.setDoctorId(schedule.getDoctorId());
-        exception.setStartDate(schedule.getWorkDate());
-        exception.setEndDate(schedule.getWorkDate());
+        //以下字段已从表中删除
+//        exception.setStartDate(schedule.getWorkDate());
+//        exception.setEndDate(schedule.getWorkDate());
         exception.setExceptionType("special_add");
         exception.setExtraSlots(param.getExtraSlots());
         exception.setReason(param.getReason());
