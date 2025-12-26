@@ -138,13 +138,42 @@ function updateNavHeight() {
   if (navRef.value?.$el) navHeight.value = navRef.value.$el.offsetHeight + 20
 }
 
+
+//获取当前时段
+function getCurrentTimeSlot() {
+  const now = new Date()
+  const hour = now.getHours()
+
+  if (hour >= 8 && hour < 12) {
+    return 0 // 上午 8:00-12:00
+  } else if (hour >= 12 && hour < 18) {
+    return 1 // 下午 12:00-18:00
+  } else if (hour >= 18 && hour < 24) {
+    return 2 // 晚上 18:00-24:00
+  }
+  return -1 // 非工作时间
+}
+
+//过滤只显示当前时段的排班
 const cards = computed(() => {
-  return [...schedules.value].sort((a, b) => {
-    const da = new Date(a.workDate)
-    const db = new Date(b.workDate)
-    if (da.getTime() !== db.getTime()) return da - db
-    return (a.timeSlot ?? 0) - (b.timeSlot ?? 0)
-  })
+  const currentSlot = getCurrentTimeSlot()
+
+  return [...schedules.value]
+      .filter(schedule => {
+        // 只显示今天且当前时段的排班
+        const scheduleDate = new Date(schedule.workDate)
+        const today = new Date()
+        const isToday = scheduleDate.toDateString() === today.toDateString()
+        const isCurrentSlot = schedule.timeSlot === currentSlot
+
+        return isToday && isCurrentSlot
+      })
+      .sort((a, b) => {
+        const da = new Date(a.workDate)
+        const db = new Date(b.workDate)
+        if (da.getTime() !== db.getTime()) return da - db
+        return (a.timeSlot ?? 0) - (b.timeSlot ?? 0)
+      })
 })
 
 function statusLabel(status) {
