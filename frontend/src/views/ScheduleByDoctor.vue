@@ -243,19 +243,36 @@ const dateOptions = ref([])
 
 const filteredSchedules = computed(() => {
   const todayStr = new Date().toISOString().split('T')[0]
-  const now = new Date()
+  const now = new Date(
+    new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
+  )
   const hours = now.getHours()
 
-  let filtered = schedules.value.filter(s =>
-    s.workDate === selectedDate.value && s.status !== 'cancelled'
-  )
+  let filtered = schedules.value.filter(s => {
+    // ======= 核心修复：永远不显示晚间排班 =======
+    if (
+      s.timeSlot === 2 ||
+      s.timeSlotName?.includes('晚') ||
+      s.timeSlotName?.includes('夜')
+    ) {
+      return false
+    }
+    // ==========================================
+
+    if (s.status === 'cancelled') return false
+    if (s.workDate !== selectedDate.value) return false
+    return true
+  })
+
+  // ===== 以下是“当天时间窗口”规则（仍然保留） =====
 
   if (selectedDate.value === todayStr) {
-
+    // 16:00 后，当天全部不可预约
     if (hours >= ALLDAY_DEADLINE_HOUR) {
       return []
     }
 
+    // 11:00 后，当天禁止上午
     if (hours >= MORNING_DEADLINE_HOUR) {
       filtered = filtered.filter(
         s => !(/上午|AM/i.test(s.timeSlotName))
@@ -265,6 +282,7 @@ const filteredSchedules = computed(() => {
 
   return filtered
 })
+
 
 watch(showPaymentModal, async (newVal) => {
   if (newVal === false) {
