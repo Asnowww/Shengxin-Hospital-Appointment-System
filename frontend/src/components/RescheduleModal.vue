@@ -19,6 +19,7 @@
             <div class="info-label">当前预约</div>
             <div class="info-content">
               <span class="info-doctor">{{ appointmentInfo.currentDoctorName }}</span>
+              <span class="info-appointmentType">{{ appointmentInfo.currentAppointmentTypeName }}</span>
               <span class="info-time">{{ appointmentInfo.currentTime }}</span>
             </div>
             <div class="same-type-hint">
@@ -45,7 +46,6 @@
                   <option value="">全部</option>
                   <option value="0">上午</option>
                   <option value="1">下午</option>
-                  <option value="2">晚上</option>
                 </select>
               </div>
             </div>
@@ -106,6 +106,7 @@
                   <div class="schedule-doctor">
                     <span class="doctor-name">{{ schedule.doctorName }}</span>
                     <span class="doctor-title">{{ schedule.doctorTitle }}</span>
+                    <span class="appointment-type-tag">{{ schedule.appointmentTypeName }}</span>
                   </div>
                   <div class="schedule-time">
                     <span class="date">{{ formatDate(schedule.workDate) }}</span>
@@ -222,18 +223,21 @@ const availableDepts = computed(() => {
 // 筛选后的号源
 const filteredSchedules = computed(() => {
   return schedules.value.filter(s => {
-    // 只显示有余量的号源
+    // 1. 基础状态过滤：只显示有余量的号源
     if (s.availableSlots <= 0) return false
     
-    // 日期筛选
+    // 2. 核心逻辑：同级别改约校验
+    // 假设 props.appointmentInfo 中包含了当前预约的 appointmentTypeName 或 ID
+    // 如果后端没给，建议在打开弹窗请求号源前，先确认当前预约的级别
+    if (props.appointmentInfo.currentAppointmentTypeName && 
+        s.appointmentTypeName !== props.appointmentInfo.currentAppointmentTypeName) {
+      return false
+    }
+
+    // 3. 既有的 UI 筛选条件
     if (filterDate.value && s.workDate !== filterDate.value) return false
-    
-    // 时间段筛选
     if (filterTimeSlot.value !== '' && String(s.timeSlot) !== filterTimeSlot.value) return false
-    
-    // 医生筛选
     if (filterDoctor.value && s.doctorId !== filterDoctor.value) return false
-    
     if (filterDept.value && s.deptId !== filterDept.value) return false
 
     return true
@@ -379,6 +383,26 @@ watch(() => props.visible, (newVal) => {
   animation: modalSlideIn 0.3s ease;
 }
 
+/* 新增号别标签样式 */
+.appointment-type-tag {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  background: #e6fffa; /* 浅绿色背景 */
+  color: #2c7a7b; /* 深青色文字 */
+  border: 1px solid #81e6d9;
+  border-radius: 4px;
+  margin-left: 4px;
+  font-weight: 500;
+}
+
+/* 调整医生信息容器，防止溢出 */
+.schedule-doctor {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap; /* 手机端自动换行 */
+}
+
 @keyframes modalSlideIn {
   from {
     opacity: 0;
@@ -442,7 +466,10 @@ watch(() => props.visible, (newVal) => {
   font-weight: 600;
   color: #2d3748;
 }
-
+.info-appointmentType {
+  font-size: 0.875rem;
+  color: #4a5568;
+}
 .info-time {
   font-size: 0.875rem;
   color: #4a5568;
