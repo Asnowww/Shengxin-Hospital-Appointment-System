@@ -65,13 +65,17 @@ export const createChatSession = async (patientId, doctorId, appointmentId = nul
 
 /**
  * 获取某个会话的聊天记录（分页简单按第一页 50 条）
- * 对应后端：GET /api/chat/messages?sessionId=&page=&size=
+ * 对应后端：GET /api/chat/messages?sessionId=&userId=&page=&size=
  * 返回 ChatMessage 分页；这里展开 records 并映射为 ChatRoom 可用的结构
  */
-export const fetchChatHistory = async (sessionId, page = 1, size = 50) => {
+export const fetchChatHistory = async (sessionId, userId = null, page = 1, size = 50) => {
+    // 自动获取 userId（从 localStorage 获取当前登录用户）
+    const currentUserId = userId || localStorage.getItem('doctorId') || localStorage.getItem('patientId')
+
     const res = await axios.get('/api/chat/messages', {
         params: {
             sessionId,
+            userId: currentUserId,
             page,
             size
         }

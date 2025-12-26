@@ -2,7 +2,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     environment:
       SPRING_PROFILES_ACTIVE: docker
       MYSQL_HOST: ${MYSQL_HOST:-mysql}
@@ -15,11 +15,6 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       UPLOAD_DIR: ${UPLOAD_DIR:-/data/uploads/verifications}
       FILE_ACCESS_PATH: ${FILE_ACCESS_PATH:-/static/verifications/}
-      MAIL_HOST: ${MAIL_HOST:-smtp.qq.com}
-      MAIL_PORT: ${MAIL_PORT:-587}
-      MAIL_USERNAME: ${MAIL_USERNAME:-2919646470@qq.com}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-rsiljsatwoajdgji}
-      SERVER_PORT: ${SERVER_PORT:-8080}
     depends_on:
       mysql:
         condition: service_healthy
@@ -34,12 +29,12 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     depends_on:
       backend:
         condition: service_started
     ports:
-      - "8081:80"
+      - "80:80"
     restart: unless-stopped
 
   mysql:

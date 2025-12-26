@@ -32,6 +32,12 @@ export default defineConfig({
         changeOrigin: true,
         secure: false, // 忽略自签名证书
       },
+      '/ws': {
+        target: 'https://localhost:8443', // WebSocket 也代理到后端
+        changeOrigin: true,
+        secure: false,
+        ws: true, // 关键：启用 WebSocket 代理
+      },
     },
   },
 })

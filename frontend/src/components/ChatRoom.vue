@@ -78,13 +78,23 @@ watch(
     if (newVal !== oldVal && newVal) {
       // 关闭旧连接
       if (socket.value && socket.value.readyState === WebSocket.OPEN) {
-        closingBySelf.value = true
-        socket.value.close()
+        closingBySelf.value = true;
+        // 等待旧连接关闭后再建立新连接，避免竞态条件
+        socket.value.onclose = () => {
+          isSocketOpen.value = false;
+          console.log('WebSocket 旧连接已关闭（切换会话）');
+          // 重置状态并建立新连接
+          closingBySelf.value = false;
+          isChatEnded.value = (props.sessionStatus === 'closed');
+          setupWebSocket();
+        };
+        socket.value.close();
+      } else {
+        // 如果没有旧连接，直接建立新连接
+        closingBySelf.value = false;
+        isChatEnded.value = (props.sessionStatus === 'closed');
+        setupWebSocket();
       }
-      // 重置状态并建立新连接
-      closingBySelf.value = false
-      isChatEnded.value = (props.sessionStatus === 'closed')
-      setupWebSocket()
     }
   }
 )
@@ -100,31 +110,43 @@ watch(
 );
 
 const buildWebSocketUrl = () => {
-    // 优先使用环境变量指定的地址，避免前后端端口不一致问题
-    // 例如：VITE_WS_BASE_URL=ws://localhost:8080
-    const base =
-        import.meta.env.VITE_WS_BASE_URL ||
-        `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:8080`;
+    // 优先使用环境变量指定的地址
+    // 例如：VITE_WS_BASE_URL=wss://yourdomain.com 或 ws://localhost:8080
+    if (import.meta.env.VITE_WS_BASE_URL) {
+        const userId = encodeURIComponent(props.currentUserId);
+        const role = encodeURIComponent(props.currentRole);
+        return `${import.meta.env.VITE_WS_BASE_URL}/ws/chat?userId=${userId}&role=${role}`;
+    }
+    
+    // 无论开发还是生产环境，都使用当前页面的 host
+    // 开发环境：通过 Vite proxy 代理 /ws -> 后端
+    // 生产环境：通过 nginx 代理 /ws -> 后端
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host; // 包含端口（如 localhost:5173 或生产域名）
+    
     const userId = encodeURIComponent(props.currentUserId);
     const role = encodeURIComponent(props.currentRole);
-    return `${base}/ws/chat?userId=${userId}&role=${role}`;
+    return `${protocol}//${host}/ws/chat?userId=${userId}&role=${role}`;
 };
 
 const setupWebSocket = () => {
     try {
         const url = buildWebSocketUrl();
+        console.log('[WS Debug] 正在建立 WebSocket 连接:', url);
+        console.log('[WS Debug] currentUserId:', props.currentUserId, 'role:', props.currentRole);
         socket.value = new WebSocket(url);
 
         socket.value.onopen = () => {
             isSocketOpen.value = true;
-            console.log('WebSocket 连接已建立:', url);
+            console.log('[WS Debug] WebSocket 连接已建立:', url);
         };
 
-        socket.value.onclose = () => {
+        socket.value.onclose = (event) => {
             isSocketOpen.value = false;
-            console.log('WebSocket 连接已关闭');
+            console.log('[WS Debug] WebSocket 连接已关闭, code:', event.code, 'reason:', event.reason, 'wasClean:', event.wasClean);
+            console.log('[WS Debug] closingBySelf:', closingBySelf.value, 'isChatEnded:', isChatEnded.value);
             // 如果不是本端主动关闭，则提示“对方已关闭聊天”
-            if (!closingBySelf.value) {
+            if (!closingBySelf.value && !isChatEnded.value) {
                 isChatEnded.value = true;
                 const systemMsg = {
                     id: Date.now(),
@@ -139,7 +161,7 @@ const setupWebSocket = () => {
         };
 
         socket.value.onerror = (err) => {
-            console.error('WebSocket 发生错误:', err);
+            console.error('[WS Debug] WebSocket 发生错误:', err);
         };
 
         socket.value.onmessage = (event) => {
@@ -256,6 +278,8 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    // 组件卸载时关闭连接，标记为本端主动关闭，避免触发"对方已关闭"提示
+    closingBySelf.value = true;
     if (socket.value) {
         socket.value.close();
     }
