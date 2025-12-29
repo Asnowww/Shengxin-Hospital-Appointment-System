@@ -26,37 +26,41 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/api/captcha/**",
                                 "/public/**",
-                                "/error"
-                        ).permitAll()
+                                "/error")
+                        .permitAll()
 
                         // ✅ 开发阶段：API 全放行
                         .requestMatchers("/api/**").permitAll()
 
                         // 其他一切
-                        .anyRequest().permitAll()
-                )
+                        .anyRequest().permitAll())
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable);
 
         return http.build();
     }
 
-
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // ✅ CORS 正确写法（HTTPS）
+    // ✅ CORS 正确写法（支持 HTTPS + 局域网访问）
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins(
-                                "https://localhost:5173" // ✅ 注意是 https
-                        )
+                        // 使用 allowedOriginPatterns 支持通配符，允许所有局域网 IP
+                        .allowedOriginPatterns(
+                                "https://localhost:*",
+                                "https://127.0.0.1:*",
+                                "https://10.*.*.*:*", // 局域网 10.x.x.x
+                                "https://192.168.*.*:*", // 局域网 192.168.x.x
+                                "https://172.16.*.*:*", // 局域网 172.16.x.x - 172.31.x.x
+                                "http://localhost:*", // 开发环境可能用 HTTP
+                                "http://127.0.0.1:*")
                         .allowedMethods("*")
                         .allowedHeaders("*")
                         .allowCredentials(true);
